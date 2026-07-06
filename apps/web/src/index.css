@@ -1,0 +1,91 @@
+@import "tailwindcss";
+
+:root {
+  --studio-bg: #FAFAFA;
+  --studio-panel: #FFFFFF;
+  --studio-border: #E5E5E5;
+  --studio-subtle-bg: #F5F5F5;
+  --studio-text: #171717;
+  --studio-text-secondary: #404040;
+  --studio-text-muted: #A3A3A3;
+  --studio-accent: #F2A341;
+  --studio-accent-hover: #D48F29;
+  --studio-accent-soft: rgba(242, 163, 65, 0.1);
+  --studio-accent2: #2DD4BF;
+  --studio-accent2-hover: #14B8A6;
+  --studio-accent2-soft: rgba(45, 212, 191, 0.1);
+}
+
+.dark {
+  --studio-bg: #0A0A0A;
+  --studio-panel: #171717;
+  --studio-border: #262626;
+  --studio-subtle-bg: #262626;
+  --studio-text: #F5F5F5;
+  --studio-text-secondary: #D4D4D4;
+  --studio-text-muted: #737373;
+  --studio-accent: #F2A341;
+  --studio-accent-hover: #E08B26;
+  --studio-accent-soft: rgba(242, 163, 65, 0.14);
+  --studio-accent2: #2DD4BF;
+  --studio-accent2-hover: #14B8A6;
+  --studio-accent2-soft: rgba(45, 212, 191, 0.13);
+}
+
+@theme {
+  --color-primary: var(--studio-accent);
+  --color-primary-hover: var(--studio-accent-hover);
+  --color-bg-soft: var(--studio-accent-soft);
+
+  --color-neutral-250: #dadada;
+  --color-neutral-350: #b3b3b3;
+  --color-neutral-405: #a3a3a3;
+  --color-neutral-450: #8c8c8c;
+  --color-neutral-455: #858585;
+  --color-neutral-750: #333333;
+  --color-neutral-850: #1f1f1f;
+  --color-neutral-905: #121212;
+  --color-violet-50: var(--studio-accent-soft);
+  --color-violet-100: var(--studio-accent-soft);
+  --color-violet-200: var(--studio-accent-soft);
+  --color-violet-400: var(--studio-accent2);
+  --color-violet-500: var(--studio-accent);
+  --color-violet-600: var(--studio-accent-hover);
+  --color-violet-605: var(--studio-accent-hover);
+  --color-violet-700: var(--studio-accent-hover);
+  --font-serif: "Fraunces", Georgia, serif;
+}
+
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;0,9..144,600;1,9..144,500&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+/* Custom scrollbar configurations */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.16);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.28);
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+

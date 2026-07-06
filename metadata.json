@@ -1,0 +1,11 @@
+{
+  "name": "Video Voice Translator",
+  "description": "Transcribe video content, translate it into multiple languages, and generate natural-sounding speech from the translations.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

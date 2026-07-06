@@ -1,0 +1,16 @@
+{
+  "name": "@video-voice-translator/types",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@video-voice-translator/config": "workspace:*",
+    "typescript": "~5.8.2"
+  }
+}

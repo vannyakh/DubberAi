@@ -1,0 +1,42 @@
+{
+  "name": "@video-voice-translator/desktop",
+  "version": "0.0.0",
+  "private": true,
+  "main": "dist-electron/main.cjs",
+  "scripts": {
+    "dev": "vite --port=3001",
+    "dev:app": "npm run build:electron && concurrently -k \"vite --port=3001\" \"wait-on http://localhost:3001 && cross-env VITE_DEV_SERVER_URL=http://localhost:3001 electron .\"",
+    "build": "npm run build:electron && vite build",
+    "build:electron": "esbuild electron/main.ts electron/preload.ts --bundle --platform=node --external:electron --outdir=dist-electron --format=cjs --out-extension:.js=.cjs",
+    "start": "electron .",
+    "clean": "rm -rf dist dist-electron",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@video-voice-translator/captions": "workspace:*",
+    "@video-voice-translator/player": "workspace:*",
+    "@video-voice-translator/timeline": "workspace:*",
+    "@video-voice-translator/types": "workspace:*",
+    "@video-voice-translator/ui": "workspace:*",
+    "@video-voice-translator/utils": "workspace:*",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "zustand": "^5.0.14"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.1.14",
+    "@types/node": "^22.14.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@video-voice-translator/config": "workspace:*",
+    "@vitejs/plugin-react": "^5.0.4",
+    "concurrently": "^9.1.2",
+    "cross-env": "^7.0.3",
+    "electron": "^33.3.1",
+    "esbuild": "^0.24.2",
+    "tailwindcss": "^4.1.14",
+    "typescript": "~5.8.2",
+    "vite": "^6.2.0",
+    "wait-on": "^8.0.2"
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "extends": "@video-voice-translator/config/tsconfig/base.json",
+  "compilerOptions": {
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": ["src"]
+}

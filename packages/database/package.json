@@ -1,0 +1,20 @@
+{
+  "name": "@video-voice-translator/database",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@video-voice-translator/types": "workspace:*",
+    "firebase": "^12.15.0"
+  },
+  "devDependencies": {
+    "@video-voice-translator/config": "workspace:*",
+    "typescript": "~5.8.2"
+  }
+}

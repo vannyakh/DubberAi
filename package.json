@@ -1,0 +1,20 @@
+{
+  "name": "video-voice-translator",
+  "private": true,
+  "version": "0.0.0",
+  "scripts": {
+    "dev": "turbo dev --filter=@video-voice-translator/web",
+    "dev:all": "turbo dev",
+    "dev:api": "turbo dev --filter=@video-voice-translator/api",
+    "dev:desktop": "pnpm --filter @video-voice-translator/desktop dev:app",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "clean": "turbo clean",
+    "check-env": "node scripts/check-env.mjs"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.4",
+    "typescript": "~5.8.2"
+  },
+  "packageManager": "pnpm@9.15.9"
+}

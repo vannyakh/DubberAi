@@ -1,0 +1,7 @@
+{
+  "extends": "@video-voice-translator/config/tsconfig/base.json",
+  "compilerOptions": {
+    "types": ["node"]
+  },
+  "include": ["src", "electron"]
+}
