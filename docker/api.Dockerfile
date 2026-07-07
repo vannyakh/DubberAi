@@ -12,7 +12,7 @@ COPY . .
 RUN [ -f rust/wasm/pkg/package.json ] || \
     (mkdir -p rust/wasm/pkg && echo '{"name":"opencut-wasm","version":"0.2.10"}' > rust/wasm/pkg/package.json)
 
-RUN pnpm install --frozen-lockfile --filter @dubbercute/api...
+RUN pnpm install --frozen-lockfile --filter @dubbercut/api...
 
 RUN cd apps/api && pnpm exec prisma generate
 

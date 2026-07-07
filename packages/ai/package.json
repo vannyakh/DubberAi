@@ -1,5 +1,5 @@
 {
-  "name": "@dubbercute/ai",
+  "name": "@dubbercut/ai",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -11,10 +11,10 @@
   },
   "dependencies": {
     "@google/genai": "^1.29.0",
-    "@dubbercute/types": "workspace:*"
+    "@dubbercut/types": "workspace:*"
   },
   "devDependencies": {
-    "@dubbercute/config": "workspace:*",
+    "@dubbercut/config": "workspace:*",
     "typescript": "~5.8.2"
   }
 }

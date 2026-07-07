@@ -1,5 +1,5 @@
-import '@dubbercute/env';
-import { RenderJob } from '@dubbercute/types';
+import '@dubbercut/env';
+import { RenderJob } from '@dubbercut/types';
 
 const API_URL = process.env.API_URL || 'http://localhost:4000';
 const POLL_INTERVAL_MS = Number(process.env.POLL_INTERVAL_MS || 3000);
@@ -30,8 +30,8 @@ async function updateJob(id: string, patch: Partial<RenderJob>): Promise<void> {
 async function processJob(job: RenderJob): Promise<void> {
   console.log(`[export-worker] processing job ${job.id} for project ${job.projectId}`);
   // Placeholder export pipeline. Real implementation burns captions
-  // (@dubbercute/captions) and encodes the final file with
-  // @dubbercute/ffmpeg exportVideo/burnSubtitles.
+  // (@dubbercut/captions) and encodes the final file with
+  // @dubbercut/ffmpeg exportVideo/burnSubtitles.
   for (let progress = 0; progress <= 100; progress += 25) {
     await updateJob(job.id, { progress });
     await new Promise((r) => setTimeout(r, 400));

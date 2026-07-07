@@ -1,5 +1,5 @@
 {
-  "name": "@dubbercute/api",
+  "name": "@dubbercut/api",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -11,13 +11,16 @@
     "lint": "tsc --noEmit"
   },
   "dependencies": {
-    "@dubbercute/ai": "workspace:*",
-    "@dubbercute/captions": "workspace:*",
-    "@dubbercute/env": "workspace:*",
-    "@dubbercute/ffmpeg": "workspace:*",
-    "@dubbercute/transcript": "workspace:*",
-    "@dubbercute/types": "workspace:*",
-    "@dubbercute/utils": "workspace:*",
+    "@aws-sdk/client-s3": "^3.1080.0",
+    "@aws-sdk/lib-storage": "^3.1080.0",
+    "@aws-sdk/s3-request-presigner": "^3.1080.0",
+    "@dubbercut/ai": "workspace:*",
+    "@dubbercut/captions": "workspace:*",
+    "@dubbercut/env": "workspace:*",
+    "@dubbercut/ffmpeg": "workspace:*",
+    "@dubbercut/transcript": "workspace:*",
+    "@dubbercut/types": "workspace:*",
+    "@dubbercut/utils": "workspace:*",
     "@fastify/cors": "^10.0.2",
     "@fastify/multipart": "^9.0.3",
     "@prisma/client": "^6.3.1",
@@ -28,10 +31,10 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
+    "@dubbercut/config": "workspace:*",
     "@types/amqplib": "^0.10.8",
     "@types/jsonwebtoken": "^9.0.7",
     "@types/node": "^22.14.0",
-    "@dubbercute/config": "workspace:*",
     "dotenv-cli": "^8.0.0",
     "prisma": "^6.3.1",
     "tsx": "^4.21.0",

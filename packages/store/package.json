@@ -1,5 +1,5 @@
 {
-  "name": "@dubbercute/store",
+  "name": "@dubbercut/store",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -10,13 +10,13 @@
     "lint": "tsc --noEmit"
   },
   "dependencies": {
-    "@dubbercute/api-client": "workspace:*",
-    "@dubbercute/auth": "workspace:*",
-    "@dubbercute/types": "workspace:*",
+    "@dubbercut/api-client": "workspace:*",
+    "@dubbercut/auth": "workspace:*",
+    "@dubbercut/types": "workspace:*",
     "zustand": "^5.0.14"
   },
   "devDependencies": {
-    "@dubbercute/config": "workspace:*",
+    "@dubbercut/config": "workspace:*",
     "typescript": "~5.8.2"
   }
 }

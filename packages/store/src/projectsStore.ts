@@ -1,6 +1,6 @@
 import { create } from 'zustand';
-import { ApiClient } from '@dubbercute/api-client';
-import { Project } from '@dubbercute/types';
+import { ApiClient } from '@dubbercut/api-client';
+import { Project } from '@dubbercut/types';
 
 export interface ProjectsState {
   projects: Project[];

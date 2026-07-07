@@ -1,7 +1,7 @@
 import { create } from 'zustand';
-import { ApiClient } from '@dubbercute/api-client';
-import { Credentials, RegisterInput, TokenStorage } from '@dubbercute/auth';
-import { User } from '@dubbercute/types';
+import { ApiClient } from '@dubbercut/api-client';
+import { Credentials, RegisterInput, TokenStorage } from '@dubbercut/auth';
+import { User } from '@dubbercut/types';
 
 export interface AuthState {
   user: User | null;

@@ -25,7 +25,7 @@ import {
   getDocFromServer
 } from 'firebase/firestore';
 import firebaseConfig from '../../../firebase-applet-config.json';
-import { Project } from '@dubbercute/types';
+import { Project } from '@dubbercut/types';
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);

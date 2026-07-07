@@ -1,4 +1,4 @@
 {
-  "extends": "@dubbercute/config/tsconfig/node-library.json",
+  "extends": "@dubbercut/config/tsconfig/node-library.json",
   "include": ["src"]
 }

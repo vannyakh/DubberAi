@@ -1,5 +1,5 @@
 {
-  "name": "DubberCute",
+  "name": "DubberCut",
   "description": "Transcribe video content, translate it into multiple languages, and generate natural-sounding speech from the translations.",
   "requestFramePermissions": [
     "camera",

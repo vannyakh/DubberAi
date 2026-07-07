@@ -1,5 +1,5 @@
-import { Credentials, RegisterInput } from '@dubbercute/auth';
-import { Project, RenderJob, Session, User } from '@dubbercute/types';
+import { Credentials, RegisterInput } from '@dubbercut/auth';
+import { Project, RenderJob, Session, User } from '@dubbercut/types';
 
 export class ApiError extends Error {
   constructor(

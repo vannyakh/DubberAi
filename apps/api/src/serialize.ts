@@ -1,4 +1,4 @@
-import { Project, RenderJob, User } from '@dubbercute/types';
+import { Project, RenderJob, User } from '@dubbercut/types';
 
 /** Prisma returns Date objects; the wire format uses ISO strings. */
 

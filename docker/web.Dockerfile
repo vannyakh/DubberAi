@@ -17,11 +17,11 @@ RUN corepack enable
 WORKDIR /app
 COPY . .
 COPY --from=wasm /src/rust/wasm/pkg ./rust/wasm/pkg
-RUN pnpm install --frozen-lockfile --filter @dubbercute/web...
+RUN pnpm install --frozen-lockfile --filter @dubbercut/web...
 # Baked into the bundle at build time; the browser calls this URL directly.
 ARG VITE_API_URL=http://localhost:4000
 ENV VITE_API_URL=${VITE_API_URL}
-RUN pnpm --filter @dubbercute/web build
+RUN pnpm --filter @dubbercut/web build
 
 # ── Stage 3: static serve ───────────────────────────────────────
 FROM nginx:alpine

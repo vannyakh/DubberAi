@@ -1,4 +1,4 @@
-import type { Segment } from "@dubbercute/types";
+import type { Segment } from "@dubbercut/types";
 import type { EditorCore } from "@/core";
 import { BatchCommand, type Command } from "@/commands";
 import { AddMediaAssetCommand } from "@/commands/media";

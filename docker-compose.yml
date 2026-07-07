@@ -1,4 +1,4 @@
-name: dubbercute
+name: dubbercut
 
 services:
   # ── Infrastructure ────────────────────────────────────────────
@@ -49,7 +49,7 @@ services:
       - "4000:4000"
     env_file: .env # API_KEY_302 and friends
     environment:
-      DATABASE_URL: mongodb://mongo:27017/dubbercute?replicaSet=rs0&directConnection=true
+      DATABASE_URL: mongodb://mongo:27017/dubbercut?replicaSet=rs0&directConnection=true
       REDIS_URL: redis://redis:6379
       RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
     # Sync Prisma indexes on boot, then start the server.

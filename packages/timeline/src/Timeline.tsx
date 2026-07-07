@@ -1,6 +1,6 @@
 import React, { useCallback, useRef } from 'react';
-import { Clip, Track } from '@dubbercute/types';
-import { cn } from '@dubbercute/utils';
+import { Clip, Track } from '@dubbercut/types';
+import { cn } from '@dubbercut/utils';
 import { TimeRuler } from './TimeRuler';
 
 export interface TimelineProps {

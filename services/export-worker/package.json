@@ -1,5 +1,5 @@
 {
-  "name": "@dubbercute/export-worker",
+  "name": "@dubbercut/export-worker",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -9,14 +9,14 @@
     "lint": "tsc --noEmit"
   },
   "dependencies": {
-    "@dubbercute/captions": "workspace:*",
-    "@dubbercute/env": "workspace:*",
-    "@dubbercute/ffmpeg": "workspace:*",
-    "@dubbercute/types": "workspace:*"
+    "@dubbercut/captions": "workspace:*",
+    "@dubbercut/env": "workspace:*",
+    "@dubbercut/ffmpeg": "workspace:*",
+    "@dubbercut/types": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
-    "@dubbercute/config": "workspace:*",
+    "@dubbercut/config": "workspace:*",
     "tsx": "^4.21.0",
     "typescript": "~5.8.2"
   }

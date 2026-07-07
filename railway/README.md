@@ -38,10 +38,20 @@ For each row in the table above:
 
 ```
 API_KEY_302=sk-...
-DATABASE_URL=mongodb+srv://USER:PASS@cluster.mongodb.net/dubbercute?retryWrites=true&w=majority
+DATABASE_URL=mongodb+srv://USER:PASS@cluster.mongodb.net/dubbercut?retryWrites=true&w=majority
 AUTH_SECRET=<openssl rand -base64 32>
 REDIS_URL=${{Redis.REDIS_URL}}          # if you added Redis
 RABBITMQ_URL=<amqp url>                 # if you added RabbitMQ
+
+# Upload storage — pick ONE of the two options below:
+# Option A (recommended): Cloudflare R2
+R2_ACCOUNT_ID=<Cloudflare dashboard → R2 → account id>
+R2_BUCKET=dubbercut-media
+R2_ACCESS_KEY_ID=<R2 API token key>
+R2_SECRET_ACCESS_KEY=<R2 API token secret>
+R2_PUBLIC_URL=https://media.example.com # optional: public bucket / custom domain
+# Option B: Railway volume — set no R2_* vars, attach a volume to this
+# service mounted at /app/apps/api/uploads
 ```
 
 Workers (all three):
@@ -74,8 +84,11 @@ VITE_API_URL=https://${{api.RAILWAY_PUBLIC_DOMAIN}}
 
 - The API runs `prisma db push` on every boot (see `startCommand` in
   `api.railway.json`), so indexes stay in sync automatically.
-- Uploads (`apps/api/uploads`) are ephemeral on Railway. Attach a
-  [volume](https://docs.railway.com/reference/volumes) to the `api` service
-  mounted at `/app/apps/api/uploads` to persist them.
+- Upload storage: with R2 configured, files stream to the bucket and
+  `GET /api/uploads/:key` redirects to a presigned (or `R2_PUBLIC_URL`) link —
+  no volume needed and files survive redeploys/scaling. Without R2, files go
+  to local disk, which on Railway is ephemeral unless you attach a
+  [volume](https://docs.railway.com/reference/volumes) mounted at
+  `/app/apps/api/uploads`.
 - Watch paths keep services from rebuilding when unrelated parts of the
   monorepo change (e.g. a mobile-only commit won't redeploy the API).

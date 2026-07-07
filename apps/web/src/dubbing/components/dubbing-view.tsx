@@ -13,8 +13,8 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useEditor } from "@/editor/use-editor";
 import type { MediaAsset } from "@/media/types";
-import { VOICES, LANGUAGES } from "@dubbercute/utils";
-import type { Segment } from "@dubbercute/types";
+import { VOICES, LANGUAGES } from "@dubbercut/utils";
+import type { Segment } from "@dubbercut/types";
 import { toast } from "sonner";
 import { cn } from "@/utils/ui";
 import { useDubbingStore } from "../dubbing-store";

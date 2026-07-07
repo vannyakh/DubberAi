@@ -1,4 +1,4 @@
 {
-  "extends": "@dubbercute/config/tsconfig/react-library.json",
+  "extends": "@dubbercut/config/tsconfig/react-library.json",
   "include": ["src"]
 }

@@ -4,7 +4,7 @@ import { requireAuth } from '../auth';
 import { prisma } from '../db';
 import { cacheGet, cacheSet, cacheDel } from '../cache';
 import { serializeProject } from '../serialize';
-import { Project } from '@dubbercute/types';
+import { Project } from '@dubbercut/types';
 
 const projectInput = z.object({
   name: z.string().min(1),

@@ -1,5 +1,5 @@
 {
-  "extends": "@dubbercute/config/tsconfig/base.json",
+  "extends": "@dubbercut/config/tsconfig/base.json",
   "compilerOptions": {
     "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "paths": {

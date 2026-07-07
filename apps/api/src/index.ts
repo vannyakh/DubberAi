@@ -1,4 +1,4 @@
-import '@dubbercute/env';
+import '@dubbercut/env';
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import multipart from '@fastify/multipart';

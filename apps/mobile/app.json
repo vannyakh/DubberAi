@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "DubberCute",
-    "slug": "dubbercute",
+    "name": "DubberCut",
+    "slug": "dubbercut",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "dubbercute",
+    "scheme": "dubbercut",
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,

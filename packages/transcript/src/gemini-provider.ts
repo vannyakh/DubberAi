@@ -1,4 +1,4 @@
-import { transcribeVideo } from '@dubbercute/ai';
+import { transcribeVideo } from '@dubbercut/ai';
 import { TranscriptionInput, TranscriptionProvider, TranscriptionResult } from './provider';
 
 export class GeminiTranscriptionProvider implements TranscriptionProvider {

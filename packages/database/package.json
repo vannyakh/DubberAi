@@ -1,5 +1,5 @@
 {
-  "name": "@dubbercute/database",
+  "name": "@dubbercut/database",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -10,11 +10,11 @@
     "lint": "tsc --noEmit"
   },
   "dependencies": {
-    "@dubbercute/types": "workspace:*",
+    "@dubbercut/types": "workspace:*",
     "firebase": "^12.15.0"
   },
   "devDependencies": {
-    "@dubbercute/config": "workspace:*",
+    "@dubbercut/config": "workspace:*",
     "typescript": "~5.8.2"
   }
 }

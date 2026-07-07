@@ -17,25 +17,34 @@ importers:
 
   apps/api:
     dependencies:
-      '@dubbercute/ai':
+      '@aws-sdk/client-s3':
+        specifier: ^3.1080.0
+        version: 3.1080.0
+      '@aws-sdk/lib-storage':
+        specifier: ^3.1080.0
+        version: 3.1080.0(@aws-sdk/client-s3@3.1080.0)
+      '@aws-sdk/s3-request-presigner':
+        specifier: ^3.1080.0
+        version: 3.1080.0
+      '@dubbercut/ai':
         specifier: workspace:*
         version: link:../../packages/ai
-      '@dubbercute/captions':
+      '@dubbercut/captions':
         specifier: workspace:*
         version: link:../../packages/captions
-      '@dubbercute/env':
+      '@dubbercut/env':
         specifier: workspace:*
         version: link:../../packages/env
-      '@dubbercute/ffmpeg':
+      '@dubbercut/ffmpeg':
         specifier: workspace:*
         version: link:../../packages/ffmpeg
-      '@dubbercute/transcript':
+      '@dubbercut/transcript':
         specifier: workspace:*
         version: link:../../packages/transcript
-      '@dubbercute/types':
+      '@dubbercut/types':
         specifier: workspace:*
         version: link:../../packages/types
-      '@dubbercute/utils':
+      '@dubbercut/utils':
         specifier: workspace:*
         version: link:../../packages/utils
       '@fastify/cors':
@@ -63,7 +72,7 @@ importers:
         specifier: ^3.24.1
         version: 3.25.76
     devDependencies:
-      '@dubbercute/config':
+      '@dubbercut/config':
         specifier: workspace:*
         version: link:../../packages/config
       '@types/amqplib':
@@ -90,22 +99,22 @@ importers:
 
   apps/desktop:
     dependencies:
-      '@dubbercute/captions':
+      '@dubbercut/captions':
         specifier: workspace:*
         version: link:../../packages/captions
-      '@dubbercute/player':
+      '@dubbercut/player':
         specifier: workspace:*
         version: link:../../packages/player
-      '@dubbercute/timeline':
+      '@dubbercut/timeline':
         specifier: workspace:*
         version: link:../../packages/timeline
-      '@dubbercute/types':
+      '@dubbercut/types':
         specifier: workspace:*
         version: link:../../packages/types
-      '@dubbercute/ui':
+      '@dubbercut/ui':
         specifier: workspace:*
         version: link:../../packages/ui
-      '@dubbercute/utils':
+      '@dubbercut/utils':
         specifier: workspace:*
         version: link:../../packages/utils
       react:
@@ -118,7 +127,7 @@ importers:
         specifier: ^5.0.14
         version: 5.0.14(@types/react@19.2.17)(react@19.2.7)(use-sync-external-store@1.6.0(react@19.2.7))
     devDependencies:
-      '@dubbercute/config':
+      '@dubbercut/config':
         specifier: workspace:*
         version: link:../../packages/config
       '@tailwindcss/vite':
@@ -163,28 +172,28 @@ importers:
 
   apps/mobile:
     dependencies:
-      '@dubbercute/api-client':
+      '@dubbercut/api-client':
         specifier: workspace:*
         version: link:../../packages/api-client
-      '@dubbercute/auth':
+      '@dubbercut/auth':
         specifier: workspace:*
         version: link:../../packages/auth
-      '@dubbercute/captions':
+      '@dubbercut/captions':
         specifier: workspace:*
         version: link:../../packages/captions
-      '@dubbercute/design-system':
+      '@dubbercut/design-system':
         specifier: workspace:*
         version: link:../../packages/design-system
-      '@dubbercute/player-core':
+      '@dubbercut/player-core':
         specifier: workspace:*
         version: link:../../packages/player-core
-      '@dubbercute/store':
+      '@dubbercut/store':
         specifier: workspace:*
         version: link:../../packages/store
-      '@dubbercute/types':
+      '@dubbercut/types':
         specifier: workspace:*
         version: link:../../packages/types
-      '@dubbercute/utils':
+      '@dubbercut/utils':
         specifier: workspace:*
         version: link:../../packages/utils
       expo:
@@ -248,28 +257,28 @@ importers:
 
   apps/web:
     dependencies:
-      '@dubbercute/ai':
+      '@dubbercut/ai':
         specifier: workspace:*
         version: link:../../packages/ai
-      '@dubbercute/captions':
+      '@dubbercut/captions':
         specifier: workspace:*
         version: link:../../packages/captions
-      '@dubbercute/database':
+      '@dubbercut/database':
         specifier: workspace:*
         version: link:../../packages/database
-      '@dubbercute/player':
+      '@dubbercut/player':
         specifier: workspace:*
         version: link:../../packages/player
-      '@dubbercute/timeline':
+      '@dubbercut/timeline':
         specifier: workspace:*
         version: link:../../packages/timeline
-      '@dubbercute/types':
+      '@dubbercut/types':
         specifier: workspace:*
         version: link:../../packages/types
-      '@dubbercute/ui':
+      '@dubbercut/ui':
         specifier: workspace:*
         version: link:../../packages/ui
-      '@dubbercute/utils':
+      '@dubbercut/utils':
         specifier: workspace:*
         version: link:../../packages/utils
       '@hello-pangea/dnd':
@@ -381,7 +390,7 @@ importers:
         specifier: ^5.0.14
         version: 5.0.14(@types/react@19.2.17)(react@19.2.7)(use-sync-external-store@1.6.0(react@19.2.7))
     devDependencies:
-      '@dubbercute/config':
+      '@dubbercut/config':
         specifier: workspace:*
         version: link:../../packages/config
       '@tailwindcss/vite':
@@ -420,14 +429,14 @@ importers:
 
   packages/ai:
     dependencies:
-      '@dubbercute/types':
+      '@dubbercut/types':
         specifier: workspace:*
         version: link:../types
       '@google/genai':
         specifier: ^1.29.0
         version: 1.52.0
     devDependencies:
-      '@dubbercute/config':
+      '@dubbercut/config':
         specifier: workspace:*
         version: link:../config
       typescript:
@@ -436,14 +445,14 @@ importers:
 
   packages/api-client:
     dependencies:
-      '@dubbercute/auth':
+      '@dubbercut/auth':
         specifier: workspace:*
         version: link:../auth
-      '@dubbercute/types':
+      '@dubbercut/types':
         specifier: workspace:*
         version: link:../types
     devDependencies:
-      '@dubbercute/config':
+      '@dubbercut/config':
         specifier: workspace:*
         version: link:../config
       typescript:
@@ -452,11 +461,11 @@ importers:
 
   packages/auth:
     dependencies:
-      '@dubbercute/types':
+      '@dubbercut/types':
         specifier: workspace:*
         version: link:../types
     devDependencies:
-      '@dubbercute/config':
+      '@dubbercut/config':
         specifier: workspace:*
         version: link:../config
       typescript:
@@ -465,11 +474,11 @@ importers:
 
   packages/captions:
     dependencies:
-      '@dubbercute/types':
+      '@dubbercut/types':
         specifier: workspace:*
         version: link:../types
     devDependencies:
-      '@dubbercute/config':
+      '@dubbercut/config':
         specifier: workspace:*
         version: link:../config
       typescript:
@@ -480,14 +489,14 @@ importers:
 
   packages/database:
     dependencies:
-      '@dubbercute/types':
+      '@dubbercut/types':
         specifier: workspace:*
         version: link:../types
       firebase:
         specifier: ^12.15.0
         version: 12.15.0
     devDependencies:
-      '@dubbercute/config':
+      '@dubbercut/config':
         specifier: workspace:*
         version: link:../config
       typescript:
@@ -496,7 +505,7 @@ importers:
 
   packages/design-system:
     devDependencies:
-      '@dubbercute/config':
+      '@dubbercut/config':
         specifier: workspace:*
         version: link:../config
       typescript:
@@ -505,7 +514,7 @@ importers:
 
   packages/env:
     devDependencies:
-      '@dubbercute/config':
+      '@dubbercut/config':
         specifier: workspace:*
         version: link:../config
       '@types/node':
@@ -517,7 +526,7 @@ importers:
 
   packages/ffmpeg:
     devDependencies:
-      '@dubbercute/config':
+      '@dubbercut/config':
         specifier: workspace:*
         version: link:../config
       '@types/node':
@@ -529,17 +538,17 @@ importers:
 
   packages/player:
     dependencies:
-      '@dubbercute/player-core':
+      '@dubbercut/player-core':
         specifier: workspace:*
         version: link:../player-core
-      '@dubbercute/types':
+      '@dubbercut/types':
         specifier: workspace:*
         version: link:../types
-      '@dubbercute/utils':
+      '@dubbercut/utils':
         specifier: workspace:*
         version: link:../utils
     devDependencies:
-      '@dubbercute/config':
+      '@dubbercut/config':
         specifier: workspace:*
         version: link:../config
       '@types/react':
@@ -560,11 +569,11 @@ importers:
 
   packages/player-core:
     dependencies:
-      '@dubbercute/types':
+      '@dubbercut/types':
         specifier: workspace:*
         version: link:../types
     devDependencies:
-      '@dubbercute/config':
+      '@dubbercut/config':
         specifier: workspace:*
         version: link:../config
       typescript:
@@ -573,20 +582,20 @@ importers:
 
   packages/store:
     dependencies:
-      '@dubbercute/api-client':
+      '@dubbercut/api-client':
         specifier: workspace:*
         version: link:../api-client
-      '@dubbercute/auth':
+      '@dubbercut/auth':
         specifier: workspace:*
         version: link:../auth
-      '@dubbercute/types':
+      '@dubbercut/types':
         specifier: workspace:*
         version: link:../types
       zustand:
         specifier: ^5.0.14
         version: 5.0.14(@types/react@19.2.17)(react@19.2.7)(use-sync-external-store@1.6.0(react@19.2.7))
     devDependencies:
-      '@dubbercute/config':
+      '@dubbercut/config':
         specifier: workspace:*
         version: link:../config
       typescript:
@@ -595,17 +604,17 @@ importers:
 
   packages/timeline:
     dependencies:
-      '@dubbercute/timeline-core':
+      '@dubbercut/timeline-core':
         specifier: workspace:*
         version: link:../timeline-core
-      '@dubbercute/types':
+      '@dubbercut/types':
         specifier: workspace:*
         version: link:../types
-      '@dubbercute/utils':
+      '@dubbercut/utils':
         specifier: workspace:*
         version: link:../utils
     devDependencies:
-      '@dubbercute/config':
+      '@dubbercut/config':
         specifier: workspace:*
         version: link:../config
       '@types/react':
@@ -626,11 +635,11 @@ importers:
 
   packages/timeline-core:
     dependencies:
-      '@dubbercute/types':
+      '@dubbercut/types':
         specifier: workspace:*
         version: link:../types
     devDependencies:
-      '@dubbercute/config':
+      '@dubbercut/config':
         specifier: workspace:*
         version: link:../config
       typescript:
@@ -639,14 +648,14 @@ importers:
 
   packages/transcript:
     dependencies:
-      '@dubbercute/ai':
+      '@dubbercut/ai':
         specifier: workspace:*
         version: link:../ai
-      '@dubbercute/types':
+      '@dubbercut/types':
         specifier: workspace:*
         version: link:../types
     devDependencies:
-      '@dubbercute/config':
+      '@dubbercut/config':
         specifier: workspace:*
         version: link:../config
       typescript:
@@ -655,7 +664,7 @@ importers:
 
   packages/types:
     devDependencies:
-      '@dubbercute/config':
+      '@dubbercut/config':
         specifier: workspace:*
         version: link:../config
       typescript:
@@ -664,14 +673,14 @@ importers:
 
   packages/ui:
     dependencies:
-      '@dubbercute/utils':
+      '@dubbercut/utils':
         specifier: workspace:*
         version: link:../utils
       lucide-react:
         specifier: ^0.546.0
         version: 0.546.0(react@19.2.7)
     devDependencies:
-      '@dubbercute/config':
+      '@dubbercut/config':
         specifier: workspace:*
         version: link:../config
       '@types/react':
@@ -692,7 +701,7 @@ importers:
 
   packages/utils:
     dependencies:
-      '@dubbercute/types':
+      '@dubbercut/types':
         specifier: workspace:*
         version: link:../types
       clsx:
@@ -702,7 +711,7 @@ importers:
         specifier: ^3.5.0
         version: 3.6.0
     devDependencies:
-      '@dubbercute/config':
+      '@dubbercut/config':
         specifier: workspace:*
         version: link:../config
       typescript:
@@ -711,20 +720,20 @@ importers:
 
   services/ai-worker:
     dependencies:
-      '@dubbercute/ai':
+      '@dubbercut/ai':
         specifier: workspace:*
         version: link:../../packages/ai
-      '@dubbercute/env':
+      '@dubbercut/env':
         specifier: workspace:*
         version: link:../../packages/env
-      '@dubbercute/transcript':
+      '@dubbercut/transcript':
         specifier: workspace:*
         version: link:../../packages/transcript
-      '@dubbercute/types':
+      '@dubbercut/types':
         specifier: workspace:*
         version: link:../../packages/types
     devDependencies:
-      '@dubbercute/config':
+      '@dubbercut/config':
         specifier: workspace:*
         version: link:../../packages/config
       '@types/node':
@@ -739,20 +748,20 @@ importers:
 
   services/export-worker:
     dependencies:
-      '@dubbercute/captions':
+      '@dubbercut/captions':
         specifier: workspace:*
         version: link:../../packages/captions
-      '@dubbercute/env':
+      '@dubbercut/env':
         specifier: workspace:*
         version: link:../../packages/env
-      '@dubbercute/ffmpeg':
+      '@dubbercut/ffmpeg':
         specifier: workspace:*
         version: link:../../packages/ffmpeg
-      '@dubbercute/types':
+      '@dubbercut/types':
         specifier: workspace:*
         version: link:../../packages/types
     devDependencies:
-      '@dubbercute/config':
+      '@dubbercut/config':
         specifier: workspace:*
         version: link:../../packages/config
       '@types/node':
@@ -767,17 +776,17 @@ importers:
 
   services/render-worker:
     dependencies:
-      '@dubbercute/env':
+      '@dubbercut/env':
         specifier: workspace:*
         version: link:../../packages/env
-      '@dubbercute/ffmpeg':
+      '@dubbercut/ffmpeg':
         specifier: workspace:*
         version: link:../../packages/ffmpeg
-      '@dubbercute/types':
+      '@dubbercut/types':
         specifier: workspace:*
         version: link:../../packages/types
     devDependencies:
-      '@dubbercute/config':
+      '@dubbercut/config':
         specifier: workspace:*
         version: link:../../packages/config
       '@types/node':
@@ -794,6 +803,88 @@ packages:
 
   '@adobe/css-tools@4.5.0':
     resolution: {integrity: sha512-6OzddxPio9UiWTCemp4N8cYLV2ZN1ncRnV1cVGtve7dhPOtRkleRyx32GQCYSwDYgaHU3USMm84tNsvKzRCa1Q==}
+
+  '@aws-sdk/checksums@3.1000.13':
+    resolution: {integrity: sha512-USI1N1d+NbCcfjeiYLKIl94PSYykl5IIjj4X3WqdL33Ln5qktA6sjXYct0o/gG2Cte7cuzbXKkDBkzUA4VPHrg==}
+    engines: {node: '>=20.0.0'}
+
+  '@aws-sdk/client-s3@3.1080.0':
+    resolution: {integrity: sha512-erKuxbwhYLKs0ZviBeTDvXxC0E4AtugHXLbt5kFk8u9/rQMglh/QJNK5f9KuLjlMrbFSJgkBmjNSY5O03YoK4A==}
+    engines: {node: '>=20.0.0'}
+
+  '@aws-sdk/core@3.974.28':
+    resolution: {integrity: sha512-4/1DtLwgLqzIg2uFzkFaFjMQHhhhwHIZN4PfziIVqXYX7koO78omuchQlLHyzQBw80l255dtmTA/J4W5yhb7zw==}
+    engines: {node: '>=20.0.0'}
+
+  '@aws-sdk/credential-provider-env@3.972.54':
+    resolution: {integrity: sha512-F4WQCG8GULIt+XrMHsqUM9dZc0eTwZM3HUWByOjIKOwBqJSzUxX8CFAtbgMvWfCua52FS1oi5FXarH3+khFq8A==}
+    engines: {node: '>=20.0.0'}
+
+  '@aws-sdk/credential-provider-http@3.972.56':
+    resolution: {integrity: sha512-PiwHgEK2srdfi/lFveyQ+3w/qikyh6MKvuZAdlMC+dwQi4K5iVBr32oh7cugnYw+jA8iGtnQMhCGvLm/mqplmw==}
+    engines: {node: '>=20.0.0'}
+
+  '@aws-sdk/credential-provider-ini@3.972.61':
+    resolution: {integrity: sha512-9CZWMjhBlgfKlqJk40R7kvMOLEIoOr3HJ1J/ELjAH9H5LzR4bCxLujPVM/1PKAEjzSZKZCxWOalm7JUGZbhQqw==}
+    engines: {node: '>=20.0.0'}
+
+  '@aws-sdk/credential-provider-login@3.972.60':
+    resolution: {integrity: sha512-Ak6OOrCbXvACyxLFIP1mcS+JTLS9ZpW1ZqyBtqu6axvdpsbG1gVNhUlAfQq8TK/gar/h2w35LrzlQU0PcUzJpw==}
+    engines: {node: '>=20.0.0'}
+
+  '@aws-sdk/credential-provider-node@3.972.63':
+    resolution: {integrity: sha512-YmgWtTPZDStyT74ApSHpApD3r7W9znsc+WEZjW0vceom+NAxRx9/F3TyukOKix8kJkPaa49aIREQJdpGeLDiEw==}
+    engines: {node: '>=20.0.0'}
+
+  '@aws-sdk/credential-provider-process@3.972.54':
+    resolution: {integrity: sha512-UNmUjtTnp3wH3YTZcctN7yK17S2AdaJpiNIdIf0l70hHOdGuDfdMxk62P5rt64GwGm6qkFOYG0js/cU6cdZDdg==}
+    engines: {node: '>=20.0.0'}
+
+  '@aws-sdk/credential-provider-sso@3.972.60':
+    resolution: {integrity: sha512-zH8SvJkTRw1Kb7GARjGPjzkQPfL3jDi/OxK32I5SQq7bgwgFHJZaoDEwkEvFlfNfpByM6n4Rs20Y1mLyOdb6ag==}
+    engines: {node: '>=20.0.0'}
+
+  '@aws-sdk/credential-provider-web-identity@3.972.60':
+    resolution: {integrity: sha512-q2rJSQ/AMjemUS18OtQqczqSo2R6VjOCLmLVmLVcdrP5/AKoj632lGCrMUWQ6EgnaLMEHbq0UO4mWh/u6gjPhA==}
+    engines: {node: '>=20.0.0'}
+
+  '@aws-sdk/lib-storage@3.1080.0':
+    resolution: {integrity: sha512-Vhe1T+Of8qWRypS8sEsC24931jMUd0Q2MNhtzApZB18Re/JnRYo5NaqlMSktzvyQ3SUljHTQ/R5Bv2Cz0bRfGg==}
+    engines: {node: '>=20.0.0'}
+    peerDependencies:
+      '@aws-sdk/client-s3': ^3.1080.0
+
+  '@aws-sdk/middleware-sdk-s3@3.972.59':
+    resolution: {integrity: sha512-KCf/UjbnzV3QIXR1C2MeE9eRUG8EUXUf0V4y65hf2bKWQXzol5f3I8wOhE6OBdEYohn8zHfnC/cyy5+s7/HwLw==}
+    engines: {node: '>=20.0.0'}
+
+  '@aws-sdk/nested-clients@3.997.28':
+    resolution: {integrity: sha512-1oG/mM3jmE2M3kad2zWJS6IKIY8hjRV4l5kAgg+xTQdLMTtehhcSucL/y4WqQpcHmQwi6+gRK8E46GYl1NBW9Q==}
+    engines: {node: '>=20.0.0'}
+
+  '@aws-sdk/s3-request-presigner@3.1080.0':
+    resolution: {integrity: sha512-htvnMiDGioaV5zOEkXi6EBI6md1s2tYVD/h3ihAhvpJpZZ3bS6xsfq313IK8orMi7LpOWIT3ha1fPgXrhc+TCA==}
+    engines: {node: '>=20.0.0'}
+
+  '@aws-sdk/signature-v4-multi-region@3.996.38':
+    resolution: {integrity: sha512-C379Sk+MiFZCfWZphKlMyLHKxV22OjoGM5KJjj5IJNJcOCWL4IGIpnEGzv1FQiRwhYXfq55SJMfxlqPE08JJ9g==}
+    engines: {node: '>=20.0.0'}
+
+  '@aws-sdk/token-providers@3.1080.0':
+    resolution: {integrity: sha512-8PufAQvncWXvdZUvODbuyXa8l3aszefEzwSMBUcgheNbZOmJMcNn388Ebt/piVrUHyxKN1MlxnR2OonzTyZaGw==}
+    engines: {node: '>=20.0.0'}
+
+  '@aws-sdk/types@3.973.15':
+    resolution: {integrity: sha512-IULn8uBV/SMtmOIANsm4WHXIOtVPBWfOWs3WGL0j/sI+KhaYehvOw0ET+9urnn8MBpiijuU/0JOpuwKOE451PQ==}
+    engines: {node: '>=20.0.0'}
+
+  '@aws-sdk/xml-builder@3.972.33':
+    resolution: {integrity: sha512-ezbwz9WpuLctm6o7P2t2naDhVVPI5jFGrVefVybhcKGjU57VIyT46pQVO0RI2RYkUdhdj2Z9uSIlAzGZE9NW9A==}
+    engines: {node: '>=20.0.0'}
+
+  '@aws/lambda-invoke-store@0.3.0':
+    resolution: {integrity: sha512-sl4Bm6yiMNYrZKkqqDFWN0UfnWhlS8ivKxrYl+6t0gCLrqr8y3B2IqZZbFRkfaVVp7C/baApyh71P+LeE1A2sQ==}
+    engines: {node: '>=18.0.0'}
 
   '@babel/code-frame@7.29.7':
     resolution: {integrity: sha512-Aup7aUOfpbAUg2ROOJN6Iw5f9DMBlzu0mIkm/malLQFN/YQgO48wCj0Kxa3sEHJvPVFg7siR+qRInwXd2qhQKw==}
@@ -3300,6 +3391,30 @@ packages:
     resolution: {integrity: sha512-t09vSN3MdfsyCHoFcTRCH/iUtG7OJ0CsjzB8cjAmKc/va/kIgeDI/TxsigdncE/4be734m0cvIYwNaV4i2XqAw==}
     engines: {node: '>=10'}
 
+  '@smithy/core@3.29.1':
+    resolution: {integrity: sha512-qoiY4nrk5OCu1+eIR1VB8l5DmON/oKiqrd5zZFAhXJXjJlLWQusKEW/SkBDAtGDcPaz86m9kfcE1lngU0GlM6A==}
+    engines: {node: '>=18.0.0'}
+
+  '@smithy/credential-provider-imds@4.4.6':
+    resolution: {integrity: sha512-B2WQ/PV/H6Jeg3lrIq6bKUfa6Hy01mtK7CGs6lhjzHA6k4aagldH6T6eEjnzKl4HI0cJnAsxfJ19pgb5PV+CVQ==}
+    engines: {node: '>=18.0.0'}
+
+  '@smithy/fetch-http-handler@5.6.3':
+    resolution: {integrity: sha512-CwCc/7SMTj45y97MUnDTbTaxvtAsiNNRm81z3abROIuMbMsC2Iy5EKfkkVdsKrz8WExQAAMx1EJapq+9j4fFTQ==}
+    engines: {node: '>=18.0.0'}
+
+  '@smithy/node-http-handler@4.9.3':
+    resolution: {integrity: sha512-qZTa4gQFUo8RM02rk6q5UVTDLNrQ1oS20LsepBzqq1QBVc/EHJ03OOUADcqMZiXHArW+Y7+OGY0BpdTwZRq/Yg==}
+    engines: {node: '>=18.0.0'}
+
+  '@smithy/signature-v4@5.6.2':
+    resolution: {integrity: sha512-QgHflghMoPxCJ9axiCVh8KZfbC9fuP6vkXXyK//E3cq7nLaSSyyLj0GAoqVWezYeDQmXIZhmlRvLE16jsqDK6g==}
+    engines: {node: '>=18.0.0'}
+
+  '@smithy/types@4.15.1':
+    resolution: {integrity: sha512-x3L0XSACF6UYzKpa9biqiRMgvH5+wnFFew9Tm/grFYqgaupPwx/+ojDPpPJM8dZON3S9tjz5U+PQYsCBd1Mw5Q==}
+    engines: {node: '>=18.0.0'}
+
   '@standard-schema/spec@1.1.0':
     resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
 
@@ -3748,6 +3863,9 @@ packages:
     resolution: {integrity: sha512-d0II/GO9uf9lfUHH2BQsjxzRJZBdsjgsBiW4BvhWk/3qoKwQFjIDVN19PfX8F2D/r9PCMTtLWjYVCFrpeYUzsw==}
     deprecated: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
 
+  bowser@2.14.1:
+    resolution: {integrity: sha512-tzPjzCxygAKWFOJP011oxFHs57HzIhOEracIgAePE4pqB3LikALKnSzUyU4MGs9/iCEUuHlAJTjTc5M+u7YEGg==}
+
   bplist-creator@0.1.0:
     resolution: {integrity: sha512-sXaHZicyEEmY86WyueLTQesbeoH/mquvarJaQNbjuOQO+7gbFcDEWqKmcWA4cOTLzFlfgvkiVxolk1k5bBIpmg==}
 
@@ -3783,6 +3901,9 @@ packages:
 
   buffer-from@1.1.2:
     resolution: {integrity: sha512-E+XQCRwSbaaiChtv6k6Dwgc+bx+Bs6vuKJHHl5kox/BaKbhiXzqQOwK4cO22yElGp2OCmjwVhT3HmxgyPGnJfQ==}
+
+  buffer@5.6.0:
+    resolution: {integrity: sha512-/gDYp/UtU0eA1ys8bOs9J6a+E/KWIY+DZ+Q2WESNUA0jFRsJOc0SNUO6xJ5SGA1xueg3NL65W6s+NY5l9cunuw==}
 
   bytes@3.1.2:
     resolution: {integrity: sha512-/Nf7TyzTx6S3yRJObOAV7956r8cr2+Oj8AC5dt8wSP3BQAoeX58NoHyCU8P8zGkNXStjTSi6fzO6F0pBdcYbEg==}
@@ -4208,6 +4329,10 @@ packages:
 
   eventemitter3@5.0.4:
     resolution: {integrity: sha512-mlsTRyGaPBjPedk6Bvw+aqbsXDtoAyAzm5MO7JgU+yVRyMQ5O8bD4Kcci7BS85f93veegeCPkL8R4GLClnjLFw==}
+
+  events@3.3.0:
+    resolution: {integrity: sha512-mQw+2fkQbALzQ7V0MY0IqdnXNOeTtP4r0lN9z7AAawCXgqea7bDii20AYrIBrFd/Hx0M2Ocz6S111CaFkUcb0Q==}
+    engines: {node: '>=0.8.x'}
 
   expo-asset@57.0.3:
     resolution: {integrity: sha512-6E08JDuYrktY5pKNn2WiFBPBfj6bvFb++ccuBTijK8BUk/afSoy6n35h583LmC2YHgHTepWHHWNfr61nYcMd8Q==}
@@ -4675,6 +4800,9 @@ packages:
 
   idb@7.1.1:
     resolution: {integrity: sha512-gchesWBzyvGHRO9W8tzUWFDycow5gwjvFKfyV9FF32Y7F50yZMp7mP+T2mJIWFx49zicqyC4uefHM17o6xKIVQ==}
+
+  ieee754@1.2.1:
+    resolution: {integrity: sha512-dcyqhDvX1C46lXZcVqCpK+FtMRQVdIMN6/Df5js2zouUsqG7I6sFxitIC+7KYK29KdXOLHdu9zL4sFnoVQnqaA==}
 
   ignore@5.3.2:
     resolution: {integrity: sha512-hsBTNUqQTDwkWtcdYI2i06Y/nUBEsNEDJKjWdigLvegy8kDuJAS8uRlpkkcQpyEXL0Z/pjDy5HBmMjRCJ2gq+g==}
@@ -5652,6 +5780,10 @@ packages:
     resolution: {integrity: sha512-HNe9WslTbXmFK8o8cmwgAeJFSBvt1bPdHCVKtaaV+WlAN36mpT4hcRpwbf3fY56ar2oIXzsBpOAiIRHAdY0OlQ==}
     engines: {node: '>=0.10.0'}
 
+  readable-stream@3.6.2:
+    resolution: {integrity: sha512-9u/sniCrY3D5WdsERHzHE4G2YCXqoG5FTHUiCC4SIbr6XcLZBY05ya9EKjYek9O5xOAwjGq+1JdGBAS7Q9ScoA==}
+    engines: {node: '>= 6'}
+
   readdirp@4.1.2:
     resolution: {integrity: sha512-GDhwkLfywWL2s6vEjyhri+eXmfH6j1L7JE27WhqLeYzoh/A3DBaYGEj2H/HFZCn/kMfim73FXxEJTw06WtxQwg==}
     engines: {node: '>= 14.18.0'}
@@ -5915,6 +6047,9 @@ packages:
     resolution: {integrity: sha512-DvEy55V3DB7uknRo+4iOGT5fP1slR8wQohVdknigZPMpMstaKJQWhwiYBACJE3Ul2pTnATihhBYnRhZQHGBiRw==}
     engines: {node: '>= 0.8'}
 
+  stream-browserify@3.0.0:
+    resolution: {integrity: sha512-H73RAHsVBapbim0tU2JwwOiXUj+fikfiaoYAKHF3VJfA0pe2BCzkhAHBlLG6REzE+2WNZcxOXjK7lkso+9euLA==}
+
   stream-buffers@2.2.0:
     resolution: {integrity: sha512-uyQK/mx5QjHun80FLJTfaWE7JtwfRMKBLkMne6udYOmvH0CawotVa7TfgYHzAnpphn4+TweIx1QKMnRIbipmUg==}
     engines: {node: '>= 0.10.0'}
@@ -5926,6 +6061,9 @@ packages:
   string-width@4.2.3:
     resolution: {integrity: sha512-wKyQRQpjJ0sIp62ErSZdGsjMJWsap5oRNihHhu6G7JVO/9jIB6UyevL+tXuOqrng8j/cxKTWyWUwvSTriiZz/g==}
     engines: {node: '>=8'}
+
+  string_decoder@1.3.0:
+    resolution: {integrity: sha512-hkRX8U1WjJFd8LsDJ2yQ/wWWxaopEsABU1XfkM8A+j0+85JAGppt16cr1Whg6KIbb4okU6Mql6BOj+uup/wKeA==}
 
   strip-ansi@5.2.0:
     resolution: {integrity: sha512-DuRs1gKbBqsMKIZlrffwlug8MHkcnpjs5VPmL1PAh+mA30U0DTotfDZ0d2UUsXpPmPmMMJ6W773MaA3J+lbiWA==}
@@ -6147,6 +6285,9 @@ packages:
     peerDependencies:
       react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
 
+  util-deprecate@1.0.2:
+    resolution: {integrity: sha512-EPD5q1uXyFxJpCrLnCc1nHnq3gOa6DZBocAIiI2TaSCA7VCJ1UJDMagCzIkXNsUYfD1daK//LTEQ8xiIbrHtcw==}
+
   utils-merge@1.0.1:
     resolution: {integrity: sha512-pMZTvIkT1d+TFGvDOqodOclx0QWkkgi6Tdoa8gC8ffGAAqz9pzPTZWAybbsHHoED/ztMtkv/VoYTYyShUn81hA==}
     engines: {node: '>= 0.4.0'}
@@ -6364,6 +6505,190 @@ packages:
 snapshots:
 
   '@adobe/css-tools@4.5.0': {}
+
+  '@aws-sdk/checksums@3.1000.13':
+    dependencies:
+      '@aws-sdk/core': 3.974.28
+      '@aws-sdk/types': 3.973.15
+      '@smithy/core': 3.29.1
+      '@smithy/types': 4.15.1
+      tslib: 2.8.1
+
+  '@aws-sdk/client-s3@3.1080.0':
+    dependencies:
+      '@aws-sdk/checksums': 3.1000.13
+      '@aws-sdk/core': 3.974.28
+      '@aws-sdk/credential-provider-node': 3.972.63
+      '@aws-sdk/middleware-sdk-s3': 3.972.59
+      '@aws-sdk/signature-v4-multi-region': 3.996.38
+      '@aws-sdk/types': 3.973.15
+      '@smithy/core': 3.29.1
+      '@smithy/fetch-http-handler': 5.6.3
+      '@smithy/node-http-handler': 4.9.3
+      '@smithy/types': 4.15.1
+      tslib: 2.8.1
+
+  '@aws-sdk/core@3.974.28':
+    dependencies:
+      '@aws-sdk/types': 3.973.15
+      '@aws-sdk/xml-builder': 3.972.33
+      '@aws/lambda-invoke-store': 0.3.0
+      '@smithy/core': 3.29.1
+      '@smithy/signature-v4': 5.6.2
+      '@smithy/types': 4.15.1
+      bowser: 2.14.1
+      tslib: 2.8.1
+
+  '@aws-sdk/credential-provider-env@3.972.54':
+    dependencies:
+      '@aws-sdk/core': 3.974.28
+      '@aws-sdk/types': 3.973.15
+      '@smithy/core': 3.29.1
+      '@smithy/types': 4.15.1
+      tslib: 2.8.1
+
+  '@aws-sdk/credential-provider-http@3.972.56':
+    dependencies:
+      '@aws-sdk/core': 3.974.28
+      '@aws-sdk/types': 3.973.15
+      '@smithy/core': 3.29.1
+      '@smithy/fetch-http-handler': 5.6.3
+      '@smithy/node-http-handler': 4.9.3
+      '@smithy/types': 4.15.1
+      tslib: 2.8.1
+
+  '@aws-sdk/credential-provider-ini@3.972.61':
+    dependencies:
+      '@aws-sdk/core': 3.974.28
+      '@aws-sdk/credential-provider-env': 3.972.54
+      '@aws-sdk/credential-provider-http': 3.972.56
+      '@aws-sdk/credential-provider-login': 3.972.60
+      '@aws-sdk/credential-provider-process': 3.972.54
+      '@aws-sdk/credential-provider-sso': 3.972.60
+      '@aws-sdk/credential-provider-web-identity': 3.972.60
+      '@aws-sdk/nested-clients': 3.997.28
+      '@aws-sdk/types': 3.973.15
+      '@smithy/core': 3.29.1
+      '@smithy/credential-provider-imds': 4.4.6
+      '@smithy/types': 4.15.1
+      tslib: 2.8.1
+
+  '@aws-sdk/credential-provider-login@3.972.60':
+    dependencies:
+      '@aws-sdk/core': 3.974.28
+      '@aws-sdk/nested-clients': 3.997.28
+      '@aws-sdk/types': 3.973.15
+      '@smithy/core': 3.29.1
+      '@smithy/types': 4.15.1
+      tslib: 2.8.1
+
+  '@aws-sdk/credential-provider-node@3.972.63':
+    dependencies:
+      '@aws-sdk/credential-provider-env': 3.972.54
+      '@aws-sdk/credential-provider-http': 3.972.56
+      '@aws-sdk/credential-provider-ini': 3.972.61
+      '@aws-sdk/credential-provider-process': 3.972.54
+      '@aws-sdk/credential-provider-sso': 3.972.60
+      '@aws-sdk/credential-provider-web-identity': 3.972.60
+      '@aws-sdk/types': 3.973.15
+      '@smithy/core': 3.29.1
+      '@smithy/credential-provider-imds': 4.4.6
+      '@smithy/types': 4.15.1
+      tslib: 2.8.1
+
+  '@aws-sdk/credential-provider-process@3.972.54':
+    dependencies:
+      '@aws-sdk/core': 3.974.28
+      '@aws-sdk/types': 3.973.15
+      '@smithy/core': 3.29.1
+      '@smithy/types': 4.15.1
+      tslib: 2.8.1
+
+  '@aws-sdk/credential-provider-sso@3.972.60':
+    dependencies:
+      '@aws-sdk/core': 3.974.28
+      '@aws-sdk/nested-clients': 3.997.28
+      '@aws-sdk/token-providers': 3.1080.0
+      '@aws-sdk/types': 3.973.15
+      '@smithy/core': 3.29.1
+      '@smithy/types': 4.15.1
+      tslib: 2.8.1
+
+  '@aws-sdk/credential-provider-web-identity@3.972.60':
+    dependencies:
+      '@aws-sdk/core': 3.974.28
+      '@aws-sdk/nested-clients': 3.997.28
+      '@aws-sdk/types': 3.973.15
+      '@smithy/core': 3.29.1
+      '@smithy/types': 4.15.1
+      tslib: 2.8.1
+
+  '@aws-sdk/lib-storage@3.1080.0(@aws-sdk/client-s3@3.1080.0)':
+    dependencies:
+      '@aws-sdk/client-s3': 3.1080.0
+      '@smithy/core': 3.29.1
+      '@smithy/types': 4.15.1
+      buffer: 5.6.0
+      events: 3.3.0
+      stream-browserify: 3.0.0
+      tslib: 2.8.1
+
+  '@aws-sdk/middleware-sdk-s3@3.972.59':
+    dependencies:
+      '@aws-sdk/core': 3.974.28
+      '@aws-sdk/signature-v4-multi-region': 3.996.38
+      '@aws-sdk/types': 3.973.15
+      '@smithy/core': 3.29.1
+      '@smithy/types': 4.15.1
+      tslib: 2.8.1
+
+  '@aws-sdk/nested-clients@3.997.28':
+    dependencies:
+      '@aws-sdk/core': 3.974.28
+      '@aws-sdk/signature-v4-multi-region': 3.996.38
+      '@aws-sdk/types': 3.973.15
+      '@smithy/core': 3.29.1
+      '@smithy/fetch-http-handler': 5.6.3
+      '@smithy/node-http-handler': 4.9.3
+      '@smithy/types': 4.15.1
+      tslib: 2.8.1
+
+  '@aws-sdk/s3-request-presigner@3.1080.0':
+    dependencies:
+      '@aws-sdk/core': 3.974.28
+      '@aws-sdk/signature-v4-multi-region': 3.996.38
+      '@aws-sdk/types': 3.973.15
+      '@smithy/core': 3.29.1
+      '@smithy/types': 4.15.1
+      tslib: 2.8.1
+
+  '@aws-sdk/signature-v4-multi-region@3.996.38':
+    dependencies:
+      '@aws-sdk/types': 3.973.15
+      '@smithy/signature-v4': 5.6.2
+      '@smithy/types': 4.15.1
+      tslib: 2.8.1
+
+  '@aws-sdk/token-providers@3.1080.0':
+    dependencies:
+      '@aws-sdk/core': 3.974.28
+      '@aws-sdk/nested-clients': 3.997.28
+      '@aws-sdk/types': 3.973.15
+      '@smithy/core': 3.29.1
+      '@smithy/types': 4.15.1
+      tslib: 2.8.1
+
+  '@aws-sdk/types@3.973.15':
+    dependencies:
+      '@smithy/types': 4.15.1
+      tslib: 2.8.1
+
+  '@aws-sdk/xml-builder@3.972.33':
+    dependencies:
+      '@smithy/types': 4.15.1
+      tslib: 2.8.1
+
+  '@aws/lambda-invoke-store@0.3.0': {}
 
   '@babel/code-frame@7.29.7':
     dependencies:
@@ -9289,6 +9614,39 @@ snapshots:
 
   '@sindresorhus/is@4.6.0': {}
 
+  '@smithy/core@3.29.1':
+    dependencies:
+      '@smithy/types': 4.15.1
+      tslib: 2.8.1
+
+  '@smithy/credential-provider-imds@4.4.6':
+    dependencies:
+      '@smithy/core': 3.29.1
+      '@smithy/types': 4.15.1
+      tslib: 2.8.1
+
+  '@smithy/fetch-http-handler@5.6.3':
+    dependencies:
+      '@smithy/core': 3.29.1
+      '@smithy/types': 4.15.1
+      tslib: 2.8.1
+
+  '@smithy/node-http-handler@4.9.3':
+    dependencies:
+      '@smithy/core': 3.29.1
+      '@smithy/types': 4.15.1
+      tslib: 2.8.1
+
+  '@smithy/signature-v4@5.6.2':
+    dependencies:
+      '@smithy/core': 3.29.1
+      '@smithy/types': 4.15.1
+      tslib: 2.8.1
+
+  '@smithy/types@4.15.1':
+    dependencies:
+      tslib: 2.8.1
+
   '@standard-schema/spec@1.1.0': {}
 
   '@szmarczak/http-timer@4.0.6':
@@ -9757,6 +10115,8 @@ snapshots:
 
   boolean@3.2.0: {}
 
+  bowser@2.14.1: {}
+
   bplist-creator@0.1.0:
     dependencies:
       stream-buffers: 2.2.0
@@ -9794,6 +10154,11 @@ snapshots:
   buffer-equal-constant-time@1.0.1: {}
 
   buffer-from@1.1.2: {}
+
+  buffer@5.6.0:
+    dependencies:
+      base64-js: 1.5.1
+      ieee754: 1.2.1
 
   bytes@3.1.2: {}
 
@@ -10260,6 +10625,8 @@ snapshots:
   event-target-shim@5.0.1: {}
 
   eventemitter3@5.0.4: {}
+
+  events@3.3.0: {}
 
   expo-asset@57.0.3(expo@57.0.2)(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)(typescript@6.0.3):
     dependencies:
@@ -10863,6 +11230,8 @@ snapshots:
   hyphenate-style-name@1.1.0: {}
 
   idb@7.1.1: {}
+
+  ieee754@1.2.1: {}
 
   ignore@5.3.2: {}
 
@@ -12005,6 +12374,12 @@ snapshots:
 
   react@19.2.7: {}
 
+  readable-stream@3.6.2:
+    dependencies:
+      inherits: 2.0.4
+      string_decoder: 1.3.0
+      util-deprecate: 1.0.2
+
   readdirp@4.1.2: {}
 
   real-require@0.2.0: {}
@@ -12287,6 +12662,11 @@ snapshots:
 
   statuses@2.0.2: {}
 
+  stream-browserify@3.0.0:
+    dependencies:
+      inherits: 2.0.4
+      readable-stream: 3.6.2
+
   stream-buffers@2.2.0: {}
 
   strict-uri-encode@2.0.0: {}
@@ -12296,6 +12676,10 @@ snapshots:
       emoji-regex: 8.0.0
       is-fullwidth-code-point: 3.0.0
       strip-ansi: 6.0.1
+
+  string_decoder@1.3.0:
+    dependencies:
+      safe-buffer: 5.2.1
 
   strip-ansi@5.2.0:
     dependencies:
@@ -12499,6 +12883,8 @@ snapshots:
   use-sync-external-store@1.6.0(react@19.2.7):
     dependencies:
       react: 19.2.7
+
+  util-deprecate@1.0.2: {}
 
   utils-merge@1.0.1: {}
 

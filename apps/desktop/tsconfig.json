@@ -1,5 +1,5 @@
 {
-  "extends": "@dubbercute/config/tsconfig/base.json",
+  "extends": "@dubbercut/config/tsconfig/base.json",
   "compilerOptions": {
     "types": ["node"]
   },

@@ -1,5 +1,5 @@
 {
-  "name": "@dubbercute/utils",
+  "name": "@dubbercut/utils",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -10,12 +10,12 @@
     "lint": "tsc --noEmit"
   },
   "dependencies": {
-    "@dubbercute/types": "workspace:*",
+    "@dubbercut/types": "workspace:*",
     "clsx": "^2.1.1",
     "tailwind-merge": "^3.5.0"
   },
   "devDependencies": {
-    "@dubbercute/config": "workspace:*",
+    "@dubbercut/config": "workspace:*",
     "typescript": "~5.8.2"
   }
 }

@@ -1,5 +1,5 @@
 {
-  "name": "@dubbercute/ui",
+  "name": "@dubbercut/ui",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -10,7 +10,7 @@
     "lint": "tsc --noEmit"
   },
   "dependencies": {
-    "@dubbercute/utils": "workspace:*",
+    "@dubbercut/utils": "workspace:*",
     "lucide-react": "^0.546.0"
   },
   "peerDependencies": {
@@ -20,7 +20,7 @@
   "devDependencies": {
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
-    "@dubbercute/config": "workspace:*",
+    "@dubbercut/config": "workspace:*",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "typescript": "~5.8.2"

@@ -11,7 +11,7 @@ import {
   analyzeVideo,
   generateSpeech,
   generateMultiSpeakerSpeech,
-} from '@dubbercute/ai';
+} from '@dubbercut/ai';
 
 const textInput = z.object({ text: z.string().min(1) });
 

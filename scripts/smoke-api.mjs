@@ -33,6 +33,7 @@ async function json(method, path, body, token) {
 
 let token;
 let projectId;
+let uploadUrl;
 
 await check('register returns session', async () => {
   const { status, data } = await json('POST', '/api/auth/register', { email, password, name: 'Smoke' });
@@ -80,6 +81,26 @@ await check('create + claim job', async () => {
   if (claimed.status !== 200 || claimed.data?.status !== 'processing') {
     throw new Error(`claim status ${claimed.status}`);
   }
+});
+
+await check('upload stores file', async () => {
+  const form = new FormData();
+  form.append('file', new Blob(['smoke-test-content'], { type: 'text/plain' }), 'smoke test.txt');
+  const res = await fetch(`${BASE}/api/uploads`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
+  });
+  const data = await res.json().catch(() => null);
+  if (res.status !== 201 || !data?.url) throw new Error(`status ${res.status}`);
+  uploadUrl = data.url;
+});
+
+await check('download returns uploaded file', async () => {
+  // Follows the redirect when the API is backed by R2.
+  const res = await fetch(`${BASE}${uploadUrl}`);
+  const body = await res.text();
+  if (res.status !== 200 || body !== 'smoke-test-content') throw new Error(`status ${res.status}`);
 });
 
 await check('update project (cloud sync)', async () => {

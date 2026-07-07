@@ -1,4 +1,4 @@
-import { CaptionCue, CaptionFormat, Segment } from '@dubbercute/types';
+import { CaptionCue, CaptionFormat, Segment } from '@dubbercut/types';
 
 const DEFAULT_CUE_DURATION = 4;
 

@@ -1,6 +1,6 @@
 import React, { forwardRef } from 'react';
-import { CaptionCue } from '@dubbercute/types';
-import { cn } from '@dubbercute/utils';
+import { CaptionCue } from '@dubbercut/types';
+import { cn } from '@dubbercut/utils';
 import { SubtitleOverlay } from './SubtitleOverlay';
 
 export interface VideoPlayerProps extends React.VideoHTMLAttributes<HTMLVideoElement> {

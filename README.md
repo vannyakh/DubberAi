@@ -1,11 +1,11 @@
-# DubberCute
+# DubberCut
 
 AI-powered video voice translation / dubbing studio. Monorepo built with pnpm workspaces + Turborepo. Cute name because it's a cute AI.
 
 ## Structure
 
 ```text
-DubberCute/
+DubberCut/
 │
 ├── apps/
 │   ├── desktop/              # Electron: full editor (timeline, player, IPC file dialogs)
@@ -13,7 +13,7 @@ DubberCute/
 │   ├── api/                  # Fastify: auth, projects, AI, jobs, uploads (Prisma + MongoDB)
 │   └── web/                  # Vite + React studio (Gemini + Firebase + WASM compositor)
 │
-├── packages/                 # All packages are @dubbercute/* — consumers listed on the right
+├── packages/                 # All packages are @dubbercut/* — consumers listed on the right
 │   ├── types/                # Shared TypeScript types          (all apps, workers, packages)
 │   ├── utils/                # Shared utility functions         (api, desktop, mobile, web)
 │   ├── api-client/           # Typed REST client for apps/api   (mobile, store)
@@ -89,7 +89,7 @@ pnpm build:wasm
 ```
 
 3. `pnpm install`
-4. Copy `.env.example` to `.env` at the repo root and fill in `API_KEY_302` (a [302.AI](https://302.ai) key — one key for all LLM/AI services), `DATABASE_URL`, and `AUTH_SECRET`. This is the single env file for the whole repo — the API and workers load it via `@dubbercute/env`, the web app via Vite's `envDir`. Machine-local overrides go in `.env.local`.
+4. Copy `.env.example` to `.env` at the repo root and fill in `API_KEY_302` (a [302.AI](https://302.ai) key — one key for all LLM/AI services), `DATABASE_URL`, and `AUTH_SECRET`. This is the single env file for the whole repo — the API and workers load it via `@dubbercut/env`, the web app via Vite's `envDir`. Machine-local overrides go in `.env.local`.
 5. Create the API database: `pnpm db:push`
 6. Verify: `pnpm check-env`
 
@@ -150,3 +150,6 @@ The same Dockerfiles deploy to [Railway](https://railway.com) — one Railway se
 - RabbitMQ is optional: set `RABBITMQ_URL` to publish job created/updated events to the `jobs`
   queue for push-style workers. Without it, workers keep polling `POST /api/jobs/claim` as before.
 - Workers poll `POST /api/jobs/claim` and report progress with `PATCH /api/jobs/:id`.
+- Upload storage (`apps/api/src/storage.ts`): Cloudflare R2 when the `R2_*` env vars are set
+  (uploads stream to the bucket, downloads redirect to presigned or `R2_PUBLIC_URL` links),
+  otherwise local disk under `UPLOAD_DIR`. `GET /api/uploads/:key` works the same either way.

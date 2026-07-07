@@ -1,5 +1,5 @@
-import { segmentsToCues } from '@dubbercute/captions';
-import { parseSegments } from '@dubbercute/utils';
+import { segmentsToCues } from '@dubbercut/captions';
+import { parseSegments } from '@dubbercut/utils';
 
 /** Parse a timestamped transcript/translation into caption cues. */
 export function buildCues(source: string) {
