@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { CanvasAspectId } from './aspect-ratios';
+import { CanvasBackgroundMode, CanvasBlurType } from './canvas-background';
 import {
   clipDuration,
   clipTimelineStart,
@@ -29,6 +30,8 @@ interface EditorState {
   pxPerSecond: number;
   canvasAspectId: CanvasAspectId;
   canvasBackground: string;
+  canvasBackgroundMode: CanvasBackgroundMode;
+  canvasBlurType: CanvasBlurType;
   exportState: ExportState;
 
   addClip: (clip: EditorClip) => void;
@@ -56,7 +59,8 @@ interface EditorState {
   setPlaying: (playing: boolean) => void;
   setPxPerSecond: (px: number) => void;
   setCanvasAspectId: (id: CanvasAspectId) => void;
-  setCanvasBackground: (color: string) => void;
+  setCanvasBackgroundSolid: (color: string) => void;
+  setCanvasBackgroundBlur: (type: CanvasBlurType) => void;
   setExportState: (patch: Partial<ExportState>) => void;
   hydrate: (composition: EditorComposition) => void;
   getCompositionSnapshot: () => EditorComposition;
@@ -75,6 +79,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   pxPerSecond: 60,
   canvasAspectId: 'original',
   canvasBackground: '#000000',
+  canvasBackgroundMode: 'solid',
+  canvasBlurType: 'regular',
   exportState: initialExport,
 
   addClip: (clip) =>
@@ -185,7 +191,16 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   setCanvasAspectId: (id) => set({ canvasAspectId: id }),
 
-  setCanvasBackground: (color) => set({ canvasBackground: color }),
+  setCanvasBackgroundSolid: (color) =>
+    set({ canvasBackgroundMode: 'solid', canvasBackground: color }),
+
+  setCanvasBackgroundBlur: (type) => {
+    if (type === 'none') {
+      set({ canvasBackgroundMode: 'solid', canvasBackground: '#000000', canvasBlurType: type });
+      return;
+    }
+    set({ canvasBackgroundMode: 'blur', canvasBlurType: type });
+  },
 
   setExportState: (patch) => set((s) => ({ exportState: { ...s.exportState, ...patch } })),
 
@@ -196,6 +211,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       filterId: composition.filterId,
       canvasAspectId: composition.canvasAspectId,
       canvasBackground: composition.canvasBackground,
+      canvasBackgroundMode: composition.canvasBackgroundMode,
+      canvasBlurType: composition.canvasBlurType,
       pxPerSecond: composition.pxPerSecond,
       selectedClipId: null,
       playhead: 0,
@@ -212,6 +229,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       filterId: s.filterId,
       canvasAspectId: s.canvasAspectId,
       canvasBackground: s.canvasBackground,
+      canvasBackgroundMode: s.canvasBackgroundMode,
+      canvasBlurType: s.canvasBlurType,
       pxPerSecond: s.pxPerSecond,
     };
   },
@@ -227,6 +246,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       pxPerSecond: 60,
       canvasAspectId: 'original',
       canvasBackground: '#000000',
+      canvasBackgroundMode: 'solid',
+      canvasBlurType: 'regular',
       exportState: initialExport,
     }),
 }));

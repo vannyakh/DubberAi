@@ -7,7 +7,7 @@ import { VideoThumbnail } from 'expo-video';
 import Animated from 'react-native-reanimated';
 import { GestureDetector } from 'react-native-gesture-handler';
 import { AppSymbol } from '@/components';
-import { fontSizes } from '@/constants';
+import { fontSizes, radius } from '@/constants';
 import { editorTheme } from '@/constants/editor-theme';
 import { useTimelineGestures } from '../hooks/use-timeline-gestures';
 import {
@@ -28,6 +28,7 @@ import {
   filmstripTileCount,
   formatTimelineTime,
   rulerTickStep,
+  TIMELINE_ADD_ENDING_GAP,
   TIMELINE_ADD_ENDING_WIDTH,
   TIMELINE_CELL_WIDTH,
 } from '../timeline-utils';
@@ -61,7 +62,7 @@ export function Timeline({ thumbnails, onImport, onAddText }: TimelineProps) {
 
   const totalDuration = timelineDuration(clips);
   const timelineWidth = Math.max(tracksWidth, totalDuration * pxPerSecond);
-  const contentWidth = timelineWidth + TIMELINE_ADD_ENDING_WIDTH + 8;
+  const contentWidth = timelineWidth + TIMELINE_ADD_ENDING_GAP + TIMELINE_ADD_ENDING_WIDTH;
 
   const { sidePad, gestures, contentShift } = useTimelineGestures({
     tracksWidth,
@@ -296,10 +297,21 @@ function TrackLane({
           />
         ))}
         <Pressable
-          style={[styles.addEnding, { left: timelineWidth + 8, height: track.height - 6 }]}
+          style={[
+            styles.addEnding,
+            {
+              left: timelineWidth + TIMELINE_ADD_ENDING_GAP,
+              width: TIMELINE_ADD_ENDING_WIDTH,
+              height: track.height - 8,
+            },
+          ]}
           onPress={onImport}
+          accessibilityLabel="Add ending"
         >
-          <Text style={styles.addEndingText}>+ Add ending</Text>
+          <AppSymbol name="add" size={16} tintColor={editorTheme.textMuted} />
+          <Text style={styles.addEndingText} numberOfLines={2}>
+            Add ending
+          </Text>
         </Pressable>
       </View>
     );
@@ -641,20 +653,22 @@ const styles = StyleSheet.create({
   },
   addEnding: {
     position: 'absolute',
-    top: 3,
-    width: TIMELINE_ADD_ENDING_WIDTH,
-    borderRadius: 6,
+    top: 4,
+    borderRadius: radius.lg,
     borderWidth: 1,
     borderStyle: 'dashed',
     borderColor: editorTheme.border,
     backgroundColor: editorTheme.surfaceRaised,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 2,
+    paddingHorizontal: 4,
   },
   addEndingText: {
     color: editorTheme.textMuted,
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: '600',
+    textAlign: 'center',
   },
   addFabFixed: {
     position: 'absolute',
@@ -662,7 +676,7 @@ const styles = StyleSheet.create({
     top: 3,
     width: 32,
     height: STUDIO_VIDEO_LANE_HEIGHT - 6,
-    borderRadius: 8,
+    borderRadius: (STUDIO_VIDEO_LANE_HEIGHT - 6) / 2,
     backgroundColor: editorTheme.text,
     alignItems: 'center',
     justifyContent: 'center',

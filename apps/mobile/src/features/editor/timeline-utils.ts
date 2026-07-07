@@ -3,7 +3,8 @@ import { clipDuration, EditorClip } from './types';
 export const TIMELINE_CELL_WIDTH = 56;
 export const TIMELINE_MIN_PX_PER_SEC = 12;
 export const TIMELINE_MAX_PX_PER_SEC = 480;
-export const TIMELINE_ADD_ENDING_WIDTH = 88;
+export const TIMELINE_ADD_ENDING_WIDTH = 64;
+export const TIMELINE_ADD_ENDING_GAP = 12;
 
 export interface TimelineCell {
   key: string;

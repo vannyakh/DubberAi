@@ -4,7 +4,7 @@ import { AppSymbol, SymbolName } from '@/components';
 import { spacing } from '@/constants';
 import { editorTheme } from '@/constants/editor-theme';
 import { useEditorStore } from '../editor-store';
-import { STUDIO_TOOLBAR_HEIGHT } from '../studio-layout';
+import { STUDIO_TOOLBAR_HEIGHT, STUDIO_TOOLBAR_ITEM_MIN_WIDTH } from '../studio-layout';
 import type { EditorEditingPanel } from '../editing-panel';
 
 interface ToolbarProps {
@@ -96,6 +96,7 @@ export function Toolbar({ onImport, onAddText, activePanel, onOpenPanel }: Toolb
                   active && styles.labelActive,
                   tool.disabled && styles.labelDisabled,
                 ]}
+                numberOfLines={1}
               >
                 {tool.label}
               </Text>
@@ -127,11 +128,12 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   item: {
-    width: 56,
+    minWidth: STUDIO_TOOLBAR_ITEM_MIN_WIDTH,
     height: STUDIO_TOOLBAR_HEIGHT,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 4,
+    paddingHorizontal: 4,
   },
   itemDisabled: {
     opacity: 0.45,
@@ -140,6 +142,8 @@ const styles = StyleSheet.create({
     color: editorTheme.textSecondary,
     fontSize: 10,
     fontWeight: '600',
+    textAlign: 'center',
+    maxWidth: STUDIO_TOOLBAR_ITEM_MIN_WIDTH,
   },
   labelActive: {
     color: editorTheme.accent,

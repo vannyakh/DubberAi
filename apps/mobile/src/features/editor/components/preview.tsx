@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { StyleSheet, Text, View, type ImageStyle } from 'react-native';
 import { VideoPlayer, VideoThumbnail, VideoView } from 'expo-video';
-import { Image } from 'expo-image';
+import { Image, type ImageSource } from 'expo-image';
 import { Canvas, Fill, RadialGradient, Rect, vec } from '@shopify/react-native-skia';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
@@ -13,11 +13,14 @@ import Animated, {
 import { fontSizes, radius, spacing } from '@/constants';
 import { editorTheme } from '@/constants/editor-theme';
 import { resolveCanvasAspectRatio } from '../aspect-ratios';
+import { blurBackgroundSourceForClip, nearestVideoThumbnail } from '../blur-background-source';
+import { CanvasBlurBackground } from './canvas-blur-background';
 import { PreviewSelectionHandles } from './preview-selection-handles';
 import { PreviewSnapGuides } from './preview-snap-guides';
 import { useEditorStore } from '../editor-store';
 import { useClipDisplayUris } from '../hooks/use-clip-display-uri';
 import { usePreviewCanvasGestures } from '../hooks/use-preview-canvas-gestures';
+import { useStableBlurBackgroundSource } from '../hooks/use-stable-blur-background-source';
 import { fitSizeToAspect } from '../preview-aspect';
 import type { PreviewContentTransform } from '../preview-content-rect';
 import { contentAnchorStyle, containedMediaRect, previewTransformStyle } from '../preview-content-rect';
@@ -27,15 +30,7 @@ import { clipAtTime, FILTER_PRESETS, TextOverlay } from '../types';
 interface PreviewProps {
   player: VideoPlayer;
   thumbnails?: Record<string, VideoThumbnail[]>;
-}
-
-function nearestThumbnail(thumbs: VideoThumbnail[] | undefined, sourceTime: number) {
-  if (!thumbs?.length) return null;
-  return thumbs.reduce((best, thumb) =>
-    Math.abs(thumb.requestedTime - sourceTime) < Math.abs(best.requestedTime - sourceTime)
-      ? thumb
-      : best,
-  );
+  posterFrames?: Record<string, VideoThumbnail>;
 }
 
 function clipTransform(clip: {
@@ -56,7 +51,7 @@ function clipTransform(clip: {
  * Centered card frame for the canvas. Native VideoView must NOT sit inside a
  * Reanimated transform layer — that breaks AVPlayerLayer on iOS.
  */
-export function Preview({ player, thumbnails }: PreviewProps) {
+export function Preview({ player, thumbnails, posterFrames }: PreviewProps) {
   const clips = useEditorStore((s) => s.clips);
   const displayUris = useClipDisplayUris(clips);
   const playhead = useEditorStore((s) => s.playhead);
@@ -66,6 +61,8 @@ export function Preview({ player, thumbnails }: PreviewProps) {
   const globalFilterId = useEditorStore((s) => s.filterId);
   const canvasAspectId = useEditorStore((s) => s.canvasAspectId);
   const canvasBackground = useEditorStore((s) => s.canvasBackground);
+  const canvasBackgroundMode = useEditorStore((s) => s.canvasBackgroundMode);
+  const canvasBlurType = useEditorStore((s) => s.canvasBlurType);
   const overlays = useEditorStore((s) => s.overlays);
   const setClipContentTransform = useEditorStore((s) => s.setClipContentTransform);
   const [available, setAvailable] = useState({ width: 0, height: 0 });
@@ -118,15 +115,37 @@ export function Preview({ player, thumbnails }: PreviewProps) {
   const poster = useMemo(() => {
     if (!active || active.clip.mediaType !== 'video') return null;
     const sourceTime = active.clip.trimStart + active.localTime;
-    return nearestThumbnail(thumbnails?.[active.clip.uri], sourceTime);
-  }, [active, thumbnails]);
+    return (
+      nearestVideoThumbnail(thumbnails?.[active.clip.uri], sourceTime) ??
+      posterFrames?.[active.clip.uri] ??
+      null
+    );
+  }, [active, posterFrames, thumbnails]);
 
   const stillFrameSource = useMemo(() => {
     if (!active || active.clip.mediaType !== 'video') return null;
     if (poster) return poster;
-    const uri = displayUris[active.clip.uri] ?? active.clip.uri;
-    return uri ? { uri } : null;
-  }, [active, displayUris, poster]);
+    return null;
+  }, [active, poster]);
+
+  const blurBackgroundSource = useMemo((): ImageSource | null => {
+    if (!active) return null;
+    const sourceTime = active.clip.trimStart + active.localTime;
+    return blurBackgroundSourceForClip(
+      active.clip,
+      sourceTime,
+      thumbnails?.[active.clip.uri],
+      posterFrames?.[active.clip.uri],
+    );
+  }, [active, posterFrames, thumbnails]);
+
+  const blurClipKey = active ? `${active.index}:${active.clip.id}` : 'none';
+  const stableBlurSource = useStableBlurBackgroundSource(
+    blurBackgroundSource,
+    blurClipKey,
+    isPlaying,
+  );
+  const blurRecyclingKey = `${blurClipKey}:${canvasBlurType}`;
 
   const videoMountKey = active ? `${active.index}:${active.clip.id}` : 'empty';
   const showLiveVideo = videoFrameReady || isPlaying;
@@ -212,7 +231,20 @@ export function Preview({ player, thumbnails }: PreviewProps) {
     >
       <GestureDetector gesture={previewGesture}>
         <View style={[styles.card, frameSizeStyle]}>
-          <View style={[styles.canvas, { backgroundColor: canvasBackground }, frameSizeStyle]}>
+          <View
+            style={[
+              styles.canvas,
+              canvasBackgroundMode === 'solid' ? { backgroundColor: canvasBackground } : null,
+              frameSizeStyle,
+            ]}
+          >
+            {canvasBackgroundMode === 'blur' ? (
+              <CanvasBlurBackground
+                source={stableBlurSource}
+                blurType={canvasBlurType}
+                recyclingKey={blurRecyclingKey}
+              />
+            ) : null}
             {showImage && active && contentAnchor ? (
               <View style={[styles.mediaSlot, frameSizeStyle]}>
                 <Animated.View style={[contentAnchor, contentStyle]}>
@@ -249,7 +281,8 @@ export function Preview({ player, thumbnails }: PreviewProps) {
                   <Animated.View style={[contentAnchor, contentStyle]}>
                     <Image
                       source={
-                        stillFrameSource ?? {
+                        stillFrameSource ??
+                        posterFrames?.[active.clip.uri] ?? {
                           uri: displayUris[active.clip.uri] ?? active.clip.uri,
                         }
                       }

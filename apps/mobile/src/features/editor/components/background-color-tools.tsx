@@ -1,14 +1,17 @@
 import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { AppSymbol } from '@/components';
 import { radius, spacing } from '@/constants';
 import { editorTheme } from '@/constants/editor-theme';
 import { CANVAS_BACKGROUND_PRESETS } from '../aspect-ratios';
 import { useEditorStore } from '../editor-store';
 
-export function BackgroundPanel() {
+const TILE = 64;
+const COLOR_PRESETS = CANVAS_BACKGROUND_PRESETS.filter((p) => p.id !== 'blur');
+
+export function BackgroundColorTools() {
   const canvasBackground = useEditorStore((s) => s.canvasBackground);
-  const setCanvasBackground = useEditorStore((s) => s.setCanvasBackground);
+  const canvasBackgroundMode = useEditorStore((s) => s.canvasBackgroundMode);
+  const setCanvasBackgroundSolid = useEditorStore((s) => s.setCanvasBackgroundSolid);
 
   return (
     <ScrollView
@@ -16,29 +19,24 @@ export function BackgroundPanel() {
       showsHorizontalScrollIndicator={false}
       contentContainerStyle={styles.row}
     >
-      {CANVAS_BACKGROUND_PRESETS.map((preset) => {
-        const selected = canvasBackground === preset.color;
+      {COLOR_PRESETS.map((preset) => {
+        const selected =
+          canvasBackgroundMode === 'solid' && canvasBackground === preset.color;
         return (
           <Pressable
             key={preset.id}
             style={styles.item}
-            onPress={() => setCanvasBackground(preset.color)}
+            onPress={() => setCanvasBackgroundSolid(preset.color)}
             accessibilityState={{ selected }}
           >
             <View style={[styles.tile, selected && styles.tileSelected]}>
-              {preset.id === 'blur' ? (
-                <AppSymbol name="backgroundBlur" size={22} tintColor={editorTheme.textSecondary} />
-              ) : preset.id === 'white' ? (
-                <View style={[styles.swatch, { backgroundColor: preset.color }]} />
-              ) : (
-                <View
-                  style={[
-                    styles.swatch,
-                    { backgroundColor: preset.color },
-                    preset.id === 'black' && styles.swatchBorder,
-                  ]}
-                />
-              )}
+              <View
+                style={[
+                  styles.swatch,
+                  { backgroundColor: preset.color },
+                  preset.id === 'black' && styles.swatchBorder,
+                ]}
+              />
             </View>
             <Text style={[styles.label, selected && styles.labelSelected]}>{preset.label}</Text>
           </Pressable>
@@ -51,21 +49,20 @@ export function BackgroundPanel() {
 const styles = StyleSheet.create({
   row: {
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
     gap: spacing.lg,
     alignItems: 'flex-end',
   },
   item: {
     alignItems: 'center',
     gap: 6,
-    minWidth: 56,
+    minWidth: TILE,
   },
   tile: {
-    width: 52,
-    height: 52,
+    width: TILE,
+    height: TILE,
     borderRadius: radius.md,
     borderWidth: 2,
-    borderColor: editorTheme.border,
+    borderColor: 'transparent',
     backgroundColor: editorTheme.surfaceRaised,
     alignItems: 'center',
     justifyContent: 'center',
@@ -74,8 +71,8 @@ const styles = StyleSheet.create({
     borderColor: editorTheme.text,
   },
   swatch: {
-    width: 28,
-    height: 28,
+    width: 32,
+    height: 32,
     borderRadius: radius.sm,
   },
   swatchBorder: {

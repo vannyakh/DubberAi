@@ -5,6 +5,7 @@ import {
   useAnimatedReaction,
   useAnimatedStyle,
   useSharedValue,
+  withDecay,
   withTiming,
 } from 'react-native-reanimated';
 import { useEditorStore } from '../editor-store';
@@ -25,6 +26,9 @@ interface Options {
   setPlaying: (playing: boolean) => void;
   setPxPerSecond: (px: number) => void;
 }
+
+const SCRUB_MIN_DELTA_PX = 0.2;
+const SCRUB_THROTTLE_MS = 16;
 
 function clampPxWorklet(px: number): number {
   'worklet';
@@ -60,6 +64,7 @@ export function useTimelineGestures({
   const playheadSv = useSharedValue(playhead);
   const isPlayingSv = useSharedValue(isPlaying);
   const isDraggingSv = useSharedValue(false);
+  const isMomentumSv = useSharedValue(false);
 
   useEffect(() => {
     pxPerSecSv.value = pxPerSecond;
@@ -72,13 +77,13 @@ export function useTimelineGestures({
 
   useEffect(() => {
     playheadSv.value = playhead;
-    if (isDragging.current || isPlaying) return;
+    if (isDragging.current || isPlaying || isMomentumSv.value) return;
     scrollX.value = withTiming(playhead * pxPerSecond, { duration: 140 });
-  }, [playhead, pxPerSecond, isPlaying, playheadSv, scrollX]);
+  }, [playhead, pxPerSecond, isPlaying, playheadSv, scrollX, isMomentumSv]);
 
   useAnimatedReaction(
     () => {
-      if (!isPlayingSv.value || isDraggingSv.value) return -1;
+      if (!isPlayingSv.value || isDraggingSv.value || isMomentumSv.value) return -1;
       return playheadSv.value * pxPerSecSv.value;
     },
     (target, prev) => {
@@ -86,7 +91,7 @@ export function useTimelineGestures({
       if (prev != null && Math.abs(target - prev) < 0.25) return;
       scrollX.value = target;
     },
-    [playheadSv, pxPerSecSv, isPlayingSv, isDraggingSv],
+    [playheadSv, pxPerSecSv, isPlayingSv, isDraggingSv, isMomentumSv],
   );
 
   const scrub = useCallback(
@@ -101,7 +106,7 @@ export function useTimelineGestures({
   const scrubThrottled = useCallback(
     (offsetX: number) => {
       const now = Date.now();
-      if (now - lastScrubAt.current < 32) return;
+      if (now - lastScrubAt.current < SCRUB_THROTTLE_MS) return;
       lastScrubAt.current = now;
       scrub(offsetX);
     },
@@ -110,8 +115,9 @@ export function useTimelineGestures({
 
   const beginDrag = useCallback(() => {
     isDragging.current = true;
+    isMomentumSv.value = false;
     setPlaying(false);
-  }, [setPlaying]);
+  }, [isMomentumSv, setPlaying]);
 
   const endDrag = useCallback(
     (offsetX: number) => {
@@ -126,6 +132,29 @@ export function useTimelineGestures({
     isDragging.current = false;
     isDraggingSv.value = false;
   }, [isDraggingSv]);
+
+  const finishMomentum = useCallback(
+    (offsetX: number) => {
+      isMomentumSv.value = false;
+      lastScrubAt.current = 0;
+      scrub(offsetX);
+    },
+    [isMomentumSv, scrub],
+  );
+
+  useAnimatedReaction(
+    () => {
+      if (!isDraggingSv.value && !isMomentumSv.value) return -1;
+      return scrollX.value;
+    },
+    (offsetX, prev) => {
+      if (offsetX < 0) return;
+      if (prev != null && Math.abs(offsetX - prev) < SCRUB_MIN_DELTA_PX) return;
+      const max = totalDurSv.value * pxPerSecSv.value;
+      runOnJS(scrubThrottled)(clampScroll(offsetX, max));
+    },
+    [isDraggingSv, isMomentumSv, pxPerSecSv, scrollX, totalDurSv],
+  );
 
   const applyLiveZoom = useCallback(
     (nextPx: number, offsetX: number) => {
@@ -161,18 +190,32 @@ export function useTimelineGestures({
       .activeOffsetX([-6, 6])
       .failOffsetY([-20, 20])
       .onBegin(() => {
+        isMomentumSv.value = false;
         isDraggingSv.value = true;
         panStartX.value = scrollX.value;
         runOnJS(beginDrag)();
       })
       .onUpdate((e) => {
         const max = totalDurSv.value * pxPerSecSv.value;
-        // Finger follows content: drag right → timeline moves right → earlier time.
         scrollX.value = clampScroll(panStartX.value - e.translationX, max);
-        runOnJS(scrubThrottled)(scrollX.value);
       })
-      .onEnd(() => {
-        runOnJS(endDrag)(scrollX.value);
+      .onEnd((e) => {
+        const max = totalDurSv.value * pxPerSecSv.value;
+        const clamped = clampScroll(scrollX.value, max);
+        scrollX.value = clamped;
+
+        const velocity = -e.velocityX;
+        if (Math.abs(velocity) > 80) {
+          isMomentumSv.value = true;
+          scrollX.value = withDecay({ velocity, clamp: [0, max] }, (finished) => {
+            if (finished) {
+              runOnJS(finishMomentum)(scrollX.value);
+            }
+          });
+          return;
+        }
+
+        runOnJS(endDrag)(clamped);
       })
       .onFinalize(() => {
         isDraggingSv.value = false;
@@ -181,6 +224,7 @@ export function useTimelineGestures({
 
     const pinch = Gesture.Pinch()
       .onBegin(() => {
+        isMomentumSv.value = false;
         isDraggingSv.value = true;
         pinchBasePx.value = pxPerSecSv.value;
         pinchAnchorTime.value = scrollX.value / Math.max(1, pxPerSecSv.value);
@@ -211,13 +255,14 @@ export function useTimelineGestures({
     commitZoom,
     endDrag,
     finishDrag,
+    finishMomentum,
     isDraggingSv,
+    isMomentumSv,
     panStartX,
     pinchAnchorTime,
     pinchBasePx,
     pxPerSecSv,
     scrollX,
-    scrubThrottled,
     totalDurSv,
   ]);
 

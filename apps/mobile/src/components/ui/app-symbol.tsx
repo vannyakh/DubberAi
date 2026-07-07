@@ -49,7 +49,11 @@ export type SymbolName =
   | 'layers'
   | 'undo'
   | 'redo'
-  | 'backgroundBlur';
+  | 'backgroundBlur'
+  | 'backgroundColor'
+  | 'backgroundImage'
+  | 'brandBackground'
+  | 'ban';
 
 type SymbolSpec = {
   ios: SFSymbol;
@@ -103,6 +107,10 @@ export const SYMBOLS = {
   undo: { ios: 'arrow.uturn.backward', android: 'undo', web: 'undo' },
   redo: { ios: 'arrow.uturn.forward', android: 'redo', web: 'redo' },
   backgroundBlur: { ios: 'drop.fill', android: 'blur_on', web: 'blur_on' },
+  backgroundColor: { ios: 'paintbrush.fill', android: 'format_color_fill', web: 'format_color_fill' },
+  backgroundImage: { ios: 'paintbrush.pointed.fill', android: 'imagesearch_roller', web: 'imagesearch_roller' },
+  brandBackground: { ios: 'wallet.pass.fill', android: 'wallet', web: 'wallet' },
+  ban: { ios: 'nosign', android: 'block', web: 'block' },
 } as const satisfies Record<SymbolName, SymbolSpec>;
 
 interface Props {

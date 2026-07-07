@@ -2,6 +2,10 @@
 export const STUDIO_HEADER_BAR_HEIGHT = 44;
 export const STUDIO_PLAYBACK_HEIGHT = 44;
 export const STUDIO_TOOLBAR_HEIGHT = 64;
+/** Min touch target width; fits longest labels (e.g. Background). */
+export const STUDIO_TOOLBAR_ITEM_MIN_WIDTH = 64;
+/** Layout reservation for the background tools dock (toolbar overlays above this). */
+export const BACKGROUND_DOCK_HEIGHT = 16;
 export const STUDIO_FILTER_PILL_HEIGHT = 40;
 export const STUDIO_SIDEBAR_WIDTH = 48;
 export const STUDIO_RULER_HEIGHT = 20;

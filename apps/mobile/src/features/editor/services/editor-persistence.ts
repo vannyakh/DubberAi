@@ -1,5 +1,6 @@
 import { readJson, writeJson } from '@/libs/local-storage';
 import { CanvasAspectId } from '../aspect-ratios';
+import { CanvasBackgroundMode, CanvasBlurType } from '../canvas-background';
 import { DEFAULT_CLIP_CONTENT_TRANSFORM, EditorClip, FilterId, TextOverlay } from '../types';
 
 const STORAGE_KEY = 'editor-compositions.json';
@@ -12,6 +13,8 @@ export interface EditorComposition {
   filterId: FilterId;
   canvasAspectId: CanvasAspectId;
   canvasBackground: string;
+  canvasBackgroundMode: CanvasBackgroundMode;
+  canvasBlurType: CanvasBlurType;
   pxPerSecond: number;
 }
 
@@ -33,6 +36,8 @@ export function emptyComposition(): EditorComposition {
     filterId: 'none',
     canvasAspectId: 'original',
     canvasBackground: '#000000',
+    canvasBackgroundMode: 'solid',
+    canvasBlurType: 'regular',
     pxPerSecond: 60,
   };
 }
@@ -58,6 +63,8 @@ function normalizeComposition(raw: EditorComposition | null): EditorComposition 
     filterId: raw.filterId ?? 'none',
     canvasAspectId: raw.canvasAspectId ?? 'original',
     canvasBackground: raw.canvasBackground ?? '#000000',
+    canvasBackgroundMode: raw.canvasBackgroundMode ?? 'solid',
+    canvasBlurType: raw.canvasBlurType ?? 'regular',
     pxPerSecond: raw.pxPerSecond ?? 60,
   };
 }
