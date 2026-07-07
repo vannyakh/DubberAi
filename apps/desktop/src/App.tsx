@@ -1,8 +1,8 @@
 import React, { useRef, useState } from 'react';
-import { Button } from '@video-voice-translator/ui';
-import { VideoPlayer } from '@video-voice-translator/player';
-import { Timeline, useTimelineZoom, formatTimecode } from '@video-voice-translator/timeline';
-import { Track } from '@video-voice-translator/types';
+import { Button } from '@dubbercute/ui';
+import { VideoPlayer } from '@dubbercute/player';
+import { Timeline, useTimelineZoom, formatTimecode } from '@dubbercute/timeline';
+import { Track } from '@dubbercute/types';
 
 export const App: React.FC = () => {
   const [videoPath, setVideoPath] = useState<string | null>(null);
@@ -41,7 +41,7 @@ export const App: React.FC = () => {
   return (
     <div className="h-full flex flex-col bg-neutral-950 text-neutral-100">
       <header className="flex items-center justify-between px-4 py-2 border-b border-neutral-800">
-        <span className="text-sm font-bold tracking-wide">Video Voice Translator — Desktop</span>
+        <span className="text-sm font-bold tracking-wide">DubberCute — Desktop</span>
         <div className="flex items-center gap-2">
           <Button size="sm" variant="secondary" onClick={zoomOut}>-</Button>
           <Button size="sm" variant="secondary" onClick={zoomIn}>+</Button>

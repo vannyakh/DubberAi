@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { Segment } from "@video-voice-translator/types";
+import type { Segment } from "@dubbercute/types";
 
 export type DubbingStatus =
 	| "idle"

@@ -1,5 +1,5 @@
 {
-  "name": "@video-voice-translator/database",
+  "name": "@dubbercute/database",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -10,11 +10,11 @@
     "lint": "tsc --noEmit"
   },
   "dependencies": {
-    "@video-voice-translator/types": "workspace:*",
+    "@dubbercute/types": "workspace:*",
     "firebase": "^12.15.0"
   },
   "devDependencies": {
-    "@video-voice-translator/config": "workspace:*",
+    "@dubbercute/config": "workspace:*",
     "typescript": "~5.8.2"
   }
 }

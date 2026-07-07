@@ -1,5 +1,5 @@
 {
-  "name": "@video-voice-translator/design-system",
+  "name": "@dubbercute/design-system",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -10,7 +10,7 @@
     "lint": "tsc --noEmit"
   },
   "devDependencies": {
-    "@video-voice-translator/config": "workspace:*",
+    "@dubbercute/config": "workspace:*",
     "typescript": "~5.8.2"
   }
 }

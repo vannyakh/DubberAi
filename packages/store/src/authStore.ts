@@ -1,7 +1,7 @@
 import { create } from 'zustand';
-import { ApiClient } from '@video-voice-translator/api-client';
-import { Credentials, RegisterInput, TokenStorage } from '@video-voice-translator/auth';
-import { User } from '@video-voice-translator/types';
+import { ApiClient } from '@dubbercute/api-client';
+import { Credentials, RegisterInput, TokenStorage } from '@dubbercute/auth';
+import { User } from '@dubbercute/types';
 
 export interface AuthState {
   user: User | null;

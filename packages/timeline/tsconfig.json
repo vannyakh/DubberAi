@@ -1,4 +1,4 @@
 {
-  "extends": "@video-voice-translator/config/tsconfig/react-library.json",
+  "extends": "@dubbercute/config/tsconfig/react-library.json",
   "include": ["src"]
 }

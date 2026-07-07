@@ -1,4 +1,4 @@
-import { RenderJob } from '@video-voice-translator/types';
+import { RenderJob } from '@dubbercute/types';
 
 const API_URL = process.env.API_URL || 'http://localhost:4000';
 const POLL_INTERVAL_MS = Number(process.env.POLL_INTERVAL_MS || 3000);
@@ -29,7 +29,7 @@ async function updateJob(id: string, patch: Partial<RenderJob>): Promise<void> {
 async function processJob(job: RenderJob): Promise<void> {
   console.log(`[ai-worker] processing job ${job.id} for project ${job.projectId}`);
   // Placeholder AI pipeline. Real implementation loads the project media and runs
-  // @video-voice-translator/transcript + @video-voice-translator/ai (translate, TTS, analysis).
+  // @dubbercute/transcript + @dubbercute/ai (translate, TTS, analysis).
   await updateJob(job.id, { progress: 50 });
   await new Promise((r) => setTimeout(r, 500));
   await updateJob(job.id, { status: 'completed', progress: 100 });

@@ -1,5 +1,5 @@
-import { segmentsToCues } from '@video-voice-translator/captions';
-import { parseSegments } from '@video-voice-translator/utils';
+import { segmentsToCues } from '@dubbercute/captions';
+import { parseSegments } from '@dubbercute/utils';
 
 /** Parse a timestamped transcript/translation into caption cues. */
 export function buildCues(source: string) {

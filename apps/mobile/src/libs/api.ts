@@ -1,5 +1,5 @@
-import { ApiClient } from '@video-voice-translator/api-client';
-import { createMemoryTokenStorage, TokenStorage } from '@video-voice-translator/auth';
+import { ApiClient } from '@dubbercute/api-client';
+import { createMemoryTokenStorage, TokenStorage } from '@dubbercute/auth';
 
 /**
  * Set EXPO_PUBLIC_API_URL in .env / eas.json to point at your API.

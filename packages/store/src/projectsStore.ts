@@ -1,6 +1,6 @@
 import { create } from 'zustand';
-import { ApiClient } from '@video-voice-translator/api-client';
-import { Project } from '@video-voice-translator/types';
+import { ApiClient } from '@dubbercute/api-client';
+import { Project } from '@dubbercute/types';
 
 export interface ProjectsState {
   projects: Project[];

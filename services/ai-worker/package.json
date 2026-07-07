@@ -1,5 +1,5 @@
 {
-  "name": "@video-voice-translator/ai-worker",
+  "name": "@dubbercute/ai-worker",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -9,13 +9,13 @@
     "lint": "tsc --noEmit"
   },
   "dependencies": {
-    "@video-voice-translator/ai": "workspace:*",
-    "@video-voice-translator/transcript": "workspace:*",
-    "@video-voice-translator/types": "workspace:*"
+    "@dubbercute/ai": "workspace:*",
+    "@dubbercute/transcript": "workspace:*",
+    "@dubbercute/types": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
-    "@video-voice-translator/config": "workspace:*",
+    "@dubbercute/config": "workspace:*",
     "tsx": "^4.21.0",
     "typescript": "~5.8.2"
   }

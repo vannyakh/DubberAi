@@ -1,6 +1,6 @@
 import React from 'react';
 import { X } from 'lucide-react';
-import { cn } from '@video-voice-translator/utils';
+import { cn } from '@dubbercute/utils';
 
 export interface ModalProps {
   open: boolean;

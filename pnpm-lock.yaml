@@ -26,22 +26,22 @@ importers:
       '@prisma/client':
         specifier: ^6.3.1
         version: 6.19.3(prisma@6.19.3(typescript@5.8.3))(typescript@5.8.3)
-      '@video-voice-translator/ai':
+      '@dubbercute/ai':
         specifier: workspace:*
         version: link:../../packages/ai
-      '@video-voice-translator/captions':
+      '@dubbercute/captions':
         specifier: workspace:*
         version: link:../../packages/captions
-      '@video-voice-translator/ffmpeg':
+      '@dubbercute/ffmpeg':
         specifier: workspace:*
         version: link:../../packages/ffmpeg
-      '@video-voice-translator/transcript':
+      '@dubbercute/transcript':
         specifier: workspace:*
         version: link:../../packages/transcript
-      '@video-voice-translator/types':
+      '@dubbercute/types':
         specifier: workspace:*
         version: link:../../packages/types
-      '@video-voice-translator/utils':
+      '@dubbercute/utils':
         specifier: workspace:*
         version: link:../../packages/utils
       amqplib:
@@ -69,7 +69,7 @@ importers:
       '@types/node':
         specifier: ^22.14.0
         version: 22.20.0
-      '@video-voice-translator/config':
+      '@dubbercute/config':
         specifier: workspace:*
         version: link:../../packages/config
       prisma:
@@ -84,22 +84,22 @@ importers:
 
   apps/desktop:
     dependencies:
-      '@video-voice-translator/captions':
+      '@dubbercute/captions':
         specifier: workspace:*
         version: link:../../packages/captions
-      '@video-voice-translator/player':
+      '@dubbercute/player':
         specifier: workspace:*
         version: link:../../packages/player
-      '@video-voice-translator/timeline':
+      '@dubbercute/timeline':
         specifier: workspace:*
         version: link:../../packages/timeline
-      '@video-voice-translator/types':
+      '@dubbercute/types':
         specifier: workspace:*
         version: link:../../packages/types
-      '@video-voice-translator/ui':
+      '@dubbercute/ui':
         specifier: workspace:*
         version: link:../../packages/ui
-      '@video-voice-translator/utils':
+      '@dubbercute/utils':
         specifier: workspace:*
         version: link:../../packages/utils
       react:
@@ -124,7 +124,7 @@ importers:
       '@types/react-dom':
         specifier: ^19.0.0
         version: 19.2.3(@types/react@19.2.17)
-      '@video-voice-translator/config':
+      '@dubbercute/config':
         specifier: workspace:*
         version: link:../../packages/config
       '@vitejs/plugin-react':
@@ -157,28 +157,28 @@ importers:
 
   apps/mobile:
     dependencies:
-      '@video-voice-translator/api-client':
+      '@dubbercute/api-client':
         specifier: workspace:*
         version: link:../../packages/api-client
-      '@video-voice-translator/auth':
+      '@dubbercute/auth':
         specifier: workspace:*
         version: link:../../packages/auth
-      '@video-voice-translator/captions':
+      '@dubbercute/captions':
         specifier: workspace:*
         version: link:../../packages/captions
-      '@video-voice-translator/design-system':
+      '@dubbercute/design-system':
         specifier: workspace:*
         version: link:../../packages/design-system
-      '@video-voice-translator/player-core':
+      '@dubbercute/player-core':
         specifier: workspace:*
         version: link:../../packages/player-core
-      '@video-voice-translator/store':
+      '@dubbercute/store':
         specifier: workspace:*
         version: link:../../packages/store
-      '@video-voice-translator/types':
+      '@dubbercute/types':
         specifier: workspace:*
         version: link:../../packages/types
-      '@video-voice-translator/utils':
+      '@dubbercute/utils':
         specifier: workspace:*
         version: link:../../packages/utils
       expo:
@@ -278,28 +278,28 @@ importers:
       '@tanstack/react-query':
         specifier: ^5.101.2
         version: 5.101.2(react@19.2.7)
-      '@video-voice-translator/ai':
+      '@dubbercute/ai':
         specifier: workspace:*
         version: link:../../packages/ai
-      '@video-voice-translator/captions':
+      '@dubbercute/captions':
         specifier: workspace:*
         version: link:../../packages/captions
-      '@video-voice-translator/database':
+      '@dubbercute/database':
         specifier: workspace:*
         version: link:../../packages/database
-      '@video-voice-translator/player':
+      '@dubbercute/player':
         specifier: workspace:*
         version: link:../../packages/player
-      '@video-voice-translator/timeline':
+      '@dubbercute/timeline':
         specifier: workspace:*
         version: link:../../packages/timeline
-      '@video-voice-translator/types':
+      '@dubbercute/types':
         specifier: workspace:*
         version: link:../../packages/types
-      '@video-voice-translator/ui':
+      '@dubbercute/ui':
         specifier: workspace:*
         version: link:../../packages/ui
-      '@video-voice-translator/utils':
+      '@dubbercute/utils':
         specifier: workspace:*
         version: link:../../packages/utils
       class-variance-authority:
@@ -393,7 +393,7 @@ importers:
       '@types/react-dropzone':
         specifier: ^4.2.2
         version: 4.2.2
-      '@video-voice-translator/config':
+      '@dubbercute/config':
         specifier: workspace:*
         version: link:../../packages/config
       '@vitejs/plugin-react':
@@ -417,11 +417,11 @@ importers:
       '@google/genai':
         specifier: ^1.29.0
         version: 1.52.0
-      '@video-voice-translator/types':
+      '@dubbercute/types':
         specifier: workspace:*
         version: link:../types
     devDependencies:
-      '@video-voice-translator/config':
+      '@dubbercute/config':
         specifier: workspace:*
         version: link:../config
       typescript:
@@ -430,14 +430,14 @@ importers:
 
   packages/api-client:
     dependencies:
-      '@video-voice-translator/auth':
+      '@dubbercute/auth':
         specifier: workspace:*
         version: link:../auth
-      '@video-voice-translator/types':
+      '@dubbercute/types':
         specifier: workspace:*
         version: link:../types
     devDependencies:
-      '@video-voice-translator/config':
+      '@dubbercute/config':
         specifier: workspace:*
         version: link:../config
       typescript:
@@ -446,11 +446,11 @@ importers:
 
   packages/auth:
     dependencies:
-      '@video-voice-translator/types':
+      '@dubbercute/types':
         specifier: workspace:*
         version: link:../types
     devDependencies:
-      '@video-voice-translator/config':
+      '@dubbercute/config':
         specifier: workspace:*
         version: link:../config
       typescript:
@@ -459,11 +459,11 @@ importers:
 
   packages/captions:
     dependencies:
-      '@video-voice-translator/types':
+      '@dubbercute/types':
         specifier: workspace:*
         version: link:../types
     devDependencies:
-      '@video-voice-translator/config':
+      '@dubbercute/config':
         specifier: workspace:*
         version: link:../config
       typescript:
@@ -474,14 +474,14 @@ importers:
 
   packages/database:
     dependencies:
-      '@video-voice-translator/types':
+      '@dubbercute/types':
         specifier: workspace:*
         version: link:../types
       firebase:
         specifier: ^12.15.0
         version: 12.15.0
     devDependencies:
-      '@video-voice-translator/config':
+      '@dubbercute/config':
         specifier: workspace:*
         version: link:../config
       typescript:
@@ -490,7 +490,7 @@ importers:
 
   packages/design-system:
     devDependencies:
-      '@video-voice-translator/config':
+      '@dubbercute/config':
         specifier: workspace:*
         version: link:../config
       typescript:
@@ -502,7 +502,7 @@ importers:
       '@types/node':
         specifier: ^22.14.0
         version: 22.20.0
-      '@video-voice-translator/config':
+      '@dubbercute/config':
         specifier: workspace:*
         version: link:../config
       typescript:
@@ -511,13 +511,13 @@ importers:
 
   packages/player:
     dependencies:
-      '@video-voice-translator/player-core':
+      '@dubbercute/player-core':
         specifier: workspace:*
         version: link:../player-core
-      '@video-voice-translator/types':
+      '@dubbercute/types':
         specifier: workspace:*
         version: link:../types
-      '@video-voice-translator/utils':
+      '@dubbercute/utils':
         specifier: workspace:*
         version: link:../utils
     devDependencies:
@@ -527,7 +527,7 @@ importers:
       '@types/react-dom':
         specifier: ^19.0.0
         version: 19.2.3(@types/react@19.2.17)
-      '@video-voice-translator/config':
+      '@dubbercute/config':
         specifier: workspace:*
         version: link:../config
       react:
@@ -542,11 +542,11 @@ importers:
 
   packages/player-core:
     dependencies:
-      '@video-voice-translator/types':
+      '@dubbercute/types':
         specifier: workspace:*
         version: link:../types
     devDependencies:
-      '@video-voice-translator/config':
+      '@dubbercute/config':
         specifier: workspace:*
         version: link:../config
       typescript:
@@ -555,20 +555,20 @@ importers:
 
   packages/store:
     dependencies:
-      '@video-voice-translator/api-client':
+      '@dubbercute/api-client':
         specifier: workspace:*
         version: link:../api-client
-      '@video-voice-translator/auth':
+      '@dubbercute/auth':
         specifier: workspace:*
         version: link:../auth
-      '@video-voice-translator/types':
+      '@dubbercute/types':
         specifier: workspace:*
         version: link:../types
       zustand:
         specifier: ^5.0.14
         version: 5.0.14(@types/react@19.2.17)(react@19.2.7)(use-sync-external-store@1.6.0(react@19.2.7))
     devDependencies:
-      '@video-voice-translator/config':
+      '@dubbercute/config':
         specifier: workspace:*
         version: link:../config
       typescript:
@@ -577,13 +577,13 @@ importers:
 
   packages/timeline:
     dependencies:
-      '@video-voice-translator/timeline-core':
+      '@dubbercute/timeline-core':
         specifier: workspace:*
         version: link:../timeline-core
-      '@video-voice-translator/types':
+      '@dubbercute/types':
         specifier: workspace:*
         version: link:../types
-      '@video-voice-translator/utils':
+      '@dubbercute/utils':
         specifier: workspace:*
         version: link:../utils
     devDependencies:
@@ -593,7 +593,7 @@ importers:
       '@types/react-dom':
         specifier: ^19.0.0
         version: 19.2.3(@types/react@19.2.17)
-      '@video-voice-translator/config':
+      '@dubbercute/config':
         specifier: workspace:*
         version: link:../config
       react:
@@ -608,11 +608,11 @@ importers:
 
   packages/timeline-core:
     dependencies:
-      '@video-voice-translator/types':
+      '@dubbercute/types':
         specifier: workspace:*
         version: link:../types
     devDependencies:
-      '@video-voice-translator/config':
+      '@dubbercute/config':
         specifier: workspace:*
         version: link:../config
       typescript:
@@ -621,14 +621,14 @@ importers:
 
   packages/transcript:
     dependencies:
-      '@video-voice-translator/ai':
+      '@dubbercute/ai':
         specifier: workspace:*
         version: link:../ai
-      '@video-voice-translator/types':
+      '@dubbercute/types':
         specifier: workspace:*
         version: link:../types
     devDependencies:
-      '@video-voice-translator/config':
+      '@dubbercute/config':
         specifier: workspace:*
         version: link:../config
       typescript:
@@ -637,7 +637,7 @@ importers:
 
   packages/types:
     devDependencies:
-      '@video-voice-translator/config':
+      '@dubbercute/config':
         specifier: workspace:*
         version: link:../config
       typescript:
@@ -646,7 +646,7 @@ importers:
 
   packages/ui:
     dependencies:
-      '@video-voice-translator/utils':
+      '@dubbercute/utils':
         specifier: workspace:*
         version: link:../utils
       lucide-react:
@@ -659,7 +659,7 @@ importers:
       '@types/react-dom':
         specifier: ^19.0.0
         version: 19.2.3(@types/react@19.2.17)
-      '@video-voice-translator/config':
+      '@dubbercute/config':
         specifier: workspace:*
         version: link:../config
       react:
@@ -674,7 +674,7 @@ importers:
 
   packages/utils:
     dependencies:
-      '@video-voice-translator/types':
+      '@dubbercute/types':
         specifier: workspace:*
         version: link:../types
       clsx:
@@ -684,7 +684,7 @@ importers:
         specifier: ^3.5.0
         version: 3.6.0
     devDependencies:
-      '@video-voice-translator/config':
+      '@dubbercute/config':
         specifier: workspace:*
         version: link:../config
       typescript:
@@ -693,20 +693,20 @@ importers:
 
   services/ai-worker:
     dependencies:
-      '@video-voice-translator/ai':
+      '@dubbercute/ai':
         specifier: workspace:*
         version: link:../../packages/ai
-      '@video-voice-translator/transcript':
+      '@dubbercute/transcript':
         specifier: workspace:*
         version: link:../../packages/transcript
-      '@video-voice-translator/types':
+      '@dubbercute/types':
         specifier: workspace:*
         version: link:../../packages/types
     devDependencies:
       '@types/node':
         specifier: ^22.14.0
         version: 22.20.0
-      '@video-voice-translator/config':
+      '@dubbercute/config':
         specifier: workspace:*
         version: link:../../packages/config
       tsx:
@@ -718,20 +718,20 @@ importers:
 
   services/export-worker:
     dependencies:
-      '@video-voice-translator/captions':
+      '@dubbercute/captions':
         specifier: workspace:*
         version: link:../../packages/captions
-      '@video-voice-translator/ffmpeg':
+      '@dubbercute/ffmpeg':
         specifier: workspace:*
         version: link:../../packages/ffmpeg
-      '@video-voice-translator/types':
+      '@dubbercute/types':
         specifier: workspace:*
         version: link:../../packages/types
     devDependencies:
       '@types/node':
         specifier: ^22.14.0
         version: 22.20.0
-      '@video-voice-translator/config':
+      '@dubbercute/config':
         specifier: workspace:*
         version: link:../../packages/config
       tsx:
@@ -743,17 +743,17 @@ importers:
 
   services/render-worker:
     dependencies:
-      '@video-voice-translator/ffmpeg':
+      '@dubbercute/ffmpeg':
         specifier: workspace:*
         version: link:../../packages/ffmpeg
-      '@video-voice-translator/types':
+      '@dubbercute/types':
         specifier: workspace:*
         version: link:../../packages/types
     devDependencies:
       '@types/node':
         specifier: ^22.14.0
         version: 22.20.0
-      '@video-voice-translator/config':
+      '@dubbercute/config':
         specifier: workspace:*
         version: link:../../packages/config
       tsx:

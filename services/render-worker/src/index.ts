@@ -1,4 +1,4 @@
-import { RenderJob } from '@video-voice-translator/types';
+import { RenderJob } from '@dubbercute/types';
 
 const API_URL = process.env.API_URL || 'http://localhost:4000';
 const POLL_INTERVAL_MS = Number(process.env.POLL_INTERVAL_MS || 3000);
@@ -30,7 +30,7 @@ async function updateJob(id: string, patch: Partial<RenderJob>): Promise<void> {
 async function processJob(job: RenderJob): Promise<void> {
   console.log(`[render-worker] processing job ${job.id} for project ${job.projectId}`);
   // Placeholder render pipeline. Real implementation composes timeline clips
-  // with @video-voice-translator/ffmpeg (trim/merge/mixAudioIntoVideo/exportVideo).
+  // with @dubbercute/ffmpeg (trim/merge/mixAudioIntoVideo/exportVideo).
   for (let progress = 0; progress <= 100; progress += 20) {
     await updateJob(job.id, { progress });
     await new Promise((r) => setTimeout(r, 500));

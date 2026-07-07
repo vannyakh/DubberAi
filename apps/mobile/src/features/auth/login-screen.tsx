@@ -6,7 +6,7 @@ import {
   Text,
   TouchableOpacity,
 } from 'react-native';
-import { validateEmail, validatePassword } from '@video-voice-translator/auth';
+import { validateEmail, validatePassword } from '@dubbercute/auth';
 import { Button, ErrorText, Screen, TextField } from '@/components';
 import { fontSizes, spacing, theme } from '@/constants';
 import { useAuthStore } from '@/stores';
@@ -36,7 +36,7 @@ export function LoginScreen() {
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <Text style={styles.title}>Video Voice Translator</Text>
+        <Text style={styles.title}>DubberCute</Text>
         <Text style={styles.subtitle}>
           {mode === 'login' ? 'Sign in to your projects' : 'Create an account'}
         </Text>

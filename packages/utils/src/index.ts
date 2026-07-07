@@ -5,7 +5,7 @@
 
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import { Segment } from '@video-voice-translator/types';
+import { Segment } from '@dubbercute/types';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));

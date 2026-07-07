@@ -1,5 +1,5 @@
 import React from 'react';
-import { cn } from '@video-voice-translator/utils';
+import { cn } from '@dubbercute/utils';
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'ghost' | 'danger';

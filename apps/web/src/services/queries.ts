@@ -4,8 +4,8 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { loadProjectsFromFirestore, deleteProjectFromFirestore, listGoogleDriveFiles, DriveFile } from '@video-voice-translator/database';
-import { Project } from '@video-voice-translator/types';
+import { loadProjectsFromFirestore, deleteProjectFromFirestore, listGoogleDriveFiles, DriveFile } from '@dubbercute/database';
+import { Project } from '@dubbercute/types';
 
 export const queryKeys = {
   projects: (userId: string) => ['projects', userId] as const,

@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
-import { CaptionCue } from '@video-voice-translator/types';
-import { findActiveCue } from '@video-voice-translator/player-core';
-import { cn } from '@video-voice-translator/utils';
+import { CaptionCue } from '@dubbercute/types';
+import { findActiveCue } from '@dubbercute/player-core';
+import { cn } from '@dubbercute/utils';
 
 export interface SubtitleOverlayProps {
   cues: CaptionCue[];

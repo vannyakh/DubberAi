@@ -1,4 +1,4 @@
-import { CaptionCue, CaptionFormat, Segment } from '@video-voice-translator/types';
+import { CaptionCue, CaptionFormat, Segment } from '@dubbercute/types';
 
 const DEFAULT_CUE_DURATION = 4;
 

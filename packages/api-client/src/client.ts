@@ -1,5 +1,5 @@
-import { Credentials, RegisterInput } from '@video-voice-translator/auth';
-import { Project, RenderJob, Session, User } from '@video-voice-translator/types';
+import { Credentials, RegisterInput } from '@dubbercute/auth';
+import { Project, RenderJob, Session, User } from '@dubbercute/types';
 
 export class ApiError extends Error {
   constructor(

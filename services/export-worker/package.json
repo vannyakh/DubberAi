@@ -1,5 +1,5 @@
 {
-  "name": "@video-voice-translator/export-worker",
+  "name": "@dubbercute/export-worker",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -9,13 +9,13 @@
     "lint": "tsc --noEmit"
   },
   "dependencies": {
-    "@video-voice-translator/captions": "workspace:*",
-    "@video-voice-translator/ffmpeg": "workspace:*",
-    "@video-voice-translator/types": "workspace:*"
+    "@dubbercute/captions": "workspace:*",
+    "@dubbercute/ffmpeg": "workspace:*",
+    "@dubbercute/types": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
-    "@video-voice-translator/config": "workspace:*",
+    "@dubbercute/config": "workspace:*",
     "tsx": "^4.21.0",
     "typescript": "~5.8.2"
   }

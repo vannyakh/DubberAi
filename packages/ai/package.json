@@ -1,5 +1,5 @@
 {
-  "name": "@video-voice-translator/ai",
+  "name": "@dubbercute/ai",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -11,10 +11,10 @@
   },
   "dependencies": {
     "@google/genai": "^1.29.0",
-    "@video-voice-translator/types": "workspace:*"
+    "@dubbercute/types": "workspace:*"
   },
   "devDependencies": {
-    "@video-voice-translator/config": "workspace:*",
+    "@dubbercute/config": "workspace:*",
     "typescript": "~5.8.2"
   }
 }

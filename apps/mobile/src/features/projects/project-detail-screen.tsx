@@ -9,7 +9,7 @@ import {
   View,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { toSRT } from '@video-voice-translator/captions';
+import { toSRT } from '@dubbercute/captions';
 import { Button, ErrorText, Screen, TextField } from '@/components';
 import { fontSizes, radius, spacing, TARGET_LANGUAGES, theme } from '@/constants';
 import { useCues } from '@/hooks';

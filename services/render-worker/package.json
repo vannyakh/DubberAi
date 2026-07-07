@@ -1,5 +1,5 @@
 {
-  "name": "@video-voice-translator/render-worker",
+  "name": "@dubbercute/render-worker",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -9,12 +9,12 @@
     "lint": "tsc --noEmit"
   },
   "dependencies": {
-    "@video-voice-translator/ffmpeg": "workspace:*",
-    "@video-voice-translator/types": "workspace:*"
+    "@dubbercute/ffmpeg": "workspace:*",
+    "@dubbercute/types": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
-    "@video-voice-translator/config": "workspace:*",
+    "@dubbercute/config": "workspace:*",
     "tsx": "^4.21.0",
     "typescript": "~5.8.2"
   }

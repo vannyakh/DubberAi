@@ -1,5 +1,5 @@
 {
-  "name": "@video-voice-translator/ffmpeg",
+  "name": "@dubbercute/ffmpeg",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -11,7 +11,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
-    "@video-voice-translator/config": "workspace:*",
+    "@dubbercute/config": "workspace:*",
     "typescript": "~5.8.2"
   }
 }

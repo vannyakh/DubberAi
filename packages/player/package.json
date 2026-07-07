@@ -1,5 +1,5 @@
 {
-  "name": "@video-voice-translator/player",
+  "name": "@dubbercute/player",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -10,9 +10,9 @@
     "lint": "tsc --noEmit"
   },
   "dependencies": {
-    "@video-voice-translator/player-core": "workspace:*",
-    "@video-voice-translator/types": "workspace:*",
-    "@video-voice-translator/utils": "workspace:*"
+    "@dubbercute/player-core": "workspace:*",
+    "@dubbercute/types": "workspace:*",
+    "@dubbercute/utils": "workspace:*"
   },
   "peerDependencies": {
     "react": "^19.0.0",
@@ -21,7 +21,7 @@
   "devDependencies": {
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
-    "@video-voice-translator/config": "workspace:*",
+    "@dubbercute/config": "workspace:*",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "typescript": "~5.8.2"

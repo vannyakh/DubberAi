@@ -1,4 +1,4 @@
-import { CaptionCue } from '@video-voice-translator/types';
+import { CaptionCue } from '@dubbercute/types';
 
 export function findActiveCueIndex(cues: CaptionCue[], currentTime: number): number {
   return cues.findIndex((cue) => currentTime >= cue.start && currentTime < cue.end);

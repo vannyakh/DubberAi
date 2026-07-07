@@ -4,9 +4,9 @@ import {
 	generateSpeech,
 	generateMultiSpeakerSpeech,
 } from "@/services/ai-client";
-import { parseSegments, fileToBase64 } from "@video-voice-translator/utils";
+import { parseSegments, fileToBase64 } from "@dubbercute/utils";
 import { extractAudioForTranscription } from "./extract-audio";
-import type { Segment } from "@video-voice-translator/types";
+import type { Segment } from "@dubbercute/types";
 import type { EditorCore } from "@/core";
 import type { MediaAsset } from "@/media/types";
 import { useDubbingStore } from "./dubbing-store";

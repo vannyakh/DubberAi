@@ -1,5 +1,5 @@
 {
-  "name": "@video-voice-translator/store",
+  "name": "@dubbercute/store",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -10,13 +10,13 @@
     "lint": "tsc --noEmit"
   },
   "dependencies": {
-    "@video-voice-translator/api-client": "workspace:*",
-    "@video-voice-translator/auth": "workspace:*",
-    "@video-voice-translator/types": "workspace:*",
+    "@dubbercute/api-client": "workspace:*",
+    "@dubbercute/auth": "workspace:*",
+    "@dubbercute/types": "workspace:*",
     "zustand": "^5.0.14"
   },
   "devDependencies": {
-    "@video-voice-translator/config": "workspace:*",
+    "@dubbercute/config": "workspace:*",
     "typescript": "~5.8.2"
   }
 }

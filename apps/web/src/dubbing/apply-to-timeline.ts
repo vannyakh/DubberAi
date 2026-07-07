@@ -1,4 +1,4 @@
-import type { Segment } from "@video-voice-translator/types";
+import type { Segment } from "@dubbercute/types";
 import type { EditorCore } from "@/core";
 import { BatchCommand, type Command } from "@/commands";
 import { AddMediaAssetCommand } from "@/commands/media";

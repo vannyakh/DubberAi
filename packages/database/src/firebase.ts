@@ -25,7 +25,7 @@ import {
   getDocFromServer
 } from 'firebase/firestore';
 import firebaseConfig from '../../../firebase-applet-config.json';
-import { Project } from '@video-voice-translator/types';
+import { Project } from '@dubbercute/types';
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);

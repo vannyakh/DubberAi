@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
-import { cn } from '@video-voice-translator/utils';
-import { computeTicks, formatTimecode } from '@video-voice-translator/timeline-core';
+import { cn } from '@dubbercute/utils';
+import { computeTicks, formatTimecode } from '@dubbercute/timeline-core';
 
 interface TimeRulerProps {
   duration: number;

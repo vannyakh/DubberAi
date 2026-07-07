@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { zoomInStep, zoomOutStep } from '@video-voice-translator/timeline-core';
+import { zoomInStep, zoomOutStep } from '@dubbercute/timeline-core';
 
 export function useTimelineZoom(initial: number = 1) {
   const [zoom, setZoom] = useState(initial);

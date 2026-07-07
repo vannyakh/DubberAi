@@ -1,4 +1,4 @@
-import { Project, RenderJob, User } from '@video-voice-translator/types';
+import { Project, RenderJob, User } from '@dubbercute/types';
 
 /** Prisma returns Date objects; the wire format uses ISO strings. */
 

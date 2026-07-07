@@ -1,4 +1,4 @@
-import { Clip, Track } from '@video-voice-translator/types';
+import { Clip, Track } from '@dubbercute/types';
 
 /** Move a clip to a new timeline position (immutably). */
 export function moveClip(track: Track, clipId: string, newStart: number): Track {

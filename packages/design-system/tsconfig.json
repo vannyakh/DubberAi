@@ -1,4 +1,4 @@
 {
-  "extends": "@video-voice-translator/config/tsconfig/base.json",
+  "extends": "@dubbercute/config/tsconfig/base.json",
   "include": ["src"]
 }
