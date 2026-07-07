@@ -21,6 +21,7 @@ import {
   ProjectCard,
   useCreateProject,
 } from '@/features/home';
+import { openEditor } from '@/features/editor/editor-navigation';
 import { useAppStore, useProjectsStore } from '@/stores';
 
 const PREVIEW_COUNT = 3;
@@ -85,7 +86,7 @@ export function ProjectsScreen() {
           <View style={styles.listItem}>
             <ProjectCard
               project={item}
-              onPress={() => router.push({ pathname: '/editor/[id]', params: { id: item.id } })}
+              onPress={() => openEditor(router, item.id)}
               onDelete={() => confirmDelete(item.id, item.name)}
             />
           </View>

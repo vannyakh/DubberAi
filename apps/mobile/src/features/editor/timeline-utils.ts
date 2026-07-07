@@ -90,6 +90,35 @@ export function filmstripTileCount(segmentWidth: number): number {
   return Math.max(1, Math.ceil(segmentWidth / TIMELINE_CELL_WIDTH));
 }
 
+export interface FilmstripTileLayout {
+  index: number;
+  width: number;
+}
+
+/** Enough tiles to fill the segment while trimming out (live resize preview). */
+export function buildFilmstripLayout(
+  segmentWidth: number,
+  pxPerSecond: number,
+  trimStart: number,
+  /** For video: source duration. For still images: current trimEnd (extends freely). */
+  sourceExtentEnd: number,
+): { tileCount: number; tiles: FilmstripTileLayout[]; layoutWidth: number } {
+  const layoutWidth = Math.max(
+    segmentWidth,
+    Math.max(0, sourceExtentEnd - trimStart) * pxPerSecond,
+    TIMELINE_CELL_WIDTH,
+  );
+  const tileCount = filmstripTileCount(layoutWidth);
+  const tiles = Array.from({ length: tileCount }, (_, index) => ({
+    index,
+    width:
+      index === tileCount - 1
+        ? layoutWidth - TIMELINE_CELL_WIDTH * (tileCount - 1)
+        : TIMELINE_CELL_WIDTH,
+  }));
+  return { tileCount, tiles, layoutWidth };
+}
+
 export function downsampleWaveform(clip: EditorClip, barCount: number): number[] {
   if (clip.waveform.length === 0) return Array.from({ length: barCount }, () => 0.08);
   const bars: number[] = [];

@@ -76,6 +76,11 @@ export function mediaOverlayDuration(overlay: MediaOverlay): number {
   return Math.max(0, overlay.trimEnd - overlay.trimStart);
 }
 
+/** Still images have no fixed source length — timeline trim-out can extend freely. */
+export function hasUnlimitedTrimOut(mediaType: 'video' | 'image'): boolean {
+  return mediaType === 'image';
+}
+
 export function mediaOverlaysAtTime(overlays: MediaOverlay[], time: number): MediaOverlay[] {
   return overlays.filter((overlay) => {
     const end = overlay.startTime + mediaOverlayDuration(overlay);

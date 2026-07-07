@@ -7,6 +7,7 @@ import {
   EditorClip,
   ExportState,
   FilterId,
+  hasUnlimitedTrimOut,
   MediaOverlay,
   TextOverlay,
   timelineDuration,
@@ -58,6 +59,10 @@ interface EditorState {
   moveClip: (id: string, direction: -1 | 1) => void;
   reorderClip: (id: string, toIndex: number) => void;
   setMediaOverlayStartTime: (id: string, startTime: number) => void;
+  trimMediaOverlay: (
+    id: string,
+    patch: Partial<Pick<MediaOverlay, 'trimStart' | 'trimEnd' | 'startTime'>>,
+  ) => void;
 
   addOverlay: (overlay: TextOverlay) => void;
   updateOverlay: (id: string, patch: Partial<TextOverlay>) => void;
@@ -145,15 +150,24 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   trimClip: (id, trimStart, trimEnd) =>
     set((s) => ({
-      clips: s.clips.map((c) =>
-        c.id === id
-          ? {
-              ...c,
-              trimStart: Math.max(0, Math.min(trimStart, c.sourceDuration)),
-              trimEnd: Math.max(trimStart + 0.1, Math.min(trimEnd, c.sourceDuration)),
-            }
-          : c,
-      ),
+      clips: s.clips.map((c) => {
+        if (c.id !== id) return c;
+        if (hasUnlimitedTrimOut(c.mediaType)) {
+          const nextTrimEnd = Math.max(trimStart + 0.1, trimEnd);
+          const nextTrimStart = Math.max(0, Math.min(trimStart, nextTrimEnd - 0.1));
+          return {
+            ...c,
+            trimStart: nextTrimStart,
+            trimEnd: nextTrimEnd,
+            sourceDuration: Math.max(c.sourceDuration, nextTrimEnd),
+          };
+        }
+        return {
+          ...c,
+          trimStart: Math.max(0, Math.min(trimStart, c.sourceDuration)),
+          trimEnd: Math.max(trimStart + 0.1, Math.min(trimEnd, c.sourceDuration)),
+        };
+      }),
     })),
 
   splitClipAt: (time) => {
@@ -205,6 +219,33 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       mediaOverlays: s.mediaOverlays.map((o) =>
         o.id === id ? { ...o, startTime: Math.max(0, startTime) } : o,
       ),
+    })),
+
+  trimMediaOverlay: (id, patch) =>
+    set((s) => ({
+      mediaOverlays: s.mediaOverlays.map((o) => {
+        if (o.id !== id) return o;
+        const trimStart = patch.trimStart ?? o.trimStart;
+        const trimEnd = patch.trimEnd ?? o.trimEnd;
+        const startTime = patch.startTime ?? o.startTime;
+        if (hasUnlimitedTrimOut(o.mediaType)) {
+          const nextTrimEnd = Math.max(trimStart + 0.1, trimEnd);
+          const nextTrimStart = Math.max(0, Math.min(trimStart, nextTrimEnd - 0.1));
+          return {
+            ...o,
+            startTime: Math.max(0, startTime),
+            trimStart: nextTrimStart,
+            trimEnd: nextTrimEnd,
+            sourceDuration: Math.max(o.sourceDuration, nextTrimEnd),
+          };
+        }
+        return {
+          ...o,
+          startTime: Math.max(0, startTime),
+          trimStart: Math.max(0, Math.min(trimStart, o.sourceDuration)),
+          trimEnd: Math.max(trimStart + 0.1, Math.min(trimEnd, o.sourceDuration)),
+        };
+      }),
     })),
 
   addOverlay: (overlay) => set((s) => ({ overlays: [...s.overlays, overlay] })),

@@ -6,6 +6,7 @@ import { create } from 'zustand';
 import { clipsFromLibraryAssets } from '@/features/editor/services/media';
 import { useMediaPicker } from '@/features/media';
 import { createProjectFromClips } from '../create-project-from-footage';
+import { openEditor } from '@/features/editor/editor-navigation';
 
 interface CreateProjectUiState {
   creating: boolean;
@@ -38,7 +39,7 @@ export function useCreateProject() {
         const projectId = await createProjectFromClips(clips);
         picker.closePicker();
         if (projectId) {
-          router.push({ pathname: '/editor/[id]', params: { id: projectId } });
+          openEditor(router, projectId);
         }
       } catch (err) {
         Alert.alert(

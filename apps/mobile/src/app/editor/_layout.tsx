@@ -14,7 +14,14 @@ export default function EditorLayout() {
         contentStyle: { flex: 1, backgroundColor: editorTheme.background },
       }}
     >
-      <Stack.Screen name="[id]" options={{ contentStyle: { flex: 1 } }} />
+      <Stack.Screen
+        name="[id]"
+        options={{
+          contentStyle: { flex: 1 },
+          gestureEnabled: false,
+          fullScreenGestureEnabled: false,
+        }}
+      />
     </Stack>
   );
 }

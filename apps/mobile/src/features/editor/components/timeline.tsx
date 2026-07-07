@@ -1,11 +1,10 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
 import { Canvas, Line, Rect } from '@shopify/react-native-skia';
-import { Image } from 'expo-image';
 import { VideoThumbnail } from 'expo-video';
-import Animated from 'react-native-reanimated';
-import { GestureDetector } from 'react-native-gesture-handler';
+import Animated, { runOnJS } from 'react-native-reanimated';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { AppSymbol } from '@/components';
 import { fontSizes, radius } from '@/constants';
 import { editorTheme } from '@/constants/editor-theme';
@@ -26,18 +25,24 @@ import {
 } from '../timeline-tracks';
 import {
   buildTimelineClipSegments,
-  filmstripTileCount,
   formatTimelineTime,
   rulerTickStep,
   TIMELINE_ADD_ENDING_GAP,
   TIMELINE_ADD_ENDING_WIDTH,
-  reorderTargetIndex,
-  TIMELINE_CELL_WIDTH,
 } from '../timeline-utils';
-import { useTimelineSegmentPan } from '../hooks/use-timeline-segment-pan';
+import {
+  useTimelineTrimHandle,
+  useTimelineTrimPreview,
+} from '../hooks/use-timeline-trim-handle';
+import { useTimelineOverlayMove } from '../hooks/use-timeline-overlay-move';
+import { TimelineTrimHandle } from './timeline-trim-handle';
+import { TimelineTrimSnapGuide } from './timeline-trim-snap-guide';
+import { TimelineFilmstrip } from './timeline-filmstrip';
 import { useClipDisplayUris } from '../hooks/use-clip-display-uri';
 import { useMediaOverlayDisplayUris } from '../hooks/use-media-overlay-display-uri';
 import { useEditorStore } from '../editor-store';
+import { TimelinePanGestureContext } from '../timeline-pan-gesture-context';
+import { buildTimelineMoveSnapTargets, buildTimelineTrimSnapTargets } from '../timeline-trim-snap';
 import { EditorClip, MediaOverlay, TextOverlay, mediaOverlayDuration, timelineDuration } from '../types';
 import { TimelineSidebar } from './timeline-sidebar';
 import { TimelineWaveformCanvas } from './timeline-waveform-canvas';
@@ -72,7 +77,7 @@ export function Timeline({ thumbnails, onImport, onAddText, onAddOverlay }: Time
   const timelineWidth = Math.max(tracksWidth, totalDuration * pxPerSecond);
   const contentWidth = timelineWidth + TIMELINE_ADD_ENDING_GAP + TIMELINE_ADD_ENDING_WIDTH;
 
-  const { sidePad, gestures, contentShift } = useTimelineGestures({
+  const { sidePad, panGesture, gestures, contentShift } = useTimelineGestures({
     tracksWidth,
     totalDuration,
     pxPerSecond,
@@ -178,44 +183,47 @@ export function Timeline({ thumbnails, onImport, onAddText, onAddOverlay }: Time
                       onAddOverlay={onAddOverlay}
                     />
                   ) : (
-                    <Animated.View
-                      style={[
-                        styles.content,
-                        { width: contentWidth, height: bodyHeight },
-                        contentShift,
-                      ]}
-                    >
-                      {trackRows.map((track, index) => (
-                        <React.Fragment key={track.id}>
-                          {index > 0 ? <View style={styles.laneGap} /> : null}
-                          <TrackLane
-                            track={track}
-                            clips={clips}
-                            overlays={overlays}
-                            mediaOverlays={mediaOverlays}
-                            segments={allSegments}
-                            thumbnails={thumbnails}
-                            displayUris={displayUris}
-                            mediaDisplayUris={mediaDisplayUris}
-                            selectedClipId={selectedClipId}
-                            selectedMediaOverlayId={selectedMediaOverlayId}
-                            timelineWidth={timelineWidth}
-                            pxPerSecond={pxPerSecond}
-                            onImport={onImport}
-                            onAddText={onAddText}
-                            onAddOverlay={onAddOverlay}
-                            onSelectClip={(clipId) => {
-                              if (clipId === selectedClipId) selectClip(null);
-                              else selectClip(clipId);
-                            }}
-                            onSelectMediaOverlay={(overlayId) => {
-                              if (overlayId === selectedMediaOverlayId) selectMediaOverlay(null);
-                              else selectMediaOverlay(overlayId);
-                            }}
-                          />
-                        </React.Fragment>
-                      ))}
-                    </Animated.View>
+                    <TimelinePanGestureContext.Provider value={panGesture}>
+                      <Animated.View
+                        style={[
+                          styles.content,
+                          { width: contentWidth, height: bodyHeight },
+                          contentShift,
+                        ]}
+                      >
+                        <TimelineTrimSnapGuide height={bodyHeight} />
+                        {trackRows.map((track, index) => (
+                          <React.Fragment key={track.id}>
+                            {index > 0 ? <View style={styles.laneGap} /> : null}
+                            <TrackLane
+                              track={track}
+                              clips={clips}
+                              overlays={overlays}
+                              mediaOverlays={mediaOverlays}
+                              segments={allSegments}
+                              thumbnails={thumbnails}
+                              displayUris={displayUris}
+                              mediaDisplayUris={mediaDisplayUris}
+                              selectedClipId={selectedClipId}
+                              selectedMediaOverlayId={selectedMediaOverlayId}
+                              timelineWidth={timelineWidth}
+                              pxPerSecond={pxPerSecond}
+                              onImport={onImport}
+                              onAddText={onAddText}
+                              onAddOverlay={onAddOverlay}
+                              onSelectClip={(clipId) => {
+                                if (clipId === selectedClipId) selectClip(null);
+                                else selectClip(clipId);
+                              }}
+                              onSelectMediaOverlay={(overlayId) => {
+                                if (overlayId === selectedMediaOverlayId) selectMediaOverlay(null);
+                                else selectMediaOverlay(overlayId);
+                              }}
+                            />
+                          </React.Fragment>
+                        ))}
+                      </Animated.View>
+                    </TimelinePanGestureContext.Provider>
                   )}
                 </View>
               </View>
@@ -322,7 +330,6 @@ function TrackLane({
           <ClipSegment
             key={segment.key}
             segment={segment}
-            allSegments={segments}
             pxPerSecond={pxPerSecond}
             laneHeight={track.height}
             thumbnails={thumbnails[segment.clip.uri]}
@@ -366,7 +373,6 @@ function TrackLane({
             overlay={overlay}
             laneHeight={track.height}
             pxPerSecond={pxPerSecond}
-            timelineDuration={timelineWidth / pxPerSecond}
             displayUri={mediaDisplayUris[overlay.uri]}
             thumbnails={thumbnails[overlay.uri]}
             selected={overlay.id === selectedMediaOverlayId}
@@ -414,7 +420,6 @@ function MediaOverlaySegment({
   overlay,
   laneHeight,
   pxPerSecond,
-  timelineDuration: timelineEnd,
   displayUri,
   thumbnails,
   selected,
@@ -423,65 +428,216 @@ function MediaOverlaySegment({
   overlay: MediaOverlay;
   laneHeight: number;
   pxPerSecond: number;
-  timelineDuration: number;
   displayUri: string | undefined;
   thumbnails: VideoThumbnail[] | undefined;
   selected: boolean;
   onSelect: () => void;
 }) {
+  const trimMediaOverlay = useEditorStore((s) => s.trimMediaOverlay);
   const setMediaOverlayStartTime = useEditorStore((s) => s.setMediaOverlayStartTime);
+  const playhead = useEditorStore((s) => s.playhead);
+  const clips = useEditorStore((s) => s.clips);
+  const allMediaOverlays = useEditorStore((s) => s.mediaOverlays);
   const width = Math.max(24, mediaOverlayDuration(overlay) * pxPerSecond);
   const left = overlay.startTime * pxPerSecond;
+  const segmentHeight = laneHeight - 4;
+  const tickStep = rulerTickStep(pxPerSecond);
+  const trimBounds = useMemo(
+    () => ({
+      trimStart: overlay.trimStart,
+      trimEnd: overlay.trimEnd,
+      sourceDuration: overlay.sourceDuration,
+      allowExtendOut: overlay.mediaType === 'image',
+    }),
+    [overlay.mediaType, overlay.sourceDuration, overlay.trimEnd, overlay.trimStart],
+  );
+  const edgeTimeIn = overlay.startTime;
+  const edgeTimeOut = overlay.startTime + mediaOverlayDuration(overlay);
+  const snapTargetsIn = useMemo(
+    () =>
+      buildTimelineTrimSnapTargets({
+        playhead,
+        clips,
+        mediaOverlays: allMediaOverlays,
+        tickStep,
+        exclude: { kind: 'overlay', id: overlay.id, edge: 'in' },
+      }),
+    [allMediaOverlays, clips, overlay.id, playhead, tickStep],
+  );
+  const snapTargetsOut = useMemo(
+    () =>
+      buildTimelineTrimSnapTargets({
+        playhead,
+        clips,
+        mediaOverlays: allMediaOverlays,
+        tickStep,
+        exclude: { kind: 'overlay', id: overlay.id, edge: 'out' },
+      }),
+    [allMediaOverlays, clips, overlay.id, playhead, tickStep],
+  );
+  const snapTargetsMove = useMemo(
+    () =>
+      buildTimelineMoveSnapTargets({
+        playhead,
+        clips,
+        mediaOverlays: allMediaOverlays,
+        tickStep,
+        excludeOverlayId: overlay.id,
+      }),
+    [allMediaOverlays, clips, overlay.id, playhead, tickStep],
+  );
 
-  const { gesture, dragStyle } = useTimelineSegmentPan({
-    pxPerSecond,
-    onSelect,
-    onDragEnd: (deltaSeconds) => {
-      const duration = mediaOverlayDuration(overlay);
-      const maxStart = Math.max(0, timelineEnd - duration);
-      const nextStart = Math.min(maxStart, Math.max(0, overlay.startTime + deltaSeconds));
-      setMediaOverlayStartTime(overlay.id, nextStart);
+  const onMove = useCallback(
+    (deltaSeconds: number) => {
+      const current =
+        useEditorStore.getState().mediaOverlays.find((o) => o.id === overlay.id) ?? overlay;
+      setMediaOverlayStartTime(current.id, Math.max(0, current.startTime + deltaSeconds));
     },
+    [overlay, setMediaOverlayStartTime],
+  );
+
+  const onTrimIn = useCallback(
+    (deltaSeconds: number) => {
+      const current =
+        useEditorStore.getState().mediaOverlays.find((o) => o.id === overlay.id) ?? overlay;
+      const nextTrimStart = Math.max(
+        0,
+        Math.min(current.trimEnd - 0.1, current.trimStart + deltaSeconds),
+      );
+      const applied = nextTrimStart - current.trimStart;
+      trimMediaOverlay(current.id, {
+        trimStart: nextTrimStart,
+        startTime: current.startTime + applied,
+      });
+    },
+    [overlay, trimMediaOverlay],
+  );
+
+  const onTrimOut = useCallback(
+    (deltaSeconds: number) => {
+      const current =
+        useEditorStore.getState().mediaOverlays.find((o) => o.id === overlay.id) ?? overlay;
+      const nextTrimEnd =
+        current.mediaType === 'image'
+          ? Math.max(current.trimStart + 0.1, current.trimEnd + deltaSeconds)
+          : Math.max(
+              current.trimStart + 0.1,
+              Math.min(current.sourceDuration, current.trimEnd + deltaSeconds),
+            );
+      trimMediaOverlay(current.id, { trimEnd: nextTrimEnd });
+    },
+    [overlay, trimMediaOverlay],
+  );
+
+  const trimIn = useTimelineTrimHandle({
+    edge: 'in',
+    pxPerSecond,
+    bounds: trimBounds,
+    edgeTimeSeconds: edgeTimeIn,
+    snapTargets: snapTargetsIn,
+    onSelect,
+    onTrim: onTrimIn,
   });
 
-  const source = previewSourceForClip(
-    {
+  const trimOut = useTimelineTrimHandle({
+    edge: 'out',
+    pxPerSecond,
+    bounds: trimBounds,
+    edgeTimeSeconds: edgeTimeOut,
+    snapTargets: snapTargetsOut,
+    onSelect,
+    onTrim: onTrimOut,
+  });
+
+  const move = useTimelineOverlayMove({
+    pxPerSecond,
+    startTimeSeconds: overlay.startTime,
+    snapTargets: snapTargetsMove,
+    onSelect,
+    onMove,
+  });
+
+  const tapGesture = useMemo(
+    () =>
+      Gesture.Tap().onEnd(() => {
+        runOnJS(onSelect)();
+      }),
+    [onSelect],
+  );
+
+  const bodyGesture = useMemo(
+    () => Gesture.Exclusive(move.gesture, tapGesture),
+    [move.gesture, tapGesture],
+  );
+
+  const previewStyle = useTimelineTrimPreview(
+    left,
+    width,
+    trimIn.leftOffset,
+    trimIn.widthDelta,
+    trimOut.widthDelta,
+    move.translateX,
+  );
+
+  const source = useMemo(
+    () => ({
       id: overlay.id,
       uri: overlay.uri,
       mediaType: overlay.mediaType,
       trimStart: overlay.trimStart,
       trimEnd: overlay.trimEnd,
       sourceDuration: overlay.sourceDuration,
-    } as EditorClip,
-    thumbnails,
-    displayUri,
-    0.5,
+    }),
+    [
+      overlay.id,
+      overlay.mediaType,
+      overlay.sourceDuration,
+      overlay.trimEnd,
+      overlay.trimStart,
+      overlay.uri,
+    ],
   );
 
   return (
-    <GestureDetector gesture={gesture}>
-      <Animated.View
-        style={[
-          styles.mediaOverlaySegment,
-          { left, width, height: laneHeight - 4 },
-          selected && styles.clipSelected,
-          dragStyle,
-        ]}
-      >
-        {source ? (
-          <Image source={source} style={styles.thumb} contentFit="cover" recyclingKey={overlay.id} />
-        ) : (
-          <View style={[styles.thumb, styles.thumbPlaceholder]} />
-        )}
-        <View style={styles.mediaOverlayBadge}>
-          <AppSymbol
-            name={overlay.mediaType === 'video' ? 'film' : 'overlay'}
-            size={10}
-            tintColor={editorTheme.text}
+    <Animated.View
+      style={[
+        styles.mediaOverlaySegment,
+        { height: segmentHeight },
+        selected && styles.clipSelected,
+        previewStyle,
+      ]}
+    >
+      <GestureDetector gesture={bodyGesture}>
+        <View style={StyleSheet.absoluteFill}>
+          <TimelineFilmstrip
+            source={source}
+            segmentWidth={width}
+            pxPerSecond={pxPerSecond}
+            thumbnails={thumbnails}
+            displayUri={displayUri}
           />
         </View>
-      </Animated.View>
-    </GestureDetector>
+      </GestureDetector>
+      <View style={styles.mediaOverlayBadge} pointerEvents="none">
+        <AppSymbol
+          name={overlay.mediaType === 'video' ? 'film' : 'overlay'}
+          size={10}
+          tintColor={editorTheme.text}
+        />
+      </View>
+      <TimelineTrimHandle
+        edge="in"
+        gesture={trimIn.gesture}
+        height={segmentHeight}
+        isDragging={trimIn.isDragging}
+      />
+      <TimelineTrimHandle
+        edge="out"
+        gesture={trimOut.gesture}
+        height={segmentHeight}
+        isDragging={trimOut.isDragging}
+      />
+    </Animated.View>
   );
 }
 
@@ -521,7 +677,6 @@ function EmptyTrackStack({
 
 function ClipSegment({
   segment,
-  allSegments,
   pxPerSecond,
   laneHeight,
   thumbnails,
@@ -530,7 +685,6 @@ function ClipSegment({
   onSelect,
 }: {
   segment: ReturnType<typeof buildTimelineClipSegments>[number];
-  allSegments: ReturnType<typeof buildTimelineClipSegments>;
   pxPerSecond: number;
   laneHeight: number;
   thumbnails: VideoThumbnail[] | undefined;
@@ -538,132 +692,162 @@ function ClipSegment({
   selected: boolean;
   onSelect: () => void;
 }) {
-  const reorderClip = useEditorStore((s) => s.reorderClip);
+  const trimClip = useEditorStore((s) => s.trimClip);
+  const playhead = useEditorStore((s) => s.playhead);
+  const clips = useEditorStore((s) => s.clips);
+  const mediaOverlays = useEditorStore((s) => s.mediaOverlays);
   const isVideo = segment.clip.mediaType === 'video';
-  const tileCount = filmstripTileCount(segment.width);
-  const tiles = Array.from({ length: tileCount }, (_, index) => {
-    const width =
-      index === tileCount - 1
-        ? segment.width - TIMELINE_CELL_WIDTH * (tileCount - 1)
-        : TIMELINE_CELL_WIDTH;
-    return { index, width };
+  const tickStep = rulerTickStep(pxPerSecond);
+  const filmstripSource = useMemo(
+    () => ({
+      id: segment.clip.id,
+      uri: segment.clip.uri,
+      mediaType: segment.clip.mediaType,
+      trimStart: segment.clip.trimStart,
+      trimEnd: segment.clip.trimEnd,
+      sourceDuration: segment.clip.sourceDuration,
+    }),
+    [segment.clip],
+  );
+  const trimBounds = useMemo(
+    () => ({
+      trimStart: segment.clip.trimStart,
+      trimEnd: segment.clip.trimEnd,
+      sourceDuration: segment.clip.sourceDuration,
+      allowExtendOut: segment.clip.mediaType === 'image',
+    }),
+    [
+      segment.clip.mediaType,
+      segment.clip.sourceDuration,
+      segment.clip.trimEnd,
+      segment.clip.trimStart,
+    ],
+  );
+  const edgeTimeIn = segment.x / pxPerSecond;
+  const edgeTimeOut = (segment.x + segment.width) / pxPerSecond;
+  const snapTargetsIn = useMemo(
+    () =>
+      buildTimelineTrimSnapTargets({
+        playhead,
+        clips,
+        mediaOverlays,
+        tickStep,
+        exclude: { kind: 'clip', id: segment.clip.id, edge: 'in' },
+      }),
+    [clips, mediaOverlays, playhead, segment.clip.id, tickStep],
+  );
+  const snapTargetsOut = useMemo(
+    () =>
+      buildTimelineTrimSnapTargets({
+        playhead,
+        clips,
+        mediaOverlays,
+        tickStep,
+        exclude: { kind: 'clip', id: segment.clip.id, edge: 'out' },
+      }),
+    [clips, mediaOverlays, playhead, segment.clip.id, tickStep],
+  );
+
+  const onTrimIn = useCallback(
+    (deltaSeconds: number) => {
+      const clip =
+        useEditorStore.getState().clips.find((c) => c.id === segment.clip.id) ?? segment.clip;
+      const nextTrimStart = Math.max(
+        0,
+        Math.min(clip.trimEnd - 0.1, clip.trimStart + deltaSeconds),
+      );
+      trimClip(clip.id, nextTrimStart, clip.trimEnd);
+    },
+    [segment.clip, trimClip],
+  );
+
+  const onTrimOut = useCallback(
+    (deltaSeconds: number) => {
+      const clip =
+        useEditorStore.getState().clips.find((c) => c.id === segment.clip.id) ?? segment.clip;
+      const nextTrimEnd =
+        clip.mediaType === 'image'
+          ? Math.max(clip.trimStart + 0.1, clip.trimEnd + deltaSeconds)
+          : Math.max(
+              clip.trimStart + 0.1,
+              Math.min(clip.sourceDuration, clip.trimEnd + deltaSeconds),
+            );
+      trimClip(clip.id, clip.trimStart, nextTrimEnd);
+    },
+    [segment.clip, trimClip],
+  );
+
+  const trimIn = useTimelineTrimHandle({
+    edge: 'in',
+    pxPerSecond,
+    bounds: trimBounds,
+    edgeTimeSeconds: edgeTimeIn,
+    snapTargets: snapTargetsIn,
+    onSelect,
+    onTrim: onTrimIn,
   });
 
-  const { gesture, dragStyle } = useTimelineSegmentPan({
+  const trimOut = useTimelineTrimHandle({
+    edge: 'out',
     pxPerSecond,
+    bounds: trimBounds,
+    edgeTimeSeconds: edgeTimeOut,
+    snapTargets: snapTargetsOut,
     onSelect,
-    onDragEnd: (deltaSeconds) => {
-      const toIndex = reorderTargetIndex(
-        allSegments,
-        segment.clip.id,
-        deltaSeconds,
-        pxPerSecond,
-      );
-      reorderClip(segment.clip.id, toIndex);
-    },
+    onTrim: onTrimOut,
   });
+
+  const previewStyle = useTimelineTrimPreview(
+    segment.x,
+    segment.width,
+    trimIn.leftOffset,
+    trimIn.widthDelta,
+    trimOut.widthDelta,
+  );
 
   return (
-    <GestureDetector gesture={gesture}>
-      <Animated.View
-        style={[
-          styles.clipSegment,
-          {
-            left: segment.x,
-            width: segment.width,
-            height: laneHeight,
-          },
-          selected && styles.clipSelected,
-          dragStyle,
-        ]}
-      >
+    <Animated.View
+      style={[
+        styles.clipSegment,
+        { height: laneHeight },
+        selected && styles.clipSelected,
+        previewStyle,
+      ]}
+    >
+      <Pressable style={StyleSheet.absoluteFill} onPress={onSelect}>
         {isVideo ? (
-          <View style={styles.clipBadge}>
+          <View style={styles.clipBadge} pointerEvents="none">
             <AppSymbol name="play" size={8} tintColor={editorTheme.text} />
           </View>
         ) : null}
         <View style={styles.filmstrip}>
-          {tiles.map(({ index, width }) => (
-            <FilmstripTile
-              key={`${segment.key}:${index}`}
-              clip={segment.clip}
-              thumbnails={thumbnails}
-              displayUri={displayUri}
-              tileIndex={index}
-              tileCount={tileCount}
-              width={width}
-            />
-          ))}
+          <TimelineFilmstrip
+            source={filmstripSource}
+            segmentWidth={segment.width}
+            pxPerSecond={pxPerSecond}
+            thumbnails={thumbnails}
+            displayUri={displayUri}
+          />
         </View>
-      </Animated.View>
-    </GestureDetector>
+      </Pressable>
+      {selected ? (
+        <>
+          <TimelineTrimHandle
+            edge="in"
+            gesture={trimIn.gesture}
+            height={laneHeight}
+            isDragging={trimIn.isDragging}
+          />
+          <TimelineTrimHandle
+            edge="out"
+            gesture={trimOut.gesture}
+            height={laneHeight}
+            isDragging={trimOut.isDragging}
+          />
+        </>
+      ) : null}
+    </Animated.View>
   );
-}
-
-function FilmstripTile({
-  clip,
-  thumbnails,
-  displayUri,
-  tileIndex,
-  tileCount,
-  width,
-}: {
-  clip: ReturnType<typeof buildTimelineClipSegments>[number]['clip'];
-  thumbnails: VideoThumbnail[] | undefined;
-  displayUri: string | undefined;
-  tileIndex: number;
-  tileCount: number;
-  width: number;
-}) {
-  const source = previewSourceForClip(
-    clip,
-    thumbnails,
-    displayUri,
-    (tileIndex + 0.5) / tileCount,
-  );
-
-  return (
-    <View style={[styles.filmstripTile, { width }]}>
-      {source ? (
-        <Image
-          source={source}
-          style={styles.thumb}
-          contentFit="cover"
-          recyclingKey={`${clip.id}:${tileIndex}`}
-        />
-      ) : (
-        <View style={[styles.thumb, styles.thumbPlaceholder]} />
-      )}
-    </View>
-  );
-}
-
-function previewSourceForClip(
-  clip: ReturnType<typeof buildTimelineClipSegments>[number]['clip'],
-  thumbnails: VideoThumbnail[] | undefined,
-  displayUri: string | undefined,
-  normalizedTime: number,
-): { uri: string } | VideoThumbnail | null {
-  const uri = displayUri ?? clip.uri;
-
-  if (clip.mediaType === 'image') {
-    return { uri };
-  }
-
-  const clipLen = Math.max(0.001, clip.trimEnd - clip.trimStart);
-  const sourceTime = clip.trimStart + normalizedTime * clipLen;
-
-  if (thumbnails && thumbnails.length > 0) {
-    const idx = Math.min(
-      thumbnails.length - 1,
-      Math.round(
-        (sourceTime / Math.max(0.001, clip.sourceDuration)) * (thumbnails.length - 1),
-      ),
-    );
-    return thumbnails[idx];
-  }
-
-  return { uri };
 }
 
 function EmptyLane({
@@ -775,10 +959,12 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 0,
     overflow: 'hidden',
-    borderLeftWidth: 2,
-    borderLeftColor: editorTheme.accent,
     borderRadius: 4,
     zIndex: 2,
+  },
+  clipSelected: {
+    borderWidth: 2,
+    borderColor: editorTheme.text,
   },
   clipBadge: {
     position: 'absolute',
@@ -800,10 +986,6 @@ const styles = StyleSheet.create({
   filmstripTile: {
     height: '100%',
     overflow: 'hidden',
-  },
-  clipSelected: {
-    borderWidth: 2,
-    borderColor: editorTheme.text,
   },
   thumb: {
     width: '100%',

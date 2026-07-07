@@ -13,6 +13,7 @@ import { AppSymbol, ErrorText, Screen } from '@/components';
 import { appTheme } from '@/constants/app-theme';
 import { fontSizes, spacing } from '@/constants';
 import { ProjectCard } from '@/features/home';
+import { openEditor } from '@/features/editor/editor-navigation';
 import { useProjectsStore } from '@/stores';
 
 export function AllProjectsScreen() {
@@ -55,7 +56,7 @@ export function AllProjectsScreen() {
           <View style={styles.listItem}>
             <ProjectCard
               project={item}
-              onPress={() => router.push({ pathname: '/editor/[id]', params: { id: item.id } })}
+              onPress={() => openEditor(router, item.id)}
               onDelete={() => confirmDelete(item.id, item.name)}
             />
           </View>

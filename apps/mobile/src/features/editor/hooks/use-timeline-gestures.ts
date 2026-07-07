@@ -185,43 +185,58 @@ export function useTimelineGestures({
     [applyLiveZoom],
   );
 
+  const panGesture = useMemo(
+    () =>
+      Gesture.Pan()
+        .activeOffsetX([-10, 10])
+        .failOffsetY([-20, 20])
+        .onBegin(() => {
+          isMomentumSv.value = false;
+          isDraggingSv.value = true;
+          panStartX.value = scrollX.value;
+          runOnJS(beginDrag)();
+        })
+        .onUpdate((e) => {
+          const max = totalDurSv.value * pxPerSecSv.value;
+          scrollX.value = clampScroll(panStartX.value - e.translationX, max);
+        })
+        .onEnd((e) => {
+          const max = totalDurSv.value * pxPerSecSv.value;
+          const clamped = clampScroll(scrollX.value, max);
+          scrollX.value = clamped;
+
+          const velocity = -e.velocityX;
+          if (Math.abs(velocity) > 80) {
+            isMomentumSv.value = true;
+            scrollX.value = withDecay({ velocity, clamp: [0, max] }, (finished) => {
+              if (finished) {
+                runOnJS(finishMomentum)(scrollX.value);
+              }
+            });
+            return;
+          }
+
+          runOnJS(endDrag)(clamped);
+        })
+        .onFinalize(() => {
+          isDraggingSv.value = false;
+          runOnJS(finishDrag)();
+        }),
+    [
+      beginDrag,
+      endDrag,
+      finishDrag,
+      finishMomentum,
+      isDraggingSv,
+      isMomentumSv,
+      panStartX,
+      pxPerSecSv,
+      scrollX,
+      totalDurSv,
+    ],
+  );
+
   const gestures = useMemo(() => {
-    const pan = Gesture.Pan()
-      .activeOffsetX([-10, 10])
-      .failOffsetY([-20, 20])
-      .onBegin(() => {
-        isMomentumSv.value = false;
-        isDraggingSv.value = true;
-        panStartX.value = scrollX.value;
-        runOnJS(beginDrag)();
-      })
-      .onUpdate((e) => {
-        const max = totalDurSv.value * pxPerSecSv.value;
-        scrollX.value = clampScroll(panStartX.value - e.translationX, max);
-      })
-      .onEnd((e) => {
-        const max = totalDurSv.value * pxPerSecSv.value;
-        const clamped = clampScroll(scrollX.value, max);
-        scrollX.value = clamped;
-
-        const velocity = -e.velocityX;
-        if (Math.abs(velocity) > 80) {
-          isMomentumSv.value = true;
-          scrollX.value = withDecay({ velocity, clamp: [0, max] }, (finished) => {
-            if (finished) {
-              runOnJS(finishMomentum)(scrollX.value);
-            }
-          });
-          return;
-        }
-
-        runOnJS(endDrag)(clamped);
-      })
-      .onFinalize(() => {
-        isDraggingSv.value = false;
-        runOnJS(finishDrag)();
-      });
-
     const pinch = Gesture.Pinch()
       .onBegin(() => {
         isMomentumSv.value = false;
@@ -248,17 +263,15 @@ export function useTimelineGestures({
         runOnJS(finishDrag)();
       });
 
-    return Gesture.Simultaneous(pan, pinch);
+    return Gesture.Simultaneous(panGesture, pinch);
   }, [
     applyLiveZoomThrottled,
     beginDrag,
     commitZoom,
-    endDrag,
     finishDrag,
-    finishMomentum,
     isDraggingSv,
     isMomentumSv,
-    panStartX,
+    panGesture,
     pinchAnchorTime,
     pinchBasePx,
     pxPerSecSv,
@@ -272,6 +285,7 @@ export function useTimelineGestures({
 
   return {
     sidePad,
+    panGesture,
     gestures,
     contentShift,
     isDragging,

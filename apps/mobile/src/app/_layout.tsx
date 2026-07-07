@@ -25,7 +25,7 @@ export default function RootLayout() {
           <Stack.Protected guard={canUseApp}>
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="projects/index" />
-            <Stack.Screen name="editor" options={{ headerShown: false }} />
+            <Stack.Screen name="editor" options={{ headerShown: false, gestureEnabled: false }} />
           </Stack.Protected>
           <Stack.Protected guard={!canUseApp}>
             <Stack.Screen name="(auth)" />
