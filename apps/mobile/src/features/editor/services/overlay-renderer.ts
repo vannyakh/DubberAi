@@ -28,9 +28,10 @@ export function renderOverlayPng(
       // Overlay font sizes are authored against the preview; scale to output.
       const fontSize = overlay.fontSize * (height / 480);
       const font = matchFont({ fontFamily, fontSize, fontWeight: 'bold' });
-      const textWidth = font.measureText(overlay.text).width;
-      const x = overlay.x * width - textWidth / 2;
-      const y = overlay.y * height;
+      // Overlay coords are top-left anchored (matches the preview layout);
+      // drawText wants a baseline, so shift down by the font size.
+      const x = overlay.x * width;
+      const y = overlay.y * height + fontSize;
 
       const shadow = Skia.Paint();
       shadow.setColor(Skia.Color('rgba(0,0,0,0.6)'));
@@ -43,6 +44,7 @@ export function renderOverlayPng(
   }, { width, height });
 
   const image = drawAsImageFromPicture(picture, { width, height });
+  if (!image) return null;
   const base64 = image.encodeToBase64(ImageFormat.PNG, 100);
   const file = writeBase64(newOverlayFile(), base64);
   return file.uri;

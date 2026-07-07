@@ -51,6 +51,12 @@ export class SaveManager {
 		}
 	}
 
+	/** Drop a queued save without persisting (e.g. after closing the project). */
+	discardPending(): void {
+		this.hasPendingSave = false;
+		this.clearTimer();
+	}
+
 	markDirty({ force = false }: { force?: boolean } = {}): void {
 		if (this.isPaused && !force) return;
 		this.hasPendingSave = true;
@@ -80,8 +86,11 @@ export class SaveManager {
 		if (this.isSaving) return;
 		if (!this.hasPendingSave) return;
 
-		const activeProject = this.editor.project.getActive();
-		if (!activeProject) return;
+		const activeProject = this.editor.project.getActiveOrNull();
+		if (!activeProject) {
+			this.discardPending();
+			return;
+		}
 		if (this.editor.project.getIsLoading()) return;
 		if (this.editor.project.getMigrationState().isMigrating) return;
 

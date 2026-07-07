@@ -325,6 +325,9 @@ importers:
       firebase:
         specifier: ^12.15.0
         version: 12.15.0
+      i18next:
+        specifier: ^25.5.2
+        version: 25.10.10(typescript@5.8.3)
       lucide-react:
         specifier: ^0.546.0
         version: 0.546.0(react@19.2.7)
@@ -352,6 +355,9 @@ importers:
       react-dropzone:
         specifier: ^15.0.0
         version: 15.0.0(react@19.2.7)
+      react-i18next:
+        specifier: ^15.7.3
+        version: 15.7.4(i18next@25.10.10(typescript@5.8.3))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(typescript@5.8.3)
       react-resizable-panels:
         specifier: ^2.1.9
         version: 2.1.9(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -9674,7 +9680,9 @@ snapshots:
       metro-runtime: 0.84.4
     transitivePeerDependencies:
       - '@babel/core'
+      - bufferutil
       - supports-color
+      - utf-8-validate
 
   '@react-native/normalize-colors@0.74.89': {}
 
@@ -12392,6 +12400,16 @@ snapshots:
   react-freeze@1.0.4(react@19.2.3):
     dependencies:
       react: 19.2.3
+
+  react-i18next@15.7.4(i18next@25.10.10(typescript@5.8.3))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(typescript@5.8.3):
+    dependencies:
+      '@babel/runtime': 7.29.7
+      html-parse-stringify: 3.0.1
+      i18next: 25.10.10(typescript@5.8.3)
+      react: 19.2.7
+    optionalDependencies:
+      react-dom: 19.2.7(react@19.2.7)
+      typescript: 5.8.3
 
   react-i18next@15.7.4(i18next@25.10.10(typescript@5.8.3))(react@19.2.3)(typescript@5.8.3):
     dependencies:

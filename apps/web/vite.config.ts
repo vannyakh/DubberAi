@@ -20,9 +20,13 @@ export default defineConfig(() => {
           replacement: path.resolve(__dirname, './src/wasm/core-dispatch.ts'),
         },
       ],
+      // Workspace packages (e.g. @dubbercut/i18n) must share one React
+      // instance with the app or hooks like useMemo throw at runtime.
+      dedupe: ['react', 'react-dom', 'react-i18next', 'i18next'],
     },
     optimizeDeps: {
       exclude: ['opencut-wasm'],
+      include: ['react', 'react-dom', 'react-i18next', 'i18next'],
     },
     server: {
       hmr: process.env.DISABLE_HMR !== 'true',

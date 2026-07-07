@@ -14,7 +14,8 @@
         "NSPhotoLibraryUsageDescription": "DubberCut needs access to your photo library so you can import videos into the editor.",
         "NSPhotoLibraryAddUsageDescription": "DubberCut saves your exported videos back to your photo library.",
         "NSMicrophoneUsageDescription": "DubberCut uses the microphone to record voice-over audio tracks."
-      }
+      },
+      "bundleIdentifier": "com.vannya1511.dubbercut"
     },
     "android": {
       "adaptiveIcon": {
@@ -27,8 +28,17 @@
       "permissions": [
         "android.permission.READ_MEDIA_VIDEO",
         "android.permission.READ_MEDIA_AUDIO",
-        "android.permission.RECORD_AUDIO"
-      ]
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.READ_MEDIA_VISUAL_USER_SELECTED",
+        "android.permission.ACCESS_MEDIA_LOCATION",
+        "android.permission.READ_MEDIA_IMAGES"
+      ],
+      "package": "com.vannya1511.dubbercut"
     },
     "web": {
       "output": "static",
@@ -60,7 +70,6 @@
           "isAccessMediaLocationEnabled": true
         }
       ],
-      "ffmpeg-expo",
       "expo-image"
     ],
     "experiments": {

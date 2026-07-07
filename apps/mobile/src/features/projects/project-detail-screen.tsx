@@ -103,6 +103,12 @@ export function ProjectDetailScreen() {
 
         <ErrorText message={error} />
 
+        <Button
+          title="Open video editor"
+          onPress={() => router.push({ pathname: '/editor/[id]', params: { id: project.id } })}
+          style={{ marginTop: spacing.md }}
+        />
+
         <Text style={styles.label}>Transcript</Text>
         <TextField
           multiline

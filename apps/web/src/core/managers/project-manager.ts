@@ -296,9 +296,12 @@ export class ProjectManager {
 				this.active && idSet.has(this.active.metadata.id);
 
 			if (shouldClearActive) {
+				this.editor.save.pause();
+				this.editor.save.discardPending();
 				this.active = null;
 				this.editor.media.clearAllAssets();
 				this.editor.scenes.clearScenes();
+				this.editor.save.resume();
 			}
 
 			this.notify();
@@ -308,11 +311,16 @@ export class ProjectManager {
 	}
 
 	closeProject(): void {
+		this.editor.save.pause();
+		this.editor.save.discardPending();
+
 		this.active = null;
 		this.notify();
 
 		this.editor.media.clearAllAssets();
 		this.editor.scenes.clearScenes();
+
+		this.editor.save.resume();
 	}
 
 	async renameProject({

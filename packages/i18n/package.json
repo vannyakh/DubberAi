@@ -14,12 +14,16 @@
     "react-i18next": "^15.7.3"
   },
   "peerDependencies": {
-    "react": "^19.0.0"
+    "i18next": "^25.5.2",
+    "react": "^19.0.0",
+    "react-i18next": "^15.7.3"
   },
   "devDependencies": {
     "@dubbercut/config": "workspace:*",
     "@types/react": "^19.0.0",
+    "i18next": "^25.5.2",
     "react": "^19.0.0",
+    "react-i18next": "^15.7.3",
     "typescript": "~5.8.2"
   }
 }
