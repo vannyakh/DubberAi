@@ -8,29 +8,30 @@ AI-powered video voice translation / dubbing studio. Monorepo built with pnpm wo
 DubberCut/
 │
 ├── apps/
-│   ├── desktop/              # Electron: full editor (timeline, player, IPC file dialogs)
+│   ├── desktop/              # Electron: same UI as apps/web, Rust core runs natively (no WASM)
 │   ├── mobile/               # Expo: companion app (login, projects, transcripts, captions, AI translation)
 │   ├── api/                  # Fastify: auth, projects, AI, jobs, uploads (Prisma + MongoDB)
 │   └── web/                  # Vite + React studio (Gemini + Firebase + WASM compositor)
 │
 ├── packages/                 # All packages are @dubbercut/* — consumers listed on the right
 │   ├── types/                # Shared TypeScript types          (all apps, workers, packages)
-│   ├── utils/                # Shared utility functions         (api, desktop, mobile, web)
+│   ├── utils/                # Shared utility functions         (api, mobile, web)
 │   ├── api-client/           # Typed REST client for apps/api   (mobile, store)
 │   ├── auth/                 # Token storage, validation, types (mobile, api-client, store)
 │   ├── store/                # Zustand store factories          (mobile)
 │   ├── ai/                   # Gemini/LLM services via 302.AI   (api, web, ai-worker, transcript)
-│   ├── captions/             # SRT / VTT / ASS generation       (api, desktop, mobile, web, export-worker)
+│   ├── captions/             # SRT / VTT / ASS generation       (api, mobile, web, export-worker)
 │   ├── transcript/           # Gemini + Faster-Whisper providers(api, ai-worker)
 │   ├── timeline-core/        # Pure timeline logic              (timeline)
 │   ├── player-core/          # Pure playback/cue logic          (mobile, player)
-│   ├── timeline/             # React timeline components (DOM)  (desktop, web)
-│   ├── player/               # React player components (DOM)    (desktop, web)
-│   ├── ui/                   # React components (Button, Modal…)(desktop, web)
+│   ├── timeline/             # React timeline components (DOM)  (web)
+│   ├── player/               # React player components (DOM)    (web)
+│   ├── ui/                   # React components (Button, Modal…)(web)
 │   ├── design-system/        # Design tokens + light/dark themes(mobile)
 │   ├── database/             # Firebase adapter                 (web)
 │   ├── env/                  # Loads repo-root .env files       (api, all workers)
 │   ├── ffmpeg/               # Video processing (trim, merge…)  (api, export-worker, render-worker)
+│   ├── i18n/                 # react-i18next shared config (resources live in each app)
 │   └── config/               # Shared tsconfig presets          (everything)
 │
 ├── services/                 # Job workers — poll the API's job queue
@@ -46,7 +47,8 @@ DubberCut/
 │   │   ├── gpu/              # wgpu rendering
 │   │   ├── masks/            # SDF mask shapes
 │   │   └── compositor/       # Frame composition
-│   └── wasm/                 # opencut-wasm: crates → WebAssembly, output in pkg/ (linked by apps/web)
+│   ├── wasm/                 # opencut-wasm: crates → WebAssembly, output in pkg/ (linked by apps/web)
+│   └── node/                 # dubbercut-core: crates → native Node addon (Electron desktop)
 │
 ├── docker/                   # Dockerfiles (api, worker, web) + nginx config
 ├── railway/                  # Railway config-as-code + deployment guide
@@ -97,7 +99,7 @@ pnpm build:wasm
 | --- | --- |
 | `pnpm dev` | Web studio (http://localhost:3000) |
 | `pnpm dev:api` | API server (http://localhost:4000) |
-| `pnpm dev:desktop` | Electron desktop app |
+| `pnpm dev:desktop` | Electron desktop app (loads the web studio on port 3002) |
 | `pnpm dev:mobile` | Expo dev server (scan QR with Expo Go) |
 | `pnpm dev:all` | Everything, including workers |
 | `pnpm build` / `pnpm lint` | Build / type-check all packages |

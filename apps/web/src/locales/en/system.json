@@ -1,0 +1,17 @@
+{
+  "appName": "DubberCut",
+  "loading": "Loading...",
+  "save": "Save",
+  "cancel": "Cancel",
+  "delete": "Delete",
+  "rename": "Rename",
+  "duplicate": "Duplicate",
+  "info": "Info",
+  "created": "Created",
+  "modified": "Modified",
+  "name": "Name",
+  "duration": "Duration",
+  "language": "Language",
+  "english": "English",
+  "khmer": "Khmer"
+}

@@ -1,0 +1,15 @@
+{
+  "title": "All projects",
+  "newProject": "New project",
+  "newProjectShort": "New",
+  "searchPlaceholder": "Search...",
+  "selectAll": "Select all",
+  "emptyTitle": "No projects yet",
+  "emptyDescription": "Start creating your first project. Import media, edit, and export your videos. All privately.",
+  "emptyAction": "Create your first project",
+  "noResultsTitle": "No results found",
+  "noResultsDescription": "Your search for \"{{query}}\" did not return any results.",
+  "clearSearch": "Clear search",
+  "gridView": "Grid view",
+  "listView": "List view"
+}

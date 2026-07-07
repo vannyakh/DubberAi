@@ -10,9 +10,16 @@ export default defineConfig(() => {
     plugins: [react(), tailwindcss()],
     envDir: rootDir,
     resolve: {
-      alias: {
-        '@': path.resolve(__dirname, './src'),
-      },
+      alias: [
+        { find: '@', replacement: path.resolve(__dirname, './src') },
+        // Route the bare specifier through the core dispatch shim so the
+        // Electron desktop can serve the time API from the native Rust
+        // addon. Subpath imports (opencut-wasm/...) still hit the real pkg.
+        {
+          find: /^opencut-wasm$/,
+          replacement: path.resolve(__dirname, './src/wasm/core-dispatch.ts'),
+        },
+      ],
     },
     optimizeDeps: {
       exclude: ['opencut-wasm'],

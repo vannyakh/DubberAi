@@ -368,3 +368,13 @@
 ::-webkit-scrollbar-corner {
   background: transparent;
 }
+
+.desktop-app .h-screen {
+  height: 100%;
+}
+.desktop-app .min-h-screen {
+  min-height: 100%;
+}
+.desktop-app .w-screen {
+  width: 100%;
+}

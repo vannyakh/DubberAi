@@ -26,6 +26,7 @@
     "@dubbercut/ai": "workspace:*",
     "@dubbercut/captions": "workspace:*",
     "@dubbercut/database": "workspace:*",
+    "@dubbercut/i18n": "workspace:*",
     "@dubbercut/player": "workspace:*",
     "@dubbercut/timeline": "workspace:*",
     "@dubbercut/types": "workspace:*",

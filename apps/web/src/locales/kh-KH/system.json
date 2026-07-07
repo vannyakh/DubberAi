@@ -1,0 +1,17 @@
+{
+  "appName": "DubberCut",
+  "loading": "កំពុងផ្ទុក...",
+  "save": "រក្សាទុក",
+  "cancel": "បោះបង់",
+  "delete": "លុប",
+  "rename": "ប្តូរឈ្មោះ",
+  "duplicate": "ចម្លង",
+  "info": "ព័ត៌មាន",
+  "created": "បានបង្កើត",
+  "modified": "បានកែប្រែ",
+  "name": "ឈ្មោះ",
+  "duration": "រយៈពេល",
+  "language": "ភាសា",
+  "english": "អង់គ្លេស",
+  "khmer": "ខ្មែរ"
+}

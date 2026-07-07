@@ -1,0 +1,18 @@
+[package]
+name = "dubbercut-core"
+version = "0.1.0"
+edition = "2024"
+description = "Shared video editor logic as a native Node addon (Electron desktop)"
+license = "MIT"
+
+[lib]
+path = "src/node.rs"
+crate-type = ["cdylib"]
+
+[dependencies]
+napi = "2.16"
+napi-derive = "2.16"
+time = { version = "0.1.0", path = "../crates/time" }
+
+[build-dependencies]
+napi-build = "2.1"

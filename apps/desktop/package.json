@@ -4,39 +4,22 @@
   "private": true,
   "main": "dist-electron/main.cjs",
   "scripts": {
-    "dev": "vite --port=3001",
-    "dev:app": "npm run build:electron && concurrently -k \"vite --port=3001\" \"wait-on http://localhost:3001 && cross-env VITE_DEV_SERVER_URL=http://localhost:3001 electron .\"",
-    "build": "npm run build:electron && vite build",
+    "dev:app": "npm run build:electron && npm run build:core && concurrently -k \"pnpm --filter @dubbercut/web exec vite --port=3002 --strictPort\" \"wait-on http://localhost:3002 && cross-env VITE_DEV_SERVER_URL=http://localhost:3002 electron .\"",
+    "build": "npm run build:electron && npm run build:core && pnpm --filter @dubbercut/web build && rm -rf web-dist && cp -R ../web/dist web-dist",
     "build:electron": "esbuild electron/main.ts electron/preload.ts --bundle --platform=node --external:electron --outdir=dist-electron --format=cjs --out-extension:.js=.cjs",
+    "build:core": "cargo build --release -p dubbercut-core --manifest-path ../../rust/Cargo.toml && node scripts/copy-core.mjs",
     "start": "electron .",
-    "clean": "rm -rf dist dist-electron",
+    "clean": "rm -rf dist-electron web-dist",
     "lint": "tsc --noEmit"
   },
-  "dependencies": {
-    "@dubbercut/captions": "workspace:*",
-    "@dubbercut/player": "workspace:*",
-    "@dubbercut/timeline": "workspace:*",
-    "@dubbercut/types": "workspace:*",
-    "@dubbercut/ui": "workspace:*",
-    "@dubbercut/utils": "workspace:*",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "zustand": "^5.0.14"
-  },
   "devDependencies": {
-    "@tailwindcss/vite": "^4.1.14",
     "@types/node": "^22.14.0",
-    "@types/react": "^19.0.0",
-    "@types/react-dom": "^19.0.0",
     "@dubbercut/config": "workspace:*",
-    "@vitejs/plugin-react": "^5.0.4",
     "concurrently": "^9.1.2",
     "cross-env": "^7.0.3",
     "electron": "^33.3.1",
     "esbuild": "^0.24.2",
-    "tailwindcss": "^4.1.14",
     "typescript": "~5.8.2",
-    "vite": "^6.2.0",
     "wait-on": "^8.0.2"
   }
 }

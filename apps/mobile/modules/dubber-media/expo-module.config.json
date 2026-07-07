@@ -1,0 +1,9 @@
+{
+  "platforms": ["apple", "android"],
+  "apple": {
+    "modules": ["DubberMediaModule"]
+  },
+  "android": {
+    "modules": ["expo.modules.dubbermedia.DubberMediaModule"]
+  }
+}

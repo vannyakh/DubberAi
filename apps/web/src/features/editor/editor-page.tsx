@@ -9,6 +9,7 @@
 
 import { useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
+import { useTranslation } from "@dubbercut/i18n";
 import {
 	ResizablePanelGroup,
 	ResizablePanel,
@@ -63,17 +64,18 @@ export function EditorPage() {
 function DegradedRendererBanner() {
 	const isDegraded = useEditor((e) => e.renderer.isDegraded);
 	const [dismissed, setDismissed] = useState(false);
+	const { t } = useTranslation("studio");
 	if (!isDegraded || dismissed) return null;
 
 	return (
 		<div className="bg-accent border-b h-9 flex items-center justify-center gap-2 text-xs text-muted-foreground">
-			<span>For the best experience, use Chrome (WebGPU).</span>
+			<span>{t("degradedRenderer")}</span>
 			<Button
 				variant="text"
 				size="icon"
 				className="p-0 w-auto [&_svg]:size-3.5"
 				onClick={() => setDismissed(true)}
-				aria-label="Dismiss"
+				aria-label={t("dismiss")}
 			>
 				<HugeiconsIcon icon={Cancel01Icon} />
 			</Button>
