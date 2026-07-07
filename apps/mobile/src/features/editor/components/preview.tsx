@@ -18,14 +18,16 @@ import { CanvasBlurBackground } from './canvas-blur-background';
 import { PreviewSelectionHandles } from './preview-selection-handles';
 import { PreviewSnapGuides } from './preview-snap-guides';
 import { useEditorStore } from '../editor-store';
+import { PreviewMediaOverlay } from './preview-media-overlay';
 import { useClipDisplayUris } from '../hooks/use-clip-display-uri';
+import { useMediaOverlayDisplayUris } from '../hooks/use-media-overlay-display-uri';
 import { usePreviewCanvasGestures } from '../hooks/use-preview-canvas-gestures';
 import { useStableBlurBackgroundSource } from '../hooks/use-stable-blur-background-source';
 import { fitSizeToAspect } from '../preview-aspect';
 import type { PreviewContentTransform } from '../preview-content-rect';
 import { contentAnchorStyle, containedMediaRect, previewTransformStyle } from '../preview-content-rect';
 import type { SnapLine } from '../preview-snap';
-import { clipAtTime, FILTER_PRESETS, TextOverlay } from '../types';
+import { clipAtTime, FILTER_PRESETS, mediaOverlaysAtTime, TextOverlay } from '../types';
 
 interface PreviewProps {
   player: VideoPlayer;
@@ -53,11 +55,15 @@ function clipTransform(clip: {
  */
 export function Preview({ player, thumbnails, posterFrames }: PreviewProps) {
   const clips = useEditorStore((s) => s.clips);
+  const mediaOverlays = useEditorStore((s) => s.mediaOverlays);
   const displayUris = useClipDisplayUris(clips);
+  const mediaDisplayUris = useMediaOverlayDisplayUris(mediaOverlays);
   const playhead = useEditorStore((s) => s.playhead);
   const isPlaying = useEditorStore((s) => s.isPlaying);
   const selectedClipId = useEditorStore((s) => s.selectedClipId);
+  const selectedMediaOverlayId = useEditorStore((s) => s.selectedMediaOverlayId);
   const selectClip = useEditorStore((s) => s.selectClip);
+  const selectMediaOverlay = useEditorStore((s) => s.selectMediaOverlay);
   const globalFilterId = useEditorStore((s) => s.filterId);
   const canvasAspectId = useEditorStore((s) => s.canvasAspectId);
   const canvasBackground = useEditorStore((s) => s.canvasBackground);
@@ -65,6 +71,7 @@ export function Preview({ player, thumbnails, posterFrames }: PreviewProps) {
   const canvasBlurType = useEditorStore((s) => s.canvasBlurType);
   const overlays = useEditorStore((s) => s.overlays);
   const setClipContentTransform = useEditorStore((s) => s.setClipContentTransform);
+  const setMediaOverlayTransform = useEditorStore((s) => s.setMediaOverlayTransform);
   const [available, setAvailable] = useState({ width: 0, height: 0 });
   const [videoFrameReady, setVideoFrameReady] = useState(false);
   const [gestureActive, setGestureActive] = useState(false);
@@ -77,7 +84,13 @@ export function Preview({ player, thumbnails, posterFrames }: PreviewProps) {
   const preset = FILTER_PRESETS.find((p) => p.id === filterId) ?? FILTER_PRESETS[0];
   const showImage = active?.clip.mediaType === 'image';
   const transformClip = active?.clip ?? null;
-  const isClipSelected = !!active && selectedClipId === active.clip.id;
+  const isClipSelected =
+    !!active && selectedClipId === active.clip.id && !selectedMediaOverlayId;
+
+  const visibleMediaOverlays = useMemo(
+    () => mediaOverlaysAtTime(mediaOverlays, playhead),
+    [mediaOverlays, playhead],
+  );
 
   const aspectRatio = useMemo(
     () => resolveCanvasAspectRatio(clips, canvasAspectId),
@@ -156,6 +169,17 @@ export function Preview({ player, thumbnails, posterFrames }: PreviewProps) {
 
   const storedTransform = transformClip ? clipTransform(transformClip) : null;
 
+  const handleOverlayTransformCommit = useCallback(
+    (overlayId: string, next: PreviewContentTransform) => {
+      setMediaOverlayTransform(overlayId, {
+        contentScale: next.scale,
+        contentOffsetX: next.offsetX,
+        contentOffsetY: next.offsetY,
+        contentRotation: next.rotation,
+      });
+    },
+    [setMediaOverlayTransform],
+  );
   const handleTransformCommit = useCallback(
     (clipId: string, next: PreviewContentTransform) => {
       setClipContentTransform(clipId, {
@@ -300,6 +324,23 @@ export function Preview({ player, thumbnails, posterFrames }: PreviewProps) {
                 </View>
               </View>
             ) : null}
+
+            {hasFrame
+              ? visibleMediaOverlays.map((mediaOverlay) => (
+                  <PreviewMediaOverlay
+                    key={mediaOverlay.id}
+                    overlay={mediaOverlay}
+                    frameWidth={frame.width}
+                    frameHeight={frame.height}
+                    displayUri={mediaDisplayUris[mediaOverlay.uri] ?? mediaOverlay.uri}
+                    selected={selectedMediaOverlayId === mediaOverlay.id}
+                    thumbnails={thumbnails?.[mediaOverlay.uri]}
+                    posterFrame={posterFrames?.[mediaOverlay.uri]}
+                    onSelect={() => selectMediaOverlay(mediaOverlay.id)}
+                    onTransformCommit={handleOverlayTransformCommit}
+                  />
+                ))
+              : null}
 
             {hasFrame && preset.id !== 'none' && (
               <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">

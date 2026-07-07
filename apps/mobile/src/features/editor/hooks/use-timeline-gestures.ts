@@ -187,7 +187,7 @@ export function useTimelineGestures({
 
   const gestures = useMemo(() => {
     const pan = Gesture.Pan()
-      .activeOffsetX([-6, 6])
+      .activeOffsetX([-10, 10])
       .failOffsetY([-20, 20])
       .onBegin(() => {
         isMomentumSv.value = false;

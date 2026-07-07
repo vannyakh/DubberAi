@@ -32,6 +32,7 @@ export function useEditorPersistence(projectId: string | undefined, ready: boole
     const unsub = useEditorStore.subscribe((state, prev) => {
       if (
         state.clips === prev.clips &&
+        state.mediaOverlays === prev.mediaOverlays &&
         state.overlays === prev.overlays &&
         state.filterId === prev.filterId &&
         state.canvasAspectId === prev.canvasAspectId &&

@@ -19,6 +19,7 @@ import {
 } from '../studio-layout';
 import {
   computeTimelineTracks,
+  mediaOverlaysForTrack,
   overlaysForTextTrack,
   timelineTracksContentHeight,
   TimelineTrackRow,
@@ -30,11 +31,14 @@ import {
   rulerTickStep,
   TIMELINE_ADD_ENDING_GAP,
   TIMELINE_ADD_ENDING_WIDTH,
+  reorderTargetIndex,
   TIMELINE_CELL_WIDTH,
 } from '../timeline-utils';
+import { useTimelineSegmentPan } from '../hooks/use-timeline-segment-pan';
 import { useClipDisplayUris } from '../hooks/use-clip-display-uri';
+import { useMediaOverlayDisplayUris } from '../hooks/use-media-overlay-display-uri';
 import { useEditorStore } from '../editor-store';
-import { EditorClip, TextOverlay, timelineDuration } from '../types';
+import { EditorClip, MediaOverlay, TextOverlay, mediaOverlayDuration, timelineDuration } from '../types';
 import { TimelineSidebar } from './timeline-sidebar';
 import { TimelineWaveformCanvas } from './timeline-waveform-canvas';
 
@@ -42,22 +46,26 @@ interface TimelineProps {
   thumbnails: Record<string, VideoThumbnail[]>;
   onImport: () => void;
   onAddText: () => void;
+  onAddOverlay: () => void;
 }
 
-export function Timeline({ thumbnails, onImport, onAddText }: TimelineProps) {
+export function Timeline({ thumbnails, onImport, onAddText, onAddOverlay }: TimelineProps) {
   const { width: screenWidth } = useWindowDimensions();
   const tracksWidth = screenWidth - STUDIO_SIDEBAR_WIDTH;
 
   const clips = useEditorStore((s) => s.clips);
   const overlays = useEditorStore((s) => s.overlays);
+  const mediaOverlays = useEditorStore((s) => s.mediaOverlays);
   const pxPerSecond = useEditorStore((s) => s.pxPerSecond);
   const playhead = useEditorStore((s) => s.playhead);
   const isPlaying = useEditorStore((s) => s.isPlaying);
   const selectedClipId = useEditorStore((s) => s.selectedClipId);
+  const selectedMediaOverlayId = useEditorStore((s) => s.selectedMediaOverlayId);
   const setPlayhead = useEditorStore((s) => s.setPlayhead);
   const setPlaying = useEditorStore((s) => s.setPlaying);
   const setPxPerSecond = useEditorStore((s) => s.setPxPerSecond);
   const selectClip = useEditorStore((s) => s.selectClip);
+  const selectMediaOverlay = useEditorStore((s) => s.selectMediaOverlay);
   const toggleClipMuted = useEditorStore((s) => s.toggleClipMuted);
 
   const totalDuration = timelineDuration(clips);
@@ -83,6 +91,7 @@ export function Timeline({ thumbnails, onImport, onAddText }: TimelineProps) {
   );
 
   const displayUris = useClipDisplayUris(clips);
+  const mediaDisplayUris = useMediaOverlayDisplayUris(mediaOverlays);
 
   const tickStep = rulerTickStep(pxPerSecond);
   const rulerTicks = useMemo(() => {
@@ -156,12 +165,18 @@ export function Timeline({ thumbnails, onImport, onAddText }: TimelineProps) {
                 }}
                 onImport={onImport}
                 onAddText={onAddText}
+                onAddOverlay={onAddOverlay}
               />
 
               <View style={styles.tracksArea}>
                 <View style={styles.tracksClip}>
                   {!hasClips ? (
-                    <EmptyTrackStack trackRows={trackRows} onImport={onImport} onAddText={onAddText} />
+                    <EmptyTrackStack
+                      trackRows={trackRows}
+                      onImport={onImport}
+                      onAddText={onAddText}
+                      onAddOverlay={onAddOverlay}
+                    />
                   ) : (
                     <Animated.View
                       style={[
@@ -177,17 +192,25 @@ export function Timeline({ thumbnails, onImport, onAddText }: TimelineProps) {
                             track={track}
                             clips={clips}
                             overlays={overlays}
+                            mediaOverlays={mediaOverlays}
                             segments={allSegments}
                             thumbnails={thumbnails}
                             displayUris={displayUris}
+                            mediaDisplayUris={mediaDisplayUris}
                             selectedClipId={selectedClipId}
+                            selectedMediaOverlayId={selectedMediaOverlayId}
                             timelineWidth={timelineWidth}
                             pxPerSecond={pxPerSecond}
                             onImport={onImport}
                             onAddText={onAddText}
+                            onAddOverlay={onAddOverlay}
                             onSelectClip={(clipId) => {
                               if (clipId === selectedClipId) selectClip(null);
                               else selectClip(clipId);
+                            }}
+                            onSelectMediaOverlay={(overlayId) => {
+                              if (overlayId === selectedMediaOverlayId) selectMediaOverlay(null);
+                              else selectMediaOverlay(overlayId);
                             }}
                           />
                         </React.Fragment>
@@ -259,28 +282,38 @@ function TrackLane({
   track,
   clips,
   overlays,
+  mediaOverlays,
   segments,
   thumbnails,
   displayUris,
+  mediaDisplayUris,
   selectedClipId,
+  selectedMediaOverlayId,
   timelineWidth,
   pxPerSecond,
   onImport,
   onAddText,
+  onAddOverlay,
   onSelectClip,
+  onSelectMediaOverlay,
 }: {
   track: TimelineTrackRow;
   clips: EditorClip[];
   overlays: TextOverlay[];
+  mediaOverlays: MediaOverlay[];
   segments: ReturnType<typeof buildTimelineClipSegments>;
   thumbnails: Record<string, VideoThumbnail[]>;
   displayUris: Record<string, string>;
+  mediaDisplayUris: Record<string, string>;
   selectedClipId: string | null;
+  selectedMediaOverlayId: string | null;
   timelineWidth: number;
   pxPerSecond: number;
   onImport: () => void;
   onAddText: () => void;
+  onAddOverlay: () => void;
   onSelectClip: (clipId: string) => void;
+  onSelectMediaOverlay: (overlayId: string) => void;
 }) {
   if (track.kind === 'video' && track.index === 0) {
     return (
@@ -289,6 +322,8 @@ function TrackLane({
           <ClipSegment
             key={segment.key}
             segment={segment}
+            allSegments={segments}
+            pxPerSecond={pxPerSecond}
             laneHeight={track.height}
             thumbnails={thumbnails[segment.clip.uri]}
             displayUri={displayUris[segment.clip.uri]}
@@ -313,6 +348,31 @@ function TrackLane({
             Add ending
           </Text>
         </Pressable>
+      </View>
+    );
+  }
+
+  if (track.kind === 'media' && track.index === 0) {
+    const rowOverlays = mediaOverlaysForTrack(mediaOverlays, track.index);
+    if (rowOverlays.length === 0) {
+      return <EmptyLane label="+ Add overlay" onPress={onAddOverlay} height={track.height} />;
+    }
+
+    return (
+      <View style={[styles.mediaLane, { width: timelineWidth, height: track.height }]}>
+        {rowOverlays.map((overlay) => (
+          <MediaOverlaySegment
+            key={overlay.id}
+            overlay={overlay}
+            laneHeight={track.height}
+            pxPerSecond={pxPerSecond}
+            timelineDuration={timelineWidth / pxPerSecond}
+            displayUri={mediaDisplayUris[overlay.uri]}
+            thumbnails={thumbnails[overlay.uri]}
+            selected={overlay.id === selectedMediaOverlayId}
+            onSelect={() => onSelectMediaOverlay(overlay.id)}
+          />
+        ))}
       </View>
     );
   }
@@ -350,14 +410,91 @@ function TrackLane({
   );
 }
 
+function MediaOverlaySegment({
+  overlay,
+  laneHeight,
+  pxPerSecond,
+  timelineDuration: timelineEnd,
+  displayUri,
+  thumbnails,
+  selected,
+  onSelect,
+}: {
+  overlay: MediaOverlay;
+  laneHeight: number;
+  pxPerSecond: number;
+  timelineDuration: number;
+  displayUri: string | undefined;
+  thumbnails: VideoThumbnail[] | undefined;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  const setMediaOverlayStartTime = useEditorStore((s) => s.setMediaOverlayStartTime);
+  const width = Math.max(24, mediaOverlayDuration(overlay) * pxPerSecond);
+  const left = overlay.startTime * pxPerSecond;
+
+  const { gesture, dragStyle } = useTimelineSegmentPan({
+    pxPerSecond,
+    onSelect,
+    onDragEnd: (deltaSeconds) => {
+      const duration = mediaOverlayDuration(overlay);
+      const maxStart = Math.max(0, timelineEnd - duration);
+      const nextStart = Math.min(maxStart, Math.max(0, overlay.startTime + deltaSeconds));
+      setMediaOverlayStartTime(overlay.id, nextStart);
+    },
+  });
+
+  const source = previewSourceForClip(
+    {
+      id: overlay.id,
+      uri: overlay.uri,
+      mediaType: overlay.mediaType,
+      trimStart: overlay.trimStart,
+      trimEnd: overlay.trimEnd,
+      sourceDuration: overlay.sourceDuration,
+    } as EditorClip,
+    thumbnails,
+    displayUri,
+    0.5,
+  );
+
+  return (
+    <GestureDetector gesture={gesture}>
+      <Animated.View
+        style={[
+          styles.mediaOverlaySegment,
+          { left, width, height: laneHeight - 4 },
+          selected && styles.clipSelected,
+          dragStyle,
+        ]}
+      >
+        {source ? (
+          <Image source={source} style={styles.thumb} contentFit="cover" recyclingKey={overlay.id} />
+        ) : (
+          <View style={[styles.thumb, styles.thumbPlaceholder]} />
+        )}
+        <View style={styles.mediaOverlayBadge}>
+          <AppSymbol
+            name={overlay.mediaType === 'video' ? 'film' : 'overlay'}
+            size={10}
+            tintColor={editorTheme.text}
+          />
+        </View>
+      </Animated.View>
+    </GestureDetector>
+  );
+}
+
 function EmptyTrackStack({
   trackRows,
   onImport,
   onAddText,
+  onAddOverlay,
 }: {
   trackRows: TimelineTrackRow[];
   onImport: () => void;
   onAddText: () => void;
+  onAddOverlay: () => void;
 }) {
   return (
     <View style={styles.emptyStack}>
@@ -369,6 +506,8 @@ function EmptyTrackStack({
               <AppSymbol name="add" size={18} tintColor={editorTheme.textMuted} />
               <Text style={styles.emptyLaneText}>Add clip</Text>
             </Pressable>
+          ) : track.kind === 'media' ? (
+            <EmptyLane label="+ Add overlay" onPress={onAddOverlay} height={track.height} />
           ) : track.kind === 'audio' ? (
             <EmptyLane label="+ Add audio" onPress={onImport} height={track.height} />
           ) : (
@@ -382,6 +521,8 @@ function EmptyTrackStack({
 
 function ClipSegment({
   segment,
+  allSegments,
+  pxPerSecond,
   laneHeight,
   thumbnails,
   displayUri,
@@ -389,12 +530,15 @@ function ClipSegment({
   onSelect,
 }: {
   segment: ReturnType<typeof buildTimelineClipSegments>[number];
+  allSegments: ReturnType<typeof buildTimelineClipSegments>;
+  pxPerSecond: number;
   laneHeight: number;
   thumbnails: VideoThumbnail[] | undefined;
   displayUri: string | undefined;
   selected: boolean;
   onSelect: () => void;
 }) {
+  const reorderClip = useEditorStore((s) => s.reorderClip);
   const isVideo = segment.clip.mediaType === 'video';
   const tileCount = filmstripTileCount(segment.width);
   const tiles = Array.from({ length: tileCount }, (_, index) => {
@@ -405,38 +549,54 @@ function ClipSegment({
     return { index, width };
   });
 
+  const { gesture, dragStyle } = useTimelineSegmentPan({
+    pxPerSecond,
+    onSelect,
+    onDragEnd: (deltaSeconds) => {
+      const toIndex = reorderTargetIndex(
+        allSegments,
+        segment.clip.id,
+        deltaSeconds,
+        pxPerSecond,
+      );
+      reorderClip(segment.clip.id, toIndex);
+    },
+  });
+
   return (
-    <Pressable
-      onPress={onSelect}
-      style={[
-        styles.clipSegment,
-        {
-          left: segment.x,
-          width: segment.width,
-          height: laneHeight,
-        },
-        selected && styles.clipSelected,
-      ]}
-    >
-      {isVideo ? (
-        <View style={styles.clipBadge}>
-          <AppSymbol name="play" size={8} tintColor={editorTheme.text} />
+    <GestureDetector gesture={gesture}>
+      <Animated.View
+        style={[
+          styles.clipSegment,
+          {
+            left: segment.x,
+            width: segment.width,
+            height: laneHeight,
+          },
+          selected && styles.clipSelected,
+          dragStyle,
+        ]}
+      >
+        {isVideo ? (
+          <View style={styles.clipBadge}>
+            <AppSymbol name="play" size={8} tintColor={editorTheme.text} />
+          </View>
+        ) : null}
+        <View style={styles.filmstrip}>
+          {tiles.map(({ index, width }) => (
+            <FilmstripTile
+              key={`${segment.key}:${index}`}
+              clip={segment.clip}
+              thumbnails={thumbnails}
+              displayUri={displayUri}
+              tileIndex={index}
+              tileCount={tileCount}
+              width={width}
+            />
+          ))}
         </View>
-      ) : null}
-      <View style={styles.filmstrip}>
-        {tiles.map(({ index, width }) => (
-          <FilmstripTile
-            key={`${segment.key}:${index}`}
-            clip={segment.clip}
-            thumbnails={thumbnails}
-            displayUri={displayUri}
-            tileIndex={index}
-            tileCount={tileCount}
-            width={width}
-          />
-        ))}
-      </View>
-    </Pressable>
+      </Animated.View>
+    </GestureDetector>
   );
 }
 
@@ -618,6 +778,7 @@ const styles = StyleSheet.create({
     borderLeftWidth: 2,
     borderLeftColor: editorTheme.accent,
     borderRadius: 4,
+    zIndex: 2,
   },
   clipBadge: {
     position: 'absolute',
@@ -681,6 +842,33 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 30,
+  },
+  mediaLane: {
+    position: 'relative',
+    backgroundColor: editorTheme.surface,
+    borderRadius: 4,
+    marginHorizontal: 2,
+  },
+  mediaOverlaySegment: {
+    position: 'absolute',
+    top: 2,
+    overflow: 'hidden',
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: editorTheme.border,
+    backgroundColor: editorTheme.surfaceRaised,
+    zIndex: 3,
+  },
+  mediaOverlayBadge: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    width: 14,
+    height: 14,
+    borderRadius: 3,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   textLane: {
     flexDirection: 'row',

@@ -103,6 +103,26 @@ export function downsampleWaveform(clip: EditorClip, barCount: number): number[]
   return bars;
 }
 
+export function reorderTargetIndex(
+  segments: TimelineClipSegment[],
+  clipId: string,
+  deltaSeconds: number,
+  pxPerSecond: number,
+): number {
+  const fromIndex = segments.findIndex((segment) => segment.clip.id === clipId);
+  if (fromIndex < 0) return fromIndex;
+
+  const segment = segments[fromIndex];
+  const centerX = segment.x + segment.width / 2 + deltaSeconds * pxPerSecond;
+
+  for (let i = 0; i < segments.length; i++) {
+    const mid = segments[i].x + segments[i].width / 2;
+    if (centerX < mid) return i;
+  }
+
+  return segments.length - 1;
+}
+
 export function formatTimelineTime(seconds: number): string {
   const s = Math.max(0, seconds);
   const m = Math.floor(s / 60);

@@ -21,7 +21,10 @@ interface CornerGestures {
 interface Props {
   frameWidth: number;
   frameHeight: number;
-  clip: EditorClip;
+  clip: Pick<
+    EditorClip,
+    'width' | 'height' | 'contentScale' | 'contentOffsetX' | 'contentOffsetY' | 'contentRotation'
+  >;
   contentStyle: AnimatedStyle<ViewStyle>;
   cornerGestures: CornerGestures;
 }

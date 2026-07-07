@@ -45,6 +45,44 @@ export interface TextOverlay {
   fontSize: number;
 }
 
+/** Picture-in-picture image or video on a dedicated overlay track. */
+export interface MediaOverlay {
+  id: string;
+  uri: string;
+  libraryAssetId?: string;
+  mediaType: 'video' | 'image';
+  sourceDuration: number;
+  trimStart: number;
+  trimEnd: number;
+  width: number;
+  height: number;
+  /** Global timeline start in seconds. */
+  startTime: number;
+  trackIndex: number;
+  contentScale: number;
+  contentOffsetX: number;
+  contentOffsetY: number;
+  contentRotation: number;
+}
+
+export const DEFAULT_MEDIA_OVERLAY_TRANSFORM = {
+  contentScale: 0.45,
+  contentOffsetX: 0.28,
+  contentOffsetY: -0.28,
+  contentRotation: 0,
+} as const;
+
+export function mediaOverlayDuration(overlay: MediaOverlay): number {
+  return Math.max(0, overlay.trimEnd - overlay.trimStart);
+}
+
+export function mediaOverlaysAtTime(overlays: MediaOverlay[], time: number): MediaOverlay[] {
+  return overlays.filter((overlay) => {
+    const end = overlay.startTime + mediaOverlayDuration(overlay);
+    return time >= overlay.startTime && time < end;
+  });
+}
+
 export type FilterId = 'none' | 'warm' | 'cool' | 'mono' | 'fade' | 'vivid';
 
 export interface FilterPreset {

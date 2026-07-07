@@ -1,11 +1,13 @@
 import {
   STUDIO_AUDIO_LANE_HEIGHT,
   STUDIO_LANE_GAP,
+  STUDIO_MEDIA_OVERLAY_LANE_HEIGHT,
   STUDIO_TEXT_LANE_HEIGHT,
   STUDIO_VIDEO_LANE_HEIGHT,
 } from './studio-layout';
+import { MediaOverlay } from './types';
 
-export type TimelineTrackKind = 'video' | 'audio' | 'text';
+export type TimelineTrackKind = 'video' | 'audio' | 'text' | 'media';
 
 export interface TimelineTrackRow {
   id: string;
@@ -17,13 +19,19 @@ export interface TimelineTrackRow {
 const OVERLAYS_PER_TEXT_TRACK = 3;
 
 /** Core timeline lanes — extra text rows appear as overlays grow. */
-export function computeTimelineTracks(overlayCount: number): TimelineTrackRow[] {
+export function computeTimelineTracks(textOverlayCount: number): TimelineTrackRow[] {
   const rows: TimelineTrackRow[] = [
     { id: 'video-0', kind: 'video', height: STUDIO_VIDEO_LANE_HEIGHT, index: 0 },
+    {
+      id: 'media-0',
+      kind: 'media',
+      height: STUDIO_MEDIA_OVERLAY_LANE_HEIGHT,
+      index: 0,
+    },
     { id: 'audio-0', kind: 'audio', height: STUDIO_AUDIO_LANE_HEIGHT, index: 0 },
   ];
 
-  const textRows = Math.max(1, Math.ceil(Math.max(overlayCount, 1) / OVERLAYS_PER_TEXT_TRACK));
+  const textRows = Math.max(1, Math.ceil(Math.max(textOverlayCount, 1) / OVERLAYS_PER_TEXT_TRACK));
   for (let i = 0; i < textRows; i++) {
     rows.push({ id: `text-${i}`, kind: 'text', height: STUDIO_TEXT_LANE_HEIGHT, index: i });
   }
@@ -43,4 +51,8 @@ export function overlaysForTextTrack<T extends { id: string }>(
 ): T[] {
   const start = trackIndex * OVERLAYS_PER_TEXT_TRACK;
   return overlays.slice(start, start + OVERLAYS_PER_TEXT_TRACK);
+}
+
+export function mediaOverlaysForTrack(overlays: MediaOverlay[], trackIndex: number): MediaOverlay[] {
+  return overlays.filter((overlay) => overlay.trackIndex === trackIndex);
 }

@@ -13,6 +13,7 @@ interface Props {
   onToggleMute: () => void;
   onImport: () => void;
   onAddText: () => void;
+  onAddOverlay: () => void;
 }
 
 export function TimelineSidebar({
@@ -23,6 +24,7 @@ export function TimelineSidebar({
   onToggleMute,
   onImport,
   onAddText,
+  onAddOverlay,
 }: Props) {
   return (
     <View style={[styles.col, { height: contentHeight }]}>
@@ -36,6 +38,7 @@ export function TimelineSidebar({
             onToggleMute={onToggleMute}
             onImport={onImport}
             onAddText={onAddText}
+            onAddOverlay={onAddOverlay}
           />
         </React.Fragment>
       ))}
@@ -50,6 +53,7 @@ function TrackSidebarRow({
   onToggleMute,
   onImport,
   onAddText,
+  onAddOverlay,
 }: {
   track: TimelineTrackRow;
   muted: boolean;
@@ -57,6 +61,7 @@ function TrackSidebarRow({
   onToggleMute: () => void;
   onImport: () => void;
   onAddText: () => void;
+  onAddOverlay: () => void;
 }) {
   if (track.kind === 'video') {
     return (
@@ -77,6 +82,18 @@ function TrackSidebarRow({
           </Text>
         </Pressable>
       </View>
+    );
+  }
+
+  if (track.kind === 'media') {
+    return (
+      <Pressable
+        style={[styles.iconRow, { height: track.height }]}
+        onPress={onAddOverlay}
+        accessibilityLabel="Overlay track"
+      >
+        <AppSymbol name="overlay" size={16} tintColor={editorTheme.textSecondary} />
+      </Pressable>
     );
   }
 

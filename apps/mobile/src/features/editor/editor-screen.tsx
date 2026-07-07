@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import {
   Modal,
   StyleSheet,
@@ -16,6 +16,9 @@ import { useEditorStore } from './editor-store';
 import { useClipThumbnails } from './hooks/use-thumbnails';
 import { useClipPosterFrames } from './hooks/use-clip-poster-frames';
 import { useEditorMediaImport } from './hooks/use-editor-media-import';
+import { useEditorOverlayImport } from './hooks/use-editor-overlay-import';
+import { mediaOverlayPosterClip } from './services/media-overlay';
+import { OverlayToolsBar } from './components/overlay-tools-bar';
 import { useEditorBootstrap } from './hooks/use-editor-bootstrap';
 import { useEditorPersistence } from './hooks/use-editor-persistence';
 import { useTimelinePlayer } from './hooks/use-timeline-player';
@@ -38,16 +41,23 @@ export function EditorScreen() {
   const insets = useSafeAreaInsets();
 
   const clips = useEditorStore((s) => s.clips);
+  const mediaOverlays = useEditorStore((s) => s.mediaOverlays);
   const addOverlay = useEditorStore((s) => s.addOverlay);
   const selectClip = useEditorStore((s) => s.selectClip);
+  const selectMediaOverlay = useEditorStore((s) => s.selectMediaOverlay);
   const selectedClipId = useEditorStore((s) => s.selectedClipId);
+  const selectedMediaOverlayId = useEditorStore((s) => s.selectedMediaOverlayId);
 
   const persistenceReady = useEditorBootstrap(id);
   useEditorPersistence(id, persistenceReady);
 
   const player = useTimelinePlayer();
-  const thumbnails = useClipThumbnails(clips);
-  const posterFrames = useClipPosterFrames(clips, thumbnails);
+  const thumbClipSources = useMemo(
+    () => [...clips, ...mediaOverlays.map(mediaOverlayPosterClip)],
+    [clips, mediaOverlays],
+  );
+  const thumbnails = useClipThumbnails(thumbClipSources);
+  const posterFrames = useClipPosterFrames(thumbClipSources, thumbnails);
   const {
     pickerVisible,
     pickerAdding,
@@ -55,6 +65,12 @@ export function EditorScreen() {
     closeMediaPicker,
     confirmMediaPicker,
   } = useEditorMediaImport();
+  const {
+    openOverlayPicker,
+    closeOverlayPicker,
+    confirmOverlayPicker,
+  } = useEditorOverlayImport();
+  const pickerIntentRef = useRef<'clip' | 'overlay'>('clip');
 
   const [textDraft, setTextDraft] = useState<string | null>(null);
   const [editingPanel, setEditingPanel] = useState<EditorEditingPanel | null>(null);
@@ -99,6 +115,33 @@ export function EditorScreen() {
     closeEditingPanel();
   };
 
+  const handleDeselectOverlay = () => {
+    selectMediaOverlay(null);
+  };
+
+  const handleOpenClipPicker = () => {
+    pickerIntentRef.current = 'clip';
+    openMediaPicker();
+  };
+
+  const handleOpenOverlayPicker = () => {
+    pickerIntentRef.current = 'overlay';
+    openOverlayPicker();
+  };
+
+  const handleClosePicker = () => {
+    closeMediaPicker();
+    closeOverlayPicker();
+  };
+
+  const handleConfirmPicker = (assets: Parameters<typeof confirmMediaPicker>[0]) => {
+    if (pickerIntentRef.current === 'overlay') {
+      void confirmOverlayPicker(assets);
+      return;
+    }
+    void confirmMediaPicker(assets);
+  };
+
   return (
     <View style={styles.root}>
       <View style={styles.topHalf}>
@@ -115,7 +158,12 @@ export function EditorScreen() {
               <FiltersPanel clipId={selectedClipId} />
             </EditorEditPanel>
           ) : (
-            <Timeline thumbnails={thumbnails} onImport={openMediaPicker} onAddText={() => setTextDraft('')} />
+            <Timeline
+              thumbnails={thumbnails}
+              onImport={handleOpenClipPicker}
+              onAddText={() => setTextDraft('')}
+              onAddOverlay={handleOpenOverlayPicker}
+            />
           )}
         </View>
         <View
@@ -149,13 +197,19 @@ export function EditorScreen() {
                   />
                 ) : (
                   <Toolbar
-                    onImport={openMediaPicker}
+                    onImport={handleOpenClipPicker}
                     onAddText={() => setTextDraft('')}
+                    onAddOverlay={handleOpenOverlayPicker}
                     activePanel={editingPanel}
                     onOpenPanel={togglePanel}
                   />
                 )
               }
+            />
+          ) : selectedMediaOverlayId ? (
+            <OverlayToolsBar
+              onReplace={handleOpenOverlayPicker}
+              onDeselect={handleDeselectOverlay}
             />
           ) : selectedClipId ? (
             <ClipToolsBar
@@ -165,8 +219,9 @@ export function EditorScreen() {
             />
           ) : (
             <Toolbar
-              onImport={openMediaPicker}
+              onImport={handleOpenClipPicker}
               onAddText={() => setTextDraft('')}
+              onAddOverlay={handleOpenOverlayPicker}
               activePanel={editingPanel}
               onOpenPanel={togglePanel}
             />
@@ -179,8 +234,8 @@ export function EditorScreen() {
       <MediaPickerModal
         visible={pickerVisible}
         adding={pickerAdding}
-        onClose={closeMediaPicker}
-        onConfirm={confirmMediaPicker}
+        onClose={handleClosePicker}
+        onConfirm={handleConfirmPicker}
       />
 
       <Modal visible={textDraft !== null} transparent animationType="fade">

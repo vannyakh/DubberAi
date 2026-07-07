@@ -1,7 +1,7 @@
 import { readJson, writeJson } from '@/libs/local-storage';
 import { CanvasAspectId } from '../aspect-ratios';
 import { CanvasBackgroundMode, CanvasBlurType } from '../canvas-background';
-import { DEFAULT_CLIP_CONTENT_TRANSFORM, EditorClip, FilterId, TextOverlay } from '../types';
+import { DEFAULT_CLIP_CONTENT_TRANSFORM, EditorClip, FilterId, MediaOverlay, TextOverlay } from '../types';
 
 const STORAGE_KEY = 'editor-compositions.json';
 export const COMPOSITION_VERSION = 1 as const;
@@ -9,6 +9,7 @@ export const COMPOSITION_VERSION = 1 as const;
 export interface EditorComposition {
   version: typeof COMPOSITION_VERSION;
   clips: EditorClip[];
+  mediaOverlays: MediaOverlay[];
   overlays: TextOverlay[];
   filterId: FilterId;
   canvasAspectId: CanvasAspectId;
@@ -32,6 +33,7 @@ export function emptyComposition(): EditorComposition {
   return {
     version: COMPOSITION_VERSION,
     clips: [],
+    mediaOverlays: [],
     overlays: [],
     filterId: 'none',
     canvasAspectId: 'original',
@@ -53,12 +55,26 @@ function normalizeClip(clip: EditorClip): EditorClip {
   };
 }
 
+function normalizeMediaOverlay(overlay: MediaOverlay): MediaOverlay {
+  const scale = overlay.contentScale ?? DEFAULT_CLIP_CONTENT_TRANSFORM.contentScale;
+  return {
+    ...overlay,
+    contentScale: scale > 0 ? scale : DEFAULT_CLIP_CONTENT_TRANSFORM.contentScale,
+    contentOffsetX: overlay.contentOffsetX ?? DEFAULT_CLIP_CONTENT_TRANSFORM.contentOffsetX,
+    contentOffsetY: overlay.contentOffsetY ?? DEFAULT_CLIP_CONTENT_TRANSFORM.contentOffsetY,
+    contentRotation: overlay.contentRotation ?? DEFAULT_CLIP_CONTENT_TRANSFORM.contentRotation,
+  };
+}
+
 function normalizeComposition(raw: EditorComposition | null): EditorComposition | null {
   if (!raw || raw.version !== COMPOSITION_VERSION) return null;
   if (!Array.isArray(raw.clips)) return null;
   return {
     version: COMPOSITION_VERSION,
     clips: raw.clips.map(normalizeClip),
+    mediaOverlays: Array.isArray(raw.mediaOverlays)
+      ? raw.mediaOverlays.map(normalizeMediaOverlay)
+      : [],
     overlays: Array.isArray(raw.overlays) ? raw.overlays : [],
     filterId: raw.filterId ?? 'none',
     canvasAspectId: raw.canvasAspectId ?? 'original',

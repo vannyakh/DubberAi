@@ -10,6 +10,7 @@ export const STUDIO_FILTER_PILL_HEIGHT = 40;
 export const STUDIO_SIDEBAR_WIDTH = 48;
 export const STUDIO_RULER_HEIGHT = 20;
 export const STUDIO_VIDEO_LANE_HEIGHT = 44;
+export const STUDIO_MEDIA_OVERLAY_LANE_HEIGHT = 36;
 export const STUDIO_AUDIO_LANE_HEIGHT = 32;
 export const STUDIO_TEXT_LANE_HEIGHT = 32;
 export const STUDIO_LANE_GAP = 2;

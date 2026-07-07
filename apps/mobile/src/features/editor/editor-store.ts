@@ -7,6 +7,7 @@ import {
   EditorClip,
   ExportState,
   FilterId,
+  MediaOverlay,
   TextOverlay,
   timelineDuration,
 } from './types';
@@ -21,6 +22,8 @@ import { EditorComposition, COMPOSITION_VERSION, emptyComposition } from './serv
 interface EditorState {
   clips: EditorClip[];
   selectedClipId: string | null;
+  mediaOverlays: MediaOverlay[];
+  selectedMediaOverlayId: string | null;
   overlays: TextOverlay[];
   filterId: FilterId;
   /** Committed playhead position in seconds on the global timeline. */
@@ -37,9 +40,24 @@ interface EditorState {
   addClip: (clip: EditorClip) => void;
   removeClip: (id: string) => void;
   selectClip: (id: string | null) => void;
+  addMediaOverlay: (overlay: MediaOverlay) => void;
+  removeMediaOverlay: (id: string) => void;
+  selectMediaOverlay: (id: string | null) => void;
+  updateMediaOverlay: (id: string, patch: Partial<MediaOverlay>) => void;
+  setMediaOverlayTransform: (
+    id: string,
+    patch: Partial<
+      Pick<
+        MediaOverlay,
+        'contentScale' | 'contentOffsetX' | 'contentOffsetY' | 'contentRotation'
+      >
+    >,
+  ) => void;
   trimClip: (id: string, trimStart: number, trimEnd: number) => void;
   splitClipAt: (time: number) => void;
   moveClip: (id: string, direction: -1 | 1) => void;
+  reorderClip: (id: string, toIndex: number) => void;
+  setMediaOverlayStartTime: (id: string, startTime: number) => void;
 
   addOverlay: (overlay: TextOverlay) => void;
   updateOverlay: (id: string, patch: Partial<TextOverlay>) => void;
@@ -72,6 +90,8 @@ const initialExport: ExportState = { phase: 'idle', progress: 0, error: null, ou
 export const useEditorStore = create<EditorState>((set, get) => ({
   clips: [],
   selectedClipId: null,
+  mediaOverlays: [],
+  selectedMediaOverlayId: null,
   overlays: [],
   filterId: 'none',
   playhead: 0,
@@ -84,7 +104,11 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   exportState: initialExport,
 
   addClip: (clip) =>
-    set((s) => ({ clips: [...s.clips, clip], selectedClipId: clip.id })),
+    set((s) => ({
+      clips: [...s.clips, clip],
+      selectedClipId: clip.id,
+      selectedMediaOverlayId: null,
+    })),
 
   removeClip: (id) =>
     set((s) => ({
@@ -92,7 +116,32 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       selectedClipId: s.selectedClipId === id ? null : s.selectedClipId,
     })),
 
-  selectClip: (id) => set({ selectedClipId: id }),
+  selectClip: (id) => set({ selectedClipId: id, selectedMediaOverlayId: null }),
+
+  addMediaOverlay: (overlay) =>
+    set((s) => ({
+      mediaOverlays: [...s.mediaOverlays, overlay],
+      selectedMediaOverlayId: overlay.id,
+      selectedClipId: null,
+    })),
+
+  removeMediaOverlay: (id) =>
+    set((s) => ({
+      mediaOverlays: s.mediaOverlays.filter((o) => o.id !== id),
+      selectedMediaOverlayId: s.selectedMediaOverlayId === id ? null : s.selectedMediaOverlayId,
+    })),
+
+  selectMediaOverlay: (id) => set({ selectedMediaOverlayId: id, selectedClipId: null }),
+
+  updateMediaOverlay: (id, patch) =>
+    set((s) => ({
+      mediaOverlays: s.mediaOverlays.map((o) => (o.id === id ? { ...o, ...patch } : o)),
+    })),
+
+  setMediaOverlayTransform: (id, patch) =>
+    set((s) => ({
+      mediaOverlays: s.mediaOverlays.map((o) => (o.id === id ? { ...o, ...patch } : o)),
+    })),
 
   trimClip: (id, trimStart, trimEnd) =>
     set((s) => ({
@@ -138,6 +187,25 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       [clips[index], clips[target]] = [clips[target], clips[index]];
       return { clips };
     }),
+
+  reorderClip: (id, toIndex) =>
+    set((s) => {
+      const fromIndex = s.clips.findIndex((c) => c.id === id);
+      if (fromIndex < 0 || toIndex < 0 || toIndex >= s.clips.length || fromIndex === toIndex) {
+        return s;
+      }
+      const clips = [...s.clips];
+      const [clip] = clips.splice(fromIndex, 1);
+      clips.splice(toIndex, 0, clip);
+      return { clips };
+    }),
+
+  setMediaOverlayStartTime: (id, startTime) =>
+    set((s) => ({
+      mediaOverlays: s.mediaOverlays.map((o) =>
+        o.id === id ? { ...o, startTime: Math.max(0, startTime) } : o,
+      ),
+    })),
 
   addOverlay: (overlay) => set((s) => ({ overlays: [...s.overlays, overlay] })),
   updateOverlay: (id, patch) =>
@@ -207,6 +275,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   hydrate: (composition) =>
     set({
       clips: composition.clips,
+      mediaOverlays: composition.mediaOverlays ?? [],
       overlays: composition.overlays,
       filterId: composition.filterId,
       canvasAspectId: composition.canvasAspectId,
@@ -215,6 +284,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       canvasBlurType: composition.canvasBlurType,
       pxPerSecond: composition.pxPerSecond,
       selectedClipId: null,
+      selectedMediaOverlayId: null,
       playhead: 0,
       isPlaying: false,
       exportState: initialExport,
@@ -225,6 +295,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     return {
       version: COMPOSITION_VERSION,
       clips: s.clips,
+      mediaOverlays: s.mediaOverlays,
       overlays: s.overlays,
       filterId: s.filterId,
       canvasAspectId: s.canvasAspectId,
@@ -239,6 +310,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     set({
       clips: [],
       selectedClipId: null,
+      mediaOverlays: [],
+      selectedMediaOverlayId: null,
       overlays: [],
       filterId: 'none',
       playhead: 0,

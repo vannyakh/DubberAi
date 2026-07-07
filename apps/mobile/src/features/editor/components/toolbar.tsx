@@ -10,6 +10,7 @@ import type { EditorEditingPanel } from '../editing-panel';
 interface ToolbarProps {
   onImport: () => void;
   onAddText: () => void;
+  onAddOverlay: () => void;
   activePanel: EditorEditingPanel | null;
   onOpenPanel: (panel: EditorEditingPanel) => void;
 }
@@ -24,7 +25,7 @@ interface ToolItem {
 }
 
 /** Main CapCut-style tool strip — shown when no clip is selected. */
-export function Toolbar({ onImport, onAddText, activePanel, onOpenPanel }: ToolbarProps) {
+export function Toolbar({ onImport, onAddText, onAddOverlay, activePanel, onOpenPanel }: ToolbarProps) {
   const clips = useEditorStore((s) => s.clips);
   const hasClips = clips.length > 0;
 
@@ -33,7 +34,7 @@ export function Toolbar({ onImport, onAddText, activePanel, onOpenPanel }: Toolb
     { id: 'audio', symbol: 'music', label: 'Audio', onPress: onImport },
     { id: 'text', symbol: 'text', label: 'Text', onPress: onAddText, disabled: !hasClips },
     { id: 'effects', symbol: 'effects', label: 'Effects', disabled: true },
-    { id: 'overlay', symbol: 'overlay', label: 'Overlay', onPress: onImport, disabled: !hasClips },
+    { id: 'overlay', symbol: 'overlay', label: 'Overlay', onPress: onAddOverlay, disabled: !hasClips },
     { id: 'captions', symbol: 'captions', label: 'Captions', disabled: true },
     { id: 'filters', symbol: 'filters', label: 'Filters', panel: 'filters', disabled: !hasClips },
     { id: 'adjust', symbol: 'adjust', label: 'Adjust', disabled: true },
