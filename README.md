@@ -10,55 +10,65 @@ DubberCute/
 ├── apps/
 │   ├── desktop/              # Electron: full editor (timeline, player, IPC file dialogs)
 │   ├── mobile/               # Expo: companion app (login, projects, transcripts, captions, AI translation)
-│   ├── api/                  # Fastify: auth, projects, AI, jobs, uploads (Prisma + SQLite)
-│   └── web/                  # Vite + React studio (Gemini + Firebase)
+│   ├── api/                  # Fastify: auth, projects, AI, jobs, uploads (Prisma + MongoDB)
+│   └── web/                  # Vite + React studio (Gemini + Firebase + WASM compositor)
 │
-├── packages/
-│   ├── types/                # Shared TypeScript types          (desktop, mobile, api, web)
-│   ├── utils/                # Shared utility functions         (desktop, mobile, api, web)
-│   ├── api-client/           # Typed REST client for apps/api   (desktop, mobile)
-│   ├── auth/                 # Token storage, validation, types (desktop, mobile, api)
-│   ├── store/                # Zustand store factories          (desktop, mobile)
-│   ├── ai/                   # Gemini/LLM services              (desktop, api, web)
-│   ├── captions/             # SRT / VTT / ASS generation       (desktop, mobile, web)
-│   ├── transcript/           # Gemini + Faster-Whisper providers(desktop, api)
-│   ├── timeline-core/        # Pure timeline logic              (desktop)
-│   ├── player-core/          # Pure playback/cue logic          (desktop, mobile)
-│   ├── timeline/             # React timeline components (DOM)
-│   ├── player/               # React player components (DOM)
-│   ├── ui/                   # React components (Button, Modal, Spinner)
-│   ├── design-system/        # Design tokens + light/dark themes
-│   ├── database/             # Firebase (web); API uses Prisma
-│   ├── ffmpeg/               # Video processing (trim, merge, export...)
-│   └── config/               # Shared tsconfig presets
+├── packages/                 # All packages are @dubbercute/* — consumers listed on the right
+│   ├── types/                # Shared TypeScript types          (all apps, workers, packages)
+│   ├── utils/                # Shared utility functions         (api, desktop, mobile, web)
+│   ├── api-client/           # Typed REST client for apps/api   (mobile, store)
+│   ├── auth/                 # Token storage, validation, types (mobile, api-client, store)
+│   ├── store/                # Zustand store factories          (mobile)
+│   ├── ai/                   # Gemini/LLM services via 302.AI   (api, web, ai-worker, transcript)
+│   ├── captions/             # SRT / VTT / ASS generation       (api, desktop, mobile, web, export-worker)
+│   ├── transcript/           # Gemini + Faster-Whisper providers(api, ai-worker)
+│   ├── timeline-core/        # Pure timeline logic              (timeline)
+│   ├── player-core/          # Pure playback/cue logic          (mobile, player)
+│   ├── timeline/             # React timeline components (DOM)  (desktop, web)
+│   ├── player/               # React player components (DOM)    (desktop, web)
+│   ├── ui/                   # React components (Button, Modal…)(desktop, web)
+│   ├── design-system/        # Design tokens + light/dark themes(mobile)
+│   ├── database/             # Firebase adapter                 (web)
+│   ├── env/                  # Loads repo-root .env files       (api, all workers)
+│   ├── ffmpeg/               # Video processing (trim, merge…)  (api, export-worker, render-worker)
+│   └── config/               # Shared tsconfig presets          (everything)
 │
-├── services/
-│   ├── render-worker/        # Claims render jobs from the API
-│   ├── ai-worker/            # Claims AI jobs
+├── services/                 # Job workers — poll the API's job queue
+│   ├── render-worker/        # Claims render jobs
+│   ├── ai-worker/            # Claims AI jobs (translate, transcribe)
 │   └── export-worker/        # Claims export jobs
 │
-├── rust/
-│   ├── crates/               # Shared Rust crates (time, effects, gpu, masks, compositor, bridge)
-│   └── wasm/                 # opencut-wasm: crates compiled to WebAssembly for apps/web
+├── rust/                     # Shared Rust core (web via WASM, desktop natively)
+│   ├── crates/
+│   │   ├── bridge/           # #[export] macro: no-op natively, wasm_bindgen with --features wasm
+│   │   ├── time/             # Frame/time math
+│   │   ├── effects/          # Visual effects
+│   │   ├── gpu/              # wgpu rendering
+│   │   ├── masks/            # SDF mask shapes
+│   │   └── compositor/       # Frame composition
+│   └── wasm/                 # opencut-wasm: crates → WebAssembly, output in pkg/ (linked by apps/web)
 │
-├── scripts/                  # check-env.mjs, smoke-api.mjs
+├── docker/                   # Dockerfiles (api, worker, web) + nginx config
+├── railway/                  # Railway config-as-code + deployment guide
+├── scripts/                  # check-env, smoke-api, editor e2e/smoke scripts, make-test-video
+├── docker-compose.yml        # Local stack: mongo, redis, rabbitmq, api, workers, web
 ├── turbo.json
-├── pnpm-workspace.yaml
+├── pnpm-workspace.yaml       # apps/*, packages/*, services/*
 └── package.json
 ```
 
 ## Communication
 
 ```text
-                  API (Fastify + Prisma/SQLite + JWT)
-                   │
-        ┌──────────┴──────────┐
-        │                     │
- Desktop (Electron)     Mobile (Expo)
-        │                     │
-        └──────────┬──────────┘
-                   │
-     Shared packages (api-client, auth, store, ...)
+           API (Fastify + Prisma/MongoDB + JWT)
+                        │
+      ┌─────────────────┼─────────────────┐
+      │                 │                 │
+Desktop (Electron)  Mobile (Expo)  Workers (render / ai / export)
+      │                 │
+      └────────┬────────┘
+               │
+    Shared packages (api-client, auth, store, ...)
 ```
 
 ## Run Locally
@@ -79,7 +89,7 @@ pnpm build:wasm
 ```
 
 3. `pnpm install`
-4. Set `API_KEY_302` (a [302.AI](https://302.ai) key — one key for all LLM/AI services) in `.env` at the repo root.
+4. Copy `.env.example` to `.env` at the repo root and fill in `API_KEY_302` (a [302.AI](https://302.ai) key — one key for all LLM/AI services), `DATABASE_URL`, and `AUTH_SECRET`. This is the single env file for the whole repo — the API and workers load it via `@dubbercute/env`, the web app via Vite's `envDir`. Machine-local overrides go in `.env.local`.
 5. Create the API database: `pnpm db:push`
 6. Verify: `pnpm check-env`
 
@@ -94,6 +104,34 @@ pnpm build:wasm
 | `pnpm build:wasm` / `pnpm dev:wasm` | Build `rust/wasm` → `rust/wasm/pkg` (release / dev) |
 | `pnpm smoke-api` | End-to-end API test (auth, projects, jobs) |
 
+## Run with Docker
+
+`docker-compose.yml` runs the full backend stack plus the web studio:
+
+| Service | Image / Dockerfile | Port |
+| --- | --- | --- |
+| `mongo` | `mongo:7` (single-node replica set, required by Prisma) | 27017 |
+| `redis` | `redis:7-alpine` | — |
+| `rabbitmq` | `rabbitmq:4-management-alpine` | 15672 (UI) |
+| `api` | `docker/api.Dockerfile` | 4000 |
+| `ai-worker` / `render-worker` / `export-worker` | `docker/worker.Dockerfile` (`WORKER` build arg) | — |
+| `web` | `docker/web.Dockerfile` (Rust→WASM stage + Vite build + nginx) | 3000 |
+
+```bash
+# Needs .env at the repo root (API_KEY_302 etc.); DATABASE_URL / REDIS_URL /
+# RABBITMQ_URL are overridden in compose to point at the containers.
+docker compose up -d --build
+
+# Backend only (skip the slow web/WASM image):
+docker compose up -d --build api ai-worker render-worker export-worker
+```
+
+The API syncs Prisma indexes on boot (`prisma db push`), so no manual `pnpm db:push` is needed. Uploads persist in the `api-uploads` volume; Mongo/Redis/RabbitMQ data in their own volumes.
+
+## Deploy to Railway
+
+The same Dockerfiles deploy to [Railway](https://railway.com) — one Railway service per deployable (api, three workers, web) with config-as-code in `railway/*.railway.json`. See [`railway/README.md`](railway/README.md) for the step-by-step guide (MongoDB Atlas for the database, service variables, private networking).
+
 ### Mobile notes
 
 - Expo SDK 57 with expo-router file-based routing (`apps/mobile/src/app`): `/login`, `/` (projects), `/project/[id]`. Typed routes are enabled.
@@ -102,11 +140,12 @@ pnpm build:wasm
 
 ### API notes
 
-- Auth is JWT (Bearer). Set `AUTH_SECRET` in production (`apps/api/.env`).
+- All API config lives in the repo-root `.env` (there is no `apps/api/.env`).
+- Auth is JWT (Bearer). Set `AUTH_SECRET` in production.
 - Database is MongoDB via Prisma (`apps/api/prisma/schema.prisma`). Paste your MongoDB Atlas
-  connection string into `DATABASE_URL` in `apps/api/.env` (include a database name in the path),
+  connection string into `DATABASE_URL` (include a database name in the path),
   then run `pnpm db:push` once to sync indexes.
-- Cache is Redis (optional): set `REDIS_URL` in `apps/api/.env`. If Redis is unset or goes down,
+- Cache is Redis (optional): set `REDIS_URL`. If Redis is unset or goes down,
   the API automatically falls back to hitting the database directly — nothing breaks.
 - RabbitMQ is optional: set `RABBITMQ_URL` to publish job created/updated events to the `jobs`
   queue for push-style workers. Without it, workers keep polling `POST /api/jobs/claim` as before.

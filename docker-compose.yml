@@ -1,0 +1,129 @@
+name: dubbercute
+
+services:
+  # ── Infrastructure ────────────────────────────────────────────
+  mongo:
+    image: mongo:7
+    command: ["--replSet", "rs0", "--bind_ip_all"]
+    # Not exposed to the host (would clash with a local mongod); containers
+    # reach it at mongo:27017 on the compose network.
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      # Prisma's MongoDB connector requires a replica set; initiate it once.
+      test: >
+        mongosh --quiet --eval
+        "try { rs.status().ok } catch (e) { rs.initiate({_id:'rs0',members:[{_id:0,host:'mongo:27017'}]}).ok }"
+      interval: 5s
+      timeout: 10s
+      retries: 12
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  rabbitmq:
+    image: rabbitmq:4-management-alpine
+    ports:
+      - "15672:15672" # management UI
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+
+  # ── API server ────────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: docker/api.Dockerfile
+    ports:
+      - "4000:4000"
+    env_file: .env # API_KEY_302 and friends
+    environment:
+      DATABASE_URL: mongodb://mongo:27017/dubbercute?replicaSet=rs0&directConnection=true
+      REDIS_URL: redis://redis:6379
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
+    # Sync Prisma indexes on boot, then start the server.
+    command: sh -c "pnpm exec prisma db push --skip-generate && pnpm start"
+    volumes:
+      - api-uploads:/app/apps/api/uploads
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:4000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # ── Job workers ───────────────────────────────────────────────
+  ai-worker:
+    build:
+      context: .
+      dockerfile: docker/worker.Dockerfile
+      args:
+        WORKER: ai-worker
+    env_file: .env # needs API_KEY_302 for AI calls
+    environment:
+      API_URL: http://api:4000
+    depends_on:
+      api:
+        condition: service_healthy
+
+  render-worker:
+    build:
+      context: .
+      dockerfile: docker/worker.Dockerfile
+      args:
+        WORKER: render-worker
+    environment:
+      API_URL: http://api:4000
+    depends_on:
+      api:
+        condition: service_healthy
+
+  export-worker:
+    build:
+      context: .
+      dockerfile: docker/worker.Dockerfile
+      args:
+        WORKER: export-worker
+    environment:
+      API_URL: http://api:4000
+    depends_on:
+      api:
+        condition: service_healthy
+
+  # ── Web studio (static bundle served by nginx) ────────────────
+  web:
+    build:
+      context: .
+      dockerfile: docker/web.Dockerfile
+      args:
+        # Baked into the JS bundle; the browser calls the API directly,
+        # so this must be reachable from the host machine.
+        VITE_API_URL: http://localhost:4000
+    ports:
+      - "3000:80"
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  mongo-data:
+  redis-data:
+  rabbitmq-data:
+  api-uploads:

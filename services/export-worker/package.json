@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@dubbercute/captions": "workspace:*",
+    "@dubbercute/env": "workspace:*",
     "@dubbercute/ffmpeg": "workspace:*",
     "@dubbercute/types": "workspace:*"
   },

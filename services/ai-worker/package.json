@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@dubbercute/ai": "workspace:*",
+    "@dubbercute/env": "workspace:*",
     "@dubbercute/transcript": "workspace:*",
     "@dubbercute/types": "workspace:*"
   },

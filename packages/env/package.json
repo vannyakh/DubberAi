@@ -1,0 +1,17 @@
+{
+  "name": "@dubbercute/env",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@dubbercute/config": "workspace:*",
+    "@types/node": "^22.14.0",
+    "typescript": "~5.8.2"
+  }
+}

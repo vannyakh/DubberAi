@@ -1,4 +1,4 @@
-import './env';
+import '@dubbercute/env';
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import multipart from '@fastify/multipart';
@@ -34,7 +34,8 @@ async function main() {
   await app.register(jobRoutes, { prefix: '/api/jobs' });
   await app.register(uploadRoutes, { prefix: '/api/uploads' });
 
-  await app.listen({ port: PORT, host: '0.0.0.0' });
+  // '::' binds IPv6 + IPv4 — required for Railway private networking.
+  await app.listen({ port: PORT, host: '::' });
 }
 
 main().catch((err) => {

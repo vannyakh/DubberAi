@@ -9,6 +9,7 @@
     "lint": "tsc --noEmit"
   },
   "dependencies": {
+    "@dubbercute/env": "workspace:*",
     "@dubbercute/ffmpeg": "workspace:*",
     "@dubbercute/types": "workspace:*"
   },

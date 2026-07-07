@@ -30,7 +30,9 @@ const envContent = ['.env', '.env.local']
   .map((p) => readFileSync(p, 'utf8'))
   .join('\n');
 const has = (key) => Boolean(process.env[key]) || new RegExp(`^${key}=.+`, 'm').test(envContent);
-console.log(`  [${has('API_KEY_302') ? 'ok' : 'MISSING'}] API_KEY_302`);
-if (!has('API_KEY_302')) ok = false;
+for (const key of ['API_KEY_302', 'DATABASE_URL', 'AUTH_SECRET']) {
+  console.log(`  [${has(key) ? 'ok' : 'MISSING'}] ${key}`);
+  if (!has(key)) ok = false;
+}
 
 process.exit(ok ? 0 : 1);
