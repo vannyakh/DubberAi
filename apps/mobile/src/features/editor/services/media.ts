@@ -3,37 +3,76 @@ import * as MediaLibrary from 'expo-media-library';
 import { getAudioWaveform, getVideoInfo } from '../../../../modules/dubber-media';
 import { EditorClip } from '../types';
 
-/**
- * Opens the system video picker and normalizes the result into an EditorClip,
- * enriching it with metadata + waveform from the local native module.
- */
-export async function importVideoClip(): Promise<EditorClip | null> {
-  const result = await ImagePicker.launchImageLibraryAsync({
-    mediaTypes: ['videos'],
-    allowsMultipleSelection: false,
-    quality: 1,
-  });
-  if (result.canceled || result.assets.length === 0) return null;
+const IMAGE_CLIP_DURATION = 5;
 
-  const asset = result.assets[0];
-  const [info, waveform] = await Promise.all([
-    getVideoInfo(asset.uri),
-    getAudioWaveform(asset.uri, 512),
-  ]);
+function isVideoAsset(asset: ImagePicker.ImagePickerAsset): boolean {
+  if (asset.type === 'video') return true;
+  const mime = asset.mimeType?.toLowerCase() ?? '';
+  return mime.startsWith('video/');
+}
 
-  const duration = info?.duration ?? (asset.duration ? asset.duration / 1000 : 0);
+async function assetToClip(asset: ImagePicker.ImagePickerAsset): Promise<EditorClip> {
+  const id = `clip-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+
+  if (isVideoAsset(asset)) {
+    const [info, waveform] = await Promise.all([
+      getVideoInfo(asset.uri),
+      getAudioWaveform(asset.uri, 512),
+    ]);
+    const duration = info?.duration ?? (asset.duration ? asset.duration / 1000 : 0);
+
+    return {
+      id,
+      uri: asset.uri,
+      mediaType: 'video',
+      sourceDuration: duration,
+      trimStart: 0,
+      trimEnd: duration,
+      width: info?.width ?? asset.width ?? 0,
+      height: info?.height ?? asset.height ?? 0,
+      hasAudio: info?.hasAudio ?? true,
+      waveform,
+    };
+  }
+
+  const duration = IMAGE_CLIP_DURATION;
+  const flatWave = Array.from({ length: 256 }, () => 0.08);
 
   return {
-    id: `clip-${Date.now().toString(36)}`,
+    id,
     uri: asset.uri,
+    mediaType: 'image',
     sourceDuration: duration,
     trimStart: 0,
     trimEnd: duration,
-    width: info?.width ?? asset.width ?? 0,
-    height: info?.height ?? asset.height ?? 0,
-    hasAudio: info?.hasAudio ?? true,
-    waveform,
+    width: asset.width ?? 1080,
+    height: asset.height ?? 1920,
+    hasAudio: false,
+    waveform: flatWave,
   };
+}
+
+/** Opens the library for videos and still images; returns one clip or null. */
+export async function importVideoClip(): Promise<EditorClip | null> {
+  const clips = await pickFootageClips(false);
+  return clips[0] ?? null;
+}
+
+/** Pick videos and/or images from the photo library. */
+export async function pickFootageClips(allowMultiple = true): Promise<EditorClip[]> {
+  const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+  if (!permission.granted) return [];
+
+  const result = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ['videos', 'images'],
+    allowsMultipleSelection: allowMultiple,
+    quality: 1,
+    videoMaxDuration: 600,
+  });
+
+  if (result.canceled || result.assets.length === 0) return [];
+
+  return Promise.all(result.assets.map(assetToClip));
 }
 
 /** Saves the exported file into the user's photo library. */

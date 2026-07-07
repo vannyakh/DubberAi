@@ -5,6 +5,7 @@ import { EditorClip } from '../types';
 const MAX_THUMBS_PER_CLIP = 90;
 
 async function generateForClip(clip: EditorClip): Promise<VideoThumbnail[]> {
+  if (clip.mediaType === 'image') return [];
   const step = Math.max(1, clip.sourceDuration / MAX_THUMBS_PER_CLIP);
   const times: number[] = [];
   for (let t = 0; t < clip.sourceDuration; t += step) times.push(t);

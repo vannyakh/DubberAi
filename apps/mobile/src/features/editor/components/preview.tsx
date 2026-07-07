@@ -6,7 +6,8 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import { radius } from '@/constants';
 import { useEditorStore } from '../editor-store';
-import { FILTER_PRESETS, TextOverlay } from '../types';
+import { clipAtTime, clipDuration, FILTER_PRESETS, TextOverlay } from '../types';
+import { Image } from 'expo-image';
 
 interface PreviewProps {
   player: VideoPlayer;
@@ -18,23 +19,31 @@ interface PreviewProps {
  * reanimated so positioning never touches the JS bridge mid-drag.
  */
 export function Preview({ player }: PreviewProps) {
+  const clips = useEditorStore((s) => s.clips);
+  const playhead = useEditorStore((s) => s.playhead);
   const filterId = useEditorStore((s) => s.filterId);
   const overlays = useEditorStore((s) => s.overlays);
   const [size, setSize] = useState({ width: 0, height: 0 });
 
   const preset = FILTER_PRESETS.find((p) => p.id === filterId) ?? FILTER_PRESETS[0];
+  const active = clipAtTime(clips, playhead);
+  const showImage = active?.clip.mediaType === 'image';
 
   return (
     <View
       style={styles.container}
       onLayout={(e) => setSize(e.nativeEvent.layout)}
     >
-      <VideoView
-        player={player}
-        style={StyleSheet.absoluteFill}
-        contentFit="contain"
-        nativeControls={false}
-      />
+      {showImage && active ? (
+        <Image source={{ uri: active.clip.uri }} style={StyleSheet.absoluteFill} contentFit="contain" />
+      ) : (
+        <VideoView
+          player={player}
+          style={StyleSheet.absoluteFill}
+          contentFit="contain"
+          nativeControls={false}
+        />
+      )}
 
       {size.width > 0 && (preset.id !== 'none') && (
         <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">

@@ -1,4 +1,5 @@
 export * from './themes';
+export { appTheme } from './app-theme';
 
 export const TARGET_LANGUAGES = [
   'Khmer',

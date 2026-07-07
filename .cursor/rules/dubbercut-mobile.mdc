@@ -1,0 +1,49 @@
+---
+description: DubberCut mobile (Expo Router) conventions — UI, icons, routing, stores
+globs: apps/mobile/**/*
+alwaysApply: false
+---
+
+# DubberCut Mobile (`apps/mobile`)
+
+## Stack
+- Expo SDK 57, Expo Router (file-based), React Native 0.86
+- Native tabs: `expo-router/unstable-native-tabs` (`NativeTabs.Trigger`)
+- State: Zustand stores in `src/stores/modules/`
+- Workspace packages: `@dubbercut/*`
+
+## Icons — no emojis
+- **Never** use emoji or Unicode glyphs (▦, ＋, 🎬, etc.) for UI icons
+- Use **`AppSymbol`** from `@/components/ui/app-symbol` (`expo-symbols` under the hood)
+- Tab bar: `NativeTabs.Trigger.Icon` with `sf` + `md` props
+- Add new icons to the `SYMBOLS` map in `app-symbol.tsx`, not inline strings
+
+## Theming
+- **Light home/account**: `appTheme` (`src/constants/app-theme.ts`), `Screen variant="light"`
+- **Dark editor**: `theme` from `@/constants`, `Screen variant="dark"` (default)
+- **Auth onboarding**: dark + lime accent via `authTheme`
+- Accent: lime `#C8F135`, not blue
+
+## Routing & auth
+- `(tabs)/index` = Home (projects), `(tabs)/settings` = Account
+- `Stack.Protected guard={canUseApp}` where `canUseApp = mode === 'local' || !!user`
+- Local mode: offline projects on device; cloud mode: API sync + AI translation
+- Login routes always outside protected stack: `/login`, `/login/email`
+
+## Feature layout
+```
+src/
+  app/           # Expo Router routes only (thin wrappers)
+  features/      # screens + feature components
+  components/    # shared UI (Screen, Button, AppSymbol)
+  stores/        # Zustand
+  constants/     # appTheme, authTheme
+```
+
+## Native / patches
+- `ffmpeg-expo@0.0.2` is pnpm-patched (`patches/ffmpeg-expo@0.0.2.patch`)
+- iOS simulator must link `ios-arm64_x86_64-simulator` FFmpeg slice
+- Do not add `ffmpeg-expo` to `app.json` plugins
+
+## Checks
+- Run `bun run lint` in `apps/mobile` after TS changes

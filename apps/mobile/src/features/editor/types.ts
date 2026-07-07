@@ -1,7 +1,9 @@
 export interface EditorClip {
   id: string;
-  /** Local file/content uri of the source video. */
+  /** Local file/content uri of the source asset. */
   uri: string;
+  /** Video or still image used as a timed clip on the timeline. */
+  mediaType: 'video' | 'image';
   /** Total duration of the source asset in seconds. */
   sourceDuration: number;
   /** Trim-in point inside the source, seconds. */

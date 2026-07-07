@@ -1,153 +1,147 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
+  Alert,
   FlatList,
   RefreshControl,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Button, ErrorText, Screen, TextField } from '@/components';
-import { fontSizes, radius, spacing, theme } from '@/constants';
-import { useAuthStore, useProjectsStore } from '@/stores';
+import { ErrorText, Screen } from '@/components';
+import { appTheme } from '@/constants/app-theme';
+import { fontSizes, spacing } from '@/constants';
+import {
+  CloudPromoCard,
+  createProjectFromFootage,
+  HomeHeader,
+  NewProjectCard,
+  ProjectCard,
+} from '@/features/home';
+import { useAppStore, useProjectsStore } from '@/stores';
 
 export function ProjectsScreen() {
   const router = useRouter();
-  const { user, logout } = useAuthStore();
-  const { projects, loading, error, fetch, create, remove } = useProjectsStore();
-  const [newName, setNewName] = useState('');
+  const mode = useAppStore((s) => s.mode);
+  const { projects, loading, error, fetch, remove } = useProjectsStore();
+
+  const [creating, setCreating] = useState(false);
 
   useEffect(() => {
     fetch();
   }, [fetch]);
 
-  const addProject = async () => {
-    if (!newName.trim()) return;
-    await create(newName.trim());
-    setNewName('');
+  const startNewProject = useCallback(async () => {
+    if (creating) return;
+    setCreating(true);
+    try {
+      const projectId = await createProjectFromFootage();
+      if (projectId) {
+        router.push({ pathname: '/editor/[id]', params: { id: projectId } });
+      }
+    } catch (err) {
+      Alert.alert(
+        'Could not create project',
+        err instanceof Error ? err.message : 'Something went wrong.',
+      );
+    } finally {
+      setCreating(false);
+    }
+  }, [creating, router]);
+
+  const confirmDelete = (id: string, name: string) => {
+    Alert.alert('Delete project', `Remove "${name}"? This cannot be undone.`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: () => remove(id) },
+    ]);
   };
 
   return (
-    <Screen>
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.title}>Projects</Text>
-            <Text style={styles.subtitle}>{user?.email}</Text>
+    <Screen variant="light">
+      <FlatList
+        data={projects}
+        keyExtractor={(item) => item.id}
+        refreshControl={
+          <RefreshControl refreshing={loading} onRefresh={fetch} tintColor={appTheme.text} />
+        }
+        ListHeaderComponent={
+          <>
+            <HomeHeader onCreatePress={startNewProject} />
+            <NewProjectCard onPress={startNewProject} loading={creating} />
+            {mode === 'local' ? (
+              <CloudPromoCard onPress={() => router.push('/login')} />
+            ) : null}
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Project history</Text>
+            </View>
+            <ErrorText message={error} />
+          </>
+        }
+        renderItem={({ item }) => (
+          <View style={styles.listItem}>
+            <ProjectCard
+              project={item}
+              onPress={() => router.push({ pathname: '/editor/[id]', params: { id: item.id } })}
+              onDelete={() => confirmDelete(item.id, item.name)}
+            />
           </View>
-          <TouchableOpacity onPress={logout}>
-            <Text style={styles.logout}>Sign out</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.addRow}>
-          <TextField
-            style={styles.input}
-            placeholder="New project name"
-            value={newName}
-            onChangeText={setNewName}
-          />
-          <Button title="Add" onPress={addProject} style={styles.addButton} />
-        </View>
-
-        <ErrorText message={error} />
-
-        <FlatList
-          data={projects}
-          keyExtractor={(item) => item.id}
-          refreshControl={<RefreshControl refreshing={loading} onRefresh={fetch} />}
-          ListEmptyComponent={
-            !loading ? <Text style={styles.empty}>No projects yet. Create one above.</Text> : null
-          }
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={styles.card}
-              onPress={() => router.push({ pathname: '/project/[id]', params: { id: item.id } })}
-            >
-              <View style={{ flex: 1 }}>
-                <Text style={styles.cardTitle}>{item.name}</Text>
-                <Text style={styles.cardMeta}>
-                  {item.targetLang ? `Translated to ${item.targetLang}` : 'Not translated yet'}
-                </Text>
-              </View>
-              <TouchableOpacity onPress={() => remove(item.id)}>
-                <Text style={styles.delete}>Delete</Text>
-              </TouchableOpacity>
-            </TouchableOpacity>
-          )}
-        />
-      </View>
+        )}
+        ListEmptyComponent={
+          !loading ? (
+            <View style={styles.empty}>
+              <Text style={styles.emptyTitle}>No projects yet</Text>
+              <Text style={styles.emptyBody}>
+                Tap New project above and choose footage from your library.
+              </Text>
+            </View>
+          ) : null
+        }
+        contentContainerStyle={styles.listContent}
+        showsVerticalScrollIndicator={false}
+      />
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: spacing.lg,
+  listContent: {
+    paddingBottom: spacing.xxl,
   },
-  header: {
+  sectionHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing.lg,
-  },
-  title: {
-    fontSize: fontSizes.xl,
-    fontWeight: '700',
-    color: theme.colors.textPrimary,
-  },
-  subtitle: {
-    fontSize: fontSizes.xs,
-    color: theme.colors.textMuted,
-  },
-  logout: {
-    color: theme.colors.accent,
-    fontSize: fontSizes.sm,
-  },
-  addRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginBottom: spacing.lg,
-  },
-  input: {
-    flex: 1,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    fontSize: fontSizes.sm,
-  },
-  addButton: {
+    justifyContent: 'space-between',
     paddingHorizontal: spacing.lg,
-    justifyContent: 'center',
+    marginBottom: spacing.sm,
+  },
+  sectionTitle: {
+    fontSize: fontSizes.md,
+    fontWeight: '700',
+    color: appTheme.text,
+  },
+  sectionCount: {
+    fontSize: fontSizes.sm,
+    fontWeight: '600',
+    color: appTheme.textMuted,
+  },
+  listItem: {
+    paddingHorizontal: spacing.lg,
   },
   empty: {
-    color: theme.colors.textMuted,
-    textAlign: 'center',
-    marginTop: spacing.xxl,
-  },
-  card: {
-    flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: theme.colors.surface,
-    borderColor: theme.colors.border,
-    borderWidth: 1,
-    borderRadius: radius.lg,
-    padding: spacing.lg,
-    marginBottom: spacing.md,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.lg,
   },
-  cardTitle: {
-    color: theme.colors.textPrimary,
+  emptyTitle: {
     fontSize: fontSizes.md,
-    fontWeight: '600',
+    fontWeight: '700',
+    color: appTheme.text,
   },
-  cardMeta: {
-    color: theme.colors.textMuted,
-    fontSize: fontSizes.xs,
-    marginTop: 2,
-  },
-  delete: {
-    color: theme.colors.danger,
-    fontSize: fontSizes.xs,
+  emptyBody: {
+    fontSize: fontSizes.sm,
+    color: appTheme.textMuted,
+    textAlign: 'center',
+    marginTop: spacing.xs,
+    lineHeight: 20,
   },
 });

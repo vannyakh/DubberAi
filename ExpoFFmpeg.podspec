@@ -21,30 +21,26 @@ Pod::Spec.new do |s|
   s.public_header_files = 'FFmpegBridge.h'
   s.exclude_files = 'Frameworks/**/*', 'FFmpegBridge.swift', 'ExpoFFmpeg-Bridging-Header.h'
 
-  s.preserve_paths = 'Frameworks/FFmpeg.xcframework/**/*'
+  s.vendored_frameworks = 'Frameworks/FFmpeg.xcframework'
 
   s.frameworks = 'AudioToolbox', 'AVFoundation', 'CoreMedia', 'VideoToolbox', 'CoreVideo', 'CoreAudio'
   s.libraries = 'z', 'bz2', 'iconv'
 
-  ffmpeg_ios_dir = File.join(__dir__, 'Frameworks/FFmpeg.xcframework/ios-arm64')
-  ffmpeg_sim_dir = File.join(__dir__, 'Frameworks/FFmpeg.xcframework/ios-arm64_x86_64-simulator')
+  ffmpeg_ios = File.join(__dir__, 'Frameworks/FFmpeg.xcframework/ios-arm64/libffmpeg.a')
+  ffmpeg_sim = File.join(__dir__, 'Frameworks/FFmpeg.xcframework/ios-arm64_x86_64-simulator/libffmpeg.a')
 
   s.pod_target_xcconfig = {
     'DEFINES_MODULE' => 'YES',
     'SWIFT_COMPILATION_MODE' => 'wholemodule',
-    'HEADER_SEARCH_PATHS' => "\"$(PODS_TARGET_SRCROOT)/Frameworks/FFmpeg.xcframework/ios-arm64/Headers\" \"$(PODS_TARGET_SRCROOT)/Frameworks/FFmpeg.xcframework/ios-arm64_x86_64-simulator/Headers\"",
-    'LIBRARY_SEARCH_PATHS[sdk=iphoneos*]' => "\"#{ffmpeg_ios_dir}\"",
-    'LIBRARY_SEARCH_PATHS[sdk=iphonesimulator*]' => "\"#{ffmpeg_sim_dir}\"",
-    'OTHER_LDFLAGS[sdk=iphoneos*]' => '-lffmpeg -lz -lbz2 -liconv',
-    'OTHER_LDFLAGS[sdk=iphonesimulator*]' => '-lffmpeg -lz -lbz2 -liconv',
+    'HEADER_SEARCH_PATHS' => '"$(PODS_TARGET_SRCROOT)/Frameworks/FFmpeg.xcframework/ios-arm64/Headers" "$(PODS_TARGET_SRCROOT)/Frameworks/FFmpeg.xcframework/ios-arm64_x86_64-simulator/Headers"',
+    'OTHER_LDFLAGS[sdk=iphoneos*]' => "$(inherited) -force_load \"#{ffmpeg_ios}\" -lz -lbz2 -liconv",
+    'OTHER_LDFLAGS[sdk=iphonesimulator*]' => "$(inherited) -force_load \"#{ffmpeg_sim}\" -lz -lbz2 -liconv",
     'ENABLE_BITCODE' => 'NO'
   }
 
   s.user_target_xcconfig = {
     'ENABLE_BITCODE' => 'NO',
-    'LIBRARY_SEARCH_PATHS[sdk=iphoneos*]' => "$(inherited) \"#{ffmpeg_ios_dir}\"",
-    'LIBRARY_SEARCH_PATHS[sdk=iphonesimulator*]' => "$(inherited) \"#{ffmpeg_sim_dir}\"",
-    'OTHER_LDFLAGS[sdk=iphoneos*]' => '$(inherited) -lffmpeg',
-    'OTHER_LDFLAGS[sdk=iphonesimulator*]' => '$(inherited) -lffmpeg'
+    'OTHER_LDFLAGS[sdk=iphoneos*]' => "-force_load \"#{ffmpeg_ios}\"",
+    'OTHER_LDFLAGS[sdk=iphonesimulator*]' => "-force_load \"#{ffmpeg_sim}\""
   }
 end

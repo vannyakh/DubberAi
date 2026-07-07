@@ -1,8 +1,8 @@
 diff --git a/ios/ExpoFFmpeg.podspec b/ios/ExpoFFmpeg.podspec
-index a0a9fceaceea5ff3ade1733d2bc18b594276b8d0..92206d00c8bf5fa499377fce7f6e9c3f7fdd8d36 100644
+index a0a9fceaceea5ff3ade1733d2bc18b594276b8d0..4f02c8a0d2a4857f4866e8f57edf04c039b10025 100644
 --- a/ios/ExpoFFmpeg.podspec
 +++ b/ios/ExpoFFmpeg.podspec
-@@ -17,20 +17,15 @@ Pod::Spec.new do |s|
+@@ -17,29 +17,34 @@ Pod::Spec.new do |s|
  
    s.dependency 'ExpoModulesCore'
  
@@ -13,7 +13,8 @@ index a0a9fceaceea5ff3ade1733d2bc18b594276b8d0..92206d00c8bf5fa499377fce7f6e9c3f
 +  s.exclude_files = 'Frameworks/**/*', 'FFmpegBridge.swift', 'ExpoFFmpeg-Bridging-Header.h'
  
 -  # Vendored framework
-   s.vendored_frameworks = 'Frameworks/FFmpeg.xcframework'
+-  s.vendored_frameworks = 'Frameworks/FFmpeg.xcframework'
++  s.preserve_paths = 'Frameworks/FFmpeg.xcframework/**/*'
  
 -  # Required system frameworks
    s.frameworks = 'AudioToolbox', 'AVFoundation', 'CoreMedia', 'VideoToolbox', 'CoreVideo', 'CoreAudio'
@@ -22,9 +23,31 @@ index a0a9fceaceea5ff3ade1733d2bc18b594276b8d0..92206d00c8bf5fa499377fce7f6e9c3f
    s.libraries = 'z', 'bz2', 'iconv'
  
 -  # Build settings
++  ffmpeg_ios_dir = File.join(__dir__, 'Frameworks/FFmpeg.xcframework/ios-arm64')
++  ffmpeg_sim_dir = File.join(__dir__, 'Frameworks/FFmpeg.xcframework/ios-arm64_x86_64-simulator')
++
    s.pod_target_xcconfig = {
      'DEFINES_MODULE' => 'YES',
      'SWIFT_COMPILATION_MODE' => 'wholemodule',
+-    'HEADER_SEARCH_PATHS' => '"$(PODS_TARGET_SRCROOT)/Frameworks/FFmpeg.xcframework/ios-arm64/Headers"',
+-    'OTHER_LDFLAGS' => '-lz -lbz2 -liconv',
++    'HEADER_SEARCH_PATHS' => "\"$(PODS_TARGET_SRCROOT)/Frameworks/FFmpeg.xcframework/ios-arm64/Headers\" \"$(PODS_TARGET_SRCROOT)/Frameworks/FFmpeg.xcframework/ios-arm64_x86_64-simulator/Headers\"",
++    'LIBRARY_SEARCH_PATHS[sdk=iphoneos*]' => "\"#{ffmpeg_ios_dir}\"",
++    'LIBRARY_SEARCH_PATHS[sdk=iphonesimulator*]' => "\"#{ffmpeg_sim_dir}\"",
++    'OTHER_LDFLAGS[sdk=iphoneos*]' => '-lffmpeg -lz -lbz2 -liconv',
++    'OTHER_LDFLAGS[sdk=iphonesimulator*]' => '-lffmpeg -lz -lbz2 -liconv',
+     'ENABLE_BITCODE' => 'NO'
+   }
+ 
+   s.user_target_xcconfig = {
+-    'ENABLE_BITCODE' => 'NO'
++    'ENABLE_BITCODE' => 'NO',
++    'LIBRARY_SEARCH_PATHS[sdk=iphoneos*]' => "$(inherited) \"#{ffmpeg_ios_dir}\"",
++    'LIBRARY_SEARCH_PATHS[sdk=iphonesimulator*]' => "$(inherited) \"#{ffmpeg_sim_dir}\"",
++    'OTHER_LDFLAGS[sdk=iphoneos*]' => '$(inherited) -lffmpeg',
++    'OTHER_LDFLAGS[sdk=iphonesimulator*]' => '$(inherited) -lffmpeg'
+   }
+ end
 diff --git a/ios/FFmpegBridge.h b/ios/FFmpegBridge.h
 new file mode 100644
 index 0000000000000000000000000000000000000000..5879f6d7d7ea3a5f87e8b8aed620a97d4574152b

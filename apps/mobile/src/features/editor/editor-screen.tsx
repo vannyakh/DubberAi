@@ -10,7 +10,7 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { fontSizes, radius, spacing, theme } from '@/constants';
-import { Screen } from '@/components';
+import { AppSymbol, Screen } from '@/components';
 import { useEditorStore } from './editor-store';
 import { useClipThumbnails } from './hooks/use-thumbnails';
 import { useTimelinePlayer } from './hooks/use-timeline-player';
@@ -20,7 +20,8 @@ import { Preview } from './components/preview';
 import { Timeline } from './components/timeline';
 import { Toolbar } from './components/toolbar';
 import { exportTimeline } from './services/export';
-import { importVideoClip } from './services/media';
+import { consumeEditorClips } from './editor-bootstrap';
+import { pickFootageClips } from './services/media';
 
 export function EditorScreen() {
   const router = useRouter();
@@ -44,9 +45,16 @@ export function EditorScreen() {
   // The editor is scoped to a single session per project visit.
   useEffect(() => () => reset(), [reset]);
 
+  useEffect(() => {
+    if (!id) return;
+    const staged = consumeEditorClips(id);
+    for (const clip of staged) addClip(clip);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
+
   const importClip = async () => {
-    const clip = await importVideoClip();
-    if (clip) addClip(clip);
+    const picked = await pickFootageClips(true);
+    for (const clip of picked) addClip(clip);
   };
 
   const startExport = async () => {
@@ -106,7 +114,11 @@ export function EditorScreen() {
             onPress={() => setPlaying(!isPlaying)}
             disabled={clips.length === 0}
           >
-            <Text style={styles.playIcon}>{isPlaying ? '❚❚' : '►'}</Text>
+            <AppSymbol
+              name={isPlaying ? 'pause' : 'play'}
+              size={28}
+              tintColor="#FFFFFF"
+            />
           </TouchableOpacity>
         </View>
 
