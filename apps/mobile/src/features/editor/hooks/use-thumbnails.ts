@@ -15,7 +15,7 @@ async function generateForClip(clip: EditorClip): Promise<VideoThumbnail[]> {
 
   const player = createVideoPlayer(null);
   try {
-    await loadPlayerSource(player, clip.uri, 0);
+    await loadPlayerSource(player, clip.uri, 0, clip.libraryAssetId);
     return await player.generateThumbnailsAsync(times, { maxWidth: 120, maxHeight: 120 });
   } finally {
     player.release();

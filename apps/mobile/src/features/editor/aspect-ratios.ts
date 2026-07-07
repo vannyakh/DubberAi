@@ -37,6 +37,10 @@ export function resolveCanvasAspectRatio(
   return clampPreviewAspect(preset.ratio);
 }
 
+export function canvasAspectLabel(aspectId: CanvasAspectId): string {
+  return CANVAS_ASPECT_PRESETS.find((p) => p.id === aspectId)?.label ?? 'Original';
+}
+
 export function aspectBoxSize(ratio: number, max = 36): { width: number; height: number } {
   const safe = clampPreviewAspect(ratio);
   if (safe >= 1) {

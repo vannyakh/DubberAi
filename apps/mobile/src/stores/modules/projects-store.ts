@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { createProjectsStore, ProjectsState } from '@dubbercut/store';
 import { Project } from '@dubbercut/types';
+import { deleteEditorComposition } from '@/features/editor/services/editor-persistence';
 import { apiClient } from '@/libs/api';
 import { readJson, writeJson } from '@/libs/local-storage';
 import { isCloudMode } from './app-store';
@@ -79,11 +80,11 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
     if (isCloudMode()) {
       await cloudStore.getState().remove(id);
       set({ projects: cloudStore.getState().projects });
-      return;
+    } else {
+      const projects = get().projects.filter((p) => p.id !== id);
+      await saveLocalProjects(projects);
+      set({ projects });
     }
-
-    const projects = get().projects.filter((p) => p.id !== id);
-    await saveLocalProjects(projects);
-    set({ projects });
+    await deleteEditorComposition(id);
   },
 }));

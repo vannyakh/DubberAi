@@ -23,19 +23,23 @@ export function fitSizeToAspect(
   availableWidth: number,
   availableHeight: number,
   aspect: number,
+  inset = { horizontal: 28, vertical: 20 },
 ): { width: number; height: number } {
-  if (availableWidth <= 0 || availableHeight <= 0) {
+  const innerWidth = Math.max(0, availableWidth - inset.horizontal * 2);
+  const innerHeight = Math.max(0, availableHeight - inset.vertical * 2);
+
+  if (innerWidth <= 0 || innerHeight <= 0) {
     return { width: 0, height: 0 };
   }
 
   const safeAspect = clampPreviewAspect(aspect);
-  const containerAspect = availableWidth / availableHeight;
+  const containerAspect = innerWidth / innerHeight;
 
   if (containerAspect > safeAspect) {
-    const height = availableHeight;
+    const height = innerHeight;
     return { width: height * safeAspect, height };
   }
 
-  const width = availableWidth;
+  const width = innerWidth;
   return { width, height: width / safeAspect };
 }

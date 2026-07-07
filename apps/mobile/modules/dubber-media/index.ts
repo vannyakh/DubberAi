@@ -14,6 +14,7 @@ export interface VideoInfo {
 interface DubberMediaNativeModule {
   getVideoInfo(uri: string): Promise<VideoInfo>;
   getAudioWaveform(uri: string, sampleCount: number): Promise<number[]>;
+  extractVideoFrame(uri: string, timeSeconds: number, outputUri: string): Promise<string>;
 }
 
 /**
@@ -53,4 +54,16 @@ export async function getAudioWaveform(uri: string, sampleCount = 256): Promise<
     const t = i / sampleCount;
     return 0.25 + 0.2 * Math.abs(Math.sin(t * 43)) + 0.15 * Math.abs(Math.sin(t * 7));
   });
+}
+
+/** Extracts a single JPEG frame from a video to `outputUri` (file://). */
+export async function extractVideoFrame(
+  uri: string,
+  timeSeconds: number,
+  outputUri: string,
+): Promise<string> {
+  if (!native?.extractVideoFrame) {
+    throw new Error('Native video frame extraction is unavailable');
+  }
+  return native.extractVideoFrame(uri, timeSeconds, outputUri);
 }

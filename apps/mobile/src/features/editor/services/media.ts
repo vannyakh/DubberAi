@@ -1,134 +1,101 @@
-import * as ImagePicker from 'expo-image-picker';
 import * as MediaLibrary from 'expo-media-library/legacy';
 import type { Asset as LibraryAsset } from 'expo-media-library/legacy';
+import { isVideoAsset } from '@/features/media';
 import { getAudioWaveform, getVideoInfo } from '../../../../modules/dubber-media';
-import { EditorClip } from '../types';
+import { DEFAULT_CLIP_CONTENT_TRANSFORM, EditorClip } from '../types';
+import { resolveLibraryAssetUri } from './video-playback';
 
 const IMAGE_CLIP_DURATION = 5;
+const IMAGE_WAVEFORM = Array.from({ length: 256 }, () => 0.08);
 
-function isVideoAsset(asset: ImagePicker.ImagePickerAsset): boolean {
-  if (asset.type === 'video') return true;
-  const mime = asset.mimeType?.toLowerCase() ?? '';
-  return mime.startsWith('video/');
+function newClipId(): string {
+  return `clip-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
 }
 
-async function assetToClip(asset: ImagePicker.ImagePickerAsset): Promise<EditorClip> {
-  const id = `clip-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+function clipDurationSeconds(infoDuration: number | undefined, fallbackSeconds: number): number {
+  const duration = infoDuration ?? fallbackSeconds;
+  return duration > 0 ? duration : Math.max(fallbackSeconds, 1);
+}
 
-  if (isVideoAsset(asset)) {
-    const [info, waveform] = await Promise.all([
-      getVideoInfo(asset.uri),
-      getAudioWaveform(asset.uri, 512),
-    ]);
-    const duration = info?.duration ?? (asset.duration ? asset.duration / 1000 : 0);
-
-    return {
-      id,
-      uri: asset.uri,
-      mediaType: 'video',
-      sourceDuration: duration,
-      trimStart: 0,
-      trimEnd: duration,
-      width: info?.width ?? asset.width ?? 0,
-      height: info?.height ?? asset.height ?? 0,
-      hasAudio: info?.hasAudio ?? true,
-      waveform,
-      filterId: 'none',
-      muted: false,
-    };
-  }
-
+function buildImageClip(
+  uri: string,
+  libraryAssetId: string | undefined,
+  width: number,
+  height: number,
+): EditorClip {
   const duration = IMAGE_CLIP_DURATION;
-  const flatWave = Array.from({ length: 256 }, () => 0.08);
-
   return {
-    id,
-    uri: asset.uri,
+    id: newClipId(),
+    uri,
+    libraryAssetId,
     mediaType: 'image',
     sourceDuration: duration,
     trimStart: 0,
     trimEnd: duration,
-    width: asset.width ?? 1080,
-    height: asset.height ?? 1920,
+    width,
+    height,
     hasAudio: false,
-    waveform: flatWave,
+    waveform: IMAGE_WAVEFORM,
     filterId: 'none',
     muted: false,
+    ...DEFAULT_CLIP_CONTENT_TRANSFORM,
   };
 }
 
-/** Converts library assets into editor clips (used by the in-app media picker). */
+async function buildVideoClip(
+  uri: string,
+  libraryAssetId: string | undefined,
+  fallbackDuration: number,
+  fallbackWidth: number,
+  fallbackHeight: number,
+): Promise<EditorClip> {
+  const [info, waveform] = await Promise.all([
+    getVideoInfo(uri),
+    getAudioWaveform(uri, 512),
+  ]);
+  const duration = clipDurationSeconds(info?.duration, fallbackDuration);
+
+  return {
+    id: newClipId(),
+    uri,
+    libraryAssetId,
+    mediaType: 'video',
+    sourceDuration: duration,
+    trimStart: 0,
+    trimEnd: duration,
+    width: info?.width ?? fallbackWidth,
+    height: info?.height ?? fallbackHeight,
+    hasAudio: info?.hasAudio ?? true,
+    waveform,
+    filterId: 'none',
+    muted: false,
+    ...DEFAULT_CLIP_CONTENT_TRANSFORM,
+  };
+}
+
 export async function clipsFromLibraryAssets(assets: LibraryAsset[]): Promise<EditorClip[]> {
   return Promise.all(assets.map(libraryAssetToClip));
 }
 
 async function libraryAssetToClip(asset: LibraryAsset): Promise<EditorClip> {
-  const id = `clip-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
-  const isVideo = asset.mediaType === 'video' || asset.mediaType === 'pairedVideo';
+  const playableUri = await resolveLibraryAssetUri(asset);
 
-  if (isVideo) {
-    const [info, waveform] = await Promise.all([
-      getVideoInfo(asset.uri),
-      getAudioWaveform(asset.uri, 512),
-    ]);
-    const duration = info?.duration ?? asset.duration ?? 0;
-
-    return {
-      id,
-      uri: asset.uri,
-      mediaType: 'video',
-      sourceDuration: duration,
-      trimStart: 0,
-      trimEnd: duration,
-      width: info?.width ?? asset.width ?? 0,
-      height: info?.height ?? asset.height ?? 0,
-      hasAudio: info?.hasAudio ?? true,
-      waveform,
-      filterId: 'none',
-      muted: false,
-    };
+  if (isVideoAsset(asset)) {
+    return buildVideoClip(
+      playableUri,
+      asset.id,
+      asset.duration ?? 0,
+      asset.width ?? 0,
+      asset.height ?? 0,
+    );
   }
 
-  const duration = IMAGE_CLIP_DURATION;
-  const flatWave = Array.from({ length: 256 }, () => 0.08);
-
-  return {
-    id,
-    uri: asset.uri,
-    mediaType: 'image',
-    sourceDuration: duration,
-    trimStart: 0,
-    trimEnd: duration,
-    width: asset.width ?? 1080,
-    height: asset.height ?? 1920,
-    hasAudio: false,
-    waveform: flatWave,
-    filterId: 'none',
-    muted: false,
-  };
-}
-
-/** Opens the library for videos and still images; returns one clip or null. */
-export async function importVideoClip(): Promise<EditorClip | null> {
-  const clips = await pickFootageClips(false);
-  return clips[0] ?? null;
-}
-
-/** Pick videos and/or images from the photo library. */
-export async function pickFootageClips(allowMultiple = true): Promise<EditorClip[]> {
-  const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-  if (!permission.granted) return [];
-
-  const result = await ImagePicker.launchImageLibraryAsync({
-    mediaTypes: ['videos', 'images'],
-    allowsMultipleSelection: allowMultiple,
-    quality: 1,
-    videoMaxDuration: 600,
-  });
-
-  if (result.canceled || result.assets.length === 0) return [];
-
-  return Promise.all(result.assets.map(assetToClip));
+  return buildImageClip(
+    playableUri,
+    asset.id,
+    asset.width ?? 1080,
+    asset.height ?? 1920,
+  );
 }
 
 /** Saves the exported file into the user's photo library. */

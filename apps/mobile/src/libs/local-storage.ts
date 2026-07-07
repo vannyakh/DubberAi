@@ -24,5 +24,5 @@ export async function readJson<T>(name: string): Promise<T | null> {
 
 export async function writeJson(name: string, value: unknown): Promise<void> {
   const file = dataFile(name);
-  file.write(JSON.stringify(value));
+  await file.write(JSON.stringify(value));
 }

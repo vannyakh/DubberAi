@@ -49,6 +49,35 @@ public class DubberMediaModule: Module {
       }
       return try Self.extractWaveform(url: url, sampleCount: max(16, min(sampleCount, 4096)))
     }
+
+    AsyncFunction("extractVideoFrame") { (uri: String, timeSeconds: Double, outputUri: String) -> String in
+      guard let sourceUrl = Self.parseUrl(uri) else {
+        throw Exception(name: "ERR_DUBBER_MEDIA", description: "Invalid source uri: \(uri)")
+      }
+      guard let outputUrl = Self.parseUrl(outputUri) else {
+        throw Exception(name: "ERR_DUBBER_MEDIA", description: "Invalid output uri: \(outputUri)")
+      }
+
+      let asset = AVURLAsset(url: sourceUrl)
+      let generator = AVAssetImageGenerator(asset: asset)
+      generator.appliesPreferredTrackTransform = true
+      generator.maximumSize = CGSize(width: 720, height: 720)
+
+      let seconds = max(0, timeSeconds)
+      let time = CMTime(seconds: seconds, preferredTimescale: 600)
+      let cgImage = try generator.copyCGImage(at: time, actualTime: nil)
+      let image = UIImage(cgImage: cgImage)
+
+      guard let data = image.jpegData(compressionQuality: 0.86) else {
+        throw Exception(name: "ERR_DUBBER_MEDIA", description: "Failed to encode cover frame")
+      }
+
+      let directory = outputUrl.deletingLastPathComponent()
+      try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+      try data.write(to: outputUrl, options: .atomic)
+
+      return outputUrl.absoluteString
+    }
   }
 
   private static func parseUrl(_ uri: String) -> URL? {

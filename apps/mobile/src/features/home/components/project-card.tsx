@@ -4,6 +4,7 @@ import { Project } from '@dubbercut/types';
 import { AppSymbol } from '@/components';
 import { appTheme } from '@/constants/app-theme';
 import { fontSizes, radius, spacing } from '@/constants';
+import { ProjectCoverThumb } from './project-cover-thumb';
 
 interface Props {
   project: Project;
@@ -13,23 +14,17 @@ interface Props {
 
 export function ProjectCard({ project, onPress, onDelete }: Props) {
   const translated = !!project.targetLang;
-  const hasVideo = !!project.videoUrl;
+  const hasCover = !!project.videoUrl;
 
   return (
     <Pressable style={styles.card} onPress={onPress}>
-      <View style={styles.thumb}>
-        <AppSymbol
-          name={hasVideo ? 'play' : 'folder'}
-          size={22}
-          tintColor={appTheme.accent}
-        />
-      </View>
+      <ProjectCoverThumb project={project} />
       <View style={styles.body}>
         <Text style={styles.title} numberOfLines={1}>
           {project.name}
         </Text>
         <Text style={styles.meta} numberOfLines={1}>
-          {translated ? `Translated · ${project.targetLang}` : hasVideo ? 'Ready to edit' : 'Draft project'}
+          {translated ? `Translated · ${project.targetLang}` : hasCover ? 'Ready to edit' : 'Draft project'}
         </Text>
         <View style={styles.badges}>
           <View style={[styles.badge, translated ? styles.badgeAccent : styles.badgeMuted]}>
@@ -56,14 +51,6 @@ const styles = StyleSheet.create({
     borderColor: appTheme.border,
     padding: spacing.md,
     marginBottom: spacing.sm,
-  },
-  thumb: {
-    width: 56,
-    height: 56,
-    borderRadius: radius.lg,
-    backgroundColor: appTheme.dark,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   body: {
     flex: 1,

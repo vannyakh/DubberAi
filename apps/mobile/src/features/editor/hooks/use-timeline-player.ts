@@ -1,9 +1,31 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useVideoPlayer, VideoPlayer } from 'expo-video';
 import { useEventListener } from 'expo';
 import { useEditorStore } from '../editor-store';
 import { loadPlayerSource } from '../services/video-playback';
-import { clipAtTime, clipDuration } from '../types';
+import { clipAtTime, clipDuration, EditorClip } from '../types';
+
+function segmentKeyFrom(clips: EditorClip[], playhead: number) {
+  const segment = clipAtTime(clips, playhead);
+  return segment ? `${segment.index}:${segment.clip.id}:${segment.clip.mediaType}` : 'none';
+}
+
+function isImageSegmentKey(key: string) {
+  return key.endsWith(':image');
+}
+
+function sourceTimeAtPlayhead(clips: EditorClip[], playhead: number): number | null {
+  const current = clipAtTime(clips, playhead);
+  if (!current || current.clip.mediaType === 'image') return null;
+  return current.clip.trimStart + current.localTime;
+}
+
+function syncPausedFrame(player: VideoPlayer, sourceTime: number) {
+  if (player.status !== 'readyToPlay') return;
+  if (Math.abs(player.currentTime - sourceTime) > 0.02) {
+    player.currentTime = sourceTime;
+  }
+}
 
 /**
  * Single expo-video player driven by the global timeline. Swaps sources at
@@ -25,15 +47,17 @@ export function useTimelinePlayer(): VideoPlayer {
   const isPlayingRef = useRef(isPlaying);
   isPlayingRef.current = isPlaying;
 
+  const [sourceReadyVersion, setSourceReadyVersion] = useState(0);
+
   const player = useVideoPlayer(null, (p) => {
-    p.timeUpdateEventInterval = 0.05;
+    p.timeUpdateEventInterval = 0.033;
     p.audioMixingMode = 'mixWithOthers';
   });
 
-  const segment = useMemo(() => clipAtTime(clips, playhead), [clips, playhead]);
-  const segmentKey = segment
-    ? `${segment.index}:${segment.clip.id}:${segment.clip.mediaType}`
-    : 'none';
+  const segmentKey = useMemo(
+    () => segmentKeyFrom(clips, playhead),
+    [clips, playhead],
+  );
 
   const clearImageTimer = () => {
     if (imageTimer.current) {
@@ -42,8 +66,19 @@ export function useTimelinePlayer(): VideoPlayer {
     }
   };
 
+  const bumpSourceReady = useCallback(() => {
+    setSourceReadyVersion((version) => version + 1);
+  }, []);
+
+  const syncToCurrentPlayhead = useCallback(() => {
+    const state = useEditorStore.getState();
+    const sourceTime = sourceTimeAtPlayhead(state.clips, state.playhead);
+    if (sourceTime == null) return;
+    syncPausedFrame(player, sourceTime);
+  }, [player]);
+
   useEffect(() => {
-    if (!segment) {
+    if (segmentKey === 'none') {
       activeClipId.current = null;
       clipOffset.current = 0;
       clearImageTimer();
@@ -53,15 +88,15 @@ export function useTimelinePlayer(): VideoPlayer {
       return;
     }
 
-    let offset = 0;
-    for (let i = 0; i < segment.index; i++) offset += clipDuration(clips[i]);
-    clipOffset.current = offset;
-    activeClipId.current = segment.clip.id;
+    const current = clipAtTime(clips, useEditorStore.getState().playhead);
+    if (!current) return;
 
-    if ('muted' in segment.clip) {
-      player.muted = segment.clip.muted;
-    }
-  }, [segment, clips, player]);
+    let offset = 0;
+    for (let i = 0; i < current.index; i++) offset += clipDuration(clips[i]);
+    clipOffset.current = offset;
+    activeClipId.current = current.clip.id;
+    player.muted = current.clip.muted;
+  }, [segmentKey, clips, player]);
 
   const loadActiveVideo = useCallback(async () => {
     const state = useEditorStore.getState();
@@ -75,9 +110,23 @@ export function useTimelinePlayer(): VideoPlayer {
     const sourceTime = current.clip.trimStart + current.localTime;
 
     try {
-      await loadPlayerSource(player, current.clip.uri, sourceTime);
+      await loadPlayerSource(
+        player,
+        current.clip.uri,
+        sourceTime,
+        current.clip.libraryAssetId,
+      );
       loadedKey.current = key;
-      if ('muted' in current.clip) player.muted = current.clip.muted;
+      player.muted = current.clip.muted;
+
+      const latest = useEditorStore.getState();
+      const latestTime = sourceTimeAtPlayhead(latest.clips, latest.playhead);
+      if (latestTime != null) {
+        syncPausedFrame(player, latestTime);
+        if (!isPlayingRef.current) player.pause();
+      }
+
+      bumpSourceReady();
       if (isPlayingRef.current) player.play();
     } catch {
       loadedKey.current = null;
@@ -85,13 +134,13 @@ export function useTimelinePlayer(): VideoPlayer {
     } finally {
       if (loadingKey.current === key) loadingKey.current = null;
     }
-  }, [player, setPlaying]);
+  }, [player, setPlaying, bumpSourceReady]);
 
   // Load or swap source when the active clip changes.
   useEffect(() => {
-    if (!segment) return;
+    if (segmentKey === 'none') return;
 
-    if (segment.clip.mediaType === 'image') {
+    if (isImageSegmentKey(segmentKey)) {
       clearImageTimer();
       loadedKey.current = segmentKey;
       player.pause();
@@ -100,29 +149,32 @@ export function useTimelinePlayer(): VideoPlayer {
 
     if (loadedKey.current === segmentKey) return;
     void loadActiveVideo();
-  }, [segmentKey, segment, player, loadActiveVideo]);
+  }, [segmentKey, player, loadActiveVideo]);
 
   // Retry load when the user presses play before the first source is ready.
   useEffect(() => {
-    if (!isPlaying || !segment || segment.clip.mediaType === 'image') return;
+    if (!isPlaying || segmentKey === 'none' || isImageSegmentKey(segmentKey)) return;
     if (loadedKey.current === segmentKey) return;
     void loadActiveVideo();
-  }, [isPlaying, segment, segmentKey, loadActiveVideo]);
+  }, [isPlaying, segmentKey, loadActiveVideo]);
 
   // Seek while paused (scrubbing) — never fight the decoder during playback.
   useEffect(() => {
-    if (isPlaying || !segment || segment.clip.mediaType === 'image') return;
-    if (loadedKey.current !== segmentKey) return;
-    if (player.status !== 'readyToPlay') return;
+    if (isPlaying || segmentKey === 'none' || isImageSegmentKey(segmentKey)) return;
 
-    const sourceTime = segment.clip.trimStart + segment.localTime;
-    if (Math.abs(player.currentTime - sourceTime) > 0.05) {
-      player.currentTime = sourceTime;
+    const sourceTime = sourceTimeAtPlayhead(clips, playhead);
+    if (sourceTime == null) return;
+
+    if (loadedKey.current !== segmentKey) {
+      void loadActiveVideo();
+      return;
     }
-  }, [playhead, isPlaying, segment, segmentKey, player]);
+
+    syncPausedFrame(player, sourceTime);
+  }, [playhead, isPlaying, segmentKey, clips, player, sourceReadyVersion, loadActiveVideo]);
 
   useEffect(() => {
-    if (!segment || segment.clip.mediaType === 'image') {
+    if (segmentKey === 'none' || isImageSegmentKey(segmentKey)) {
       player.pause();
       return;
     }
@@ -130,7 +182,18 @@ export function useTimelinePlayer(): VideoPlayer {
 
     if (isPlaying) player.play();
     else player.pause();
-  }, [isPlaying, segment, segmentKey, player]);
+  }, [isPlaying, segmentKey, player, sourceReadyVersion]);
+
+  useEventListener(player, 'statusChange', ({ status }) => {
+    if (status !== 'readyToPlay') return;
+    const state = useEditorStore.getState();
+    if (state.isPlaying) return;
+
+    const key = segmentKeyFrom(state.clips, state.playhead);
+    if (loadedKey.current !== key || isImageSegmentKey(key)) return;
+    syncToCurrentPlayhead();
+    bumpSourceReady();
+  });
 
   useEffect(() => {
     clearImageTimer();

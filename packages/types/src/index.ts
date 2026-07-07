@@ -99,7 +99,11 @@ export interface Project {
   name: string;
   /** Composition frame ratio, e.g. "16:9" | "9:16" | "1:1" */
   aspectRatio?: string;
+  /** Cover thumbnail uri (first clip) — local file or resolved library uri. */
   videoUrl?: string;
+  /** Photo-library asset id to re-resolve cover when videoUrl is stale. */
+  coverAssetId?: string;
+  coverMediaType?: 'video' | 'image';
   transcript?: string;
   translatedText?: string;
   targetLang?: string;

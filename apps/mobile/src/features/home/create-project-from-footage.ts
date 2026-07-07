@@ -1,5 +1,6 @@
-import { EditorClip } from '@/features/editor/types';
 import { stageEditorClips } from '@/features/editor/editor-bootstrap';
+import { EditorClip } from '@/features/editor/types';
+import { resolveProjectCoverFields } from '@/features/projects/project-cover';
 import { useProjectsStore } from '@/stores';
 
 function defaultProjectName(clips: EditorClip[]): string {
@@ -17,9 +18,9 @@ export async function createProjectFromClips(clips: EditorClip[]): Promise<strin
   const { create, update } = useProjectsStore.getState();
   const project = await create(defaultProjectName(clips));
 
-  const firstVideo = clips.find((c) => c.mediaType === 'video');
-  if (firstVideo) {
-    await update(project.id, { videoUrl: firstVideo.uri });
+  const cover = await resolveProjectCoverFields(project.id, clips);
+  if (cover) {
+    await update(project.id, cover);
   }
 
   stageEditorClips(project.id, clips);

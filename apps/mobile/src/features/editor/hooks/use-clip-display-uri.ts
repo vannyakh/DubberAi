@@ -12,7 +12,7 @@ export function useClipDisplayUris(clips: EditorClip[]) {
     for (const clip of clips) {
       const key = clip.uri;
       if (cacheRef.current[key]) continue;
-      resolvePlayableUri(key).then((resolved) => {
+      resolvePlayableUri(key, clip.libraryAssetId).then((resolved) => {
         setUris((prev) => (prev[key] ? prev : { ...prev, [key]: resolved }));
       });
     }

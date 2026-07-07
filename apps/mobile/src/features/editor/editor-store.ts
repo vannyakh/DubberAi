@@ -9,6 +9,7 @@ import {
   TextOverlay,
   timelineDuration,
 } from './types';
+import { EditorComposition, COMPOSITION_VERSION, emptyComposition } from './services/editor-persistence';
 
 /**
  * Editor state lives in zustand (not React context) so timeline gestures and
@@ -43,6 +44,12 @@ interface EditorState {
 
   setFilter: (id: FilterId) => void;
   setClipFilter: (clipId: string, id: FilterId) => void;
+  setClipContentTransform: (
+    clipId: string,
+    patch: Partial<
+      Pick<EditorClip, 'contentScale' | 'contentOffsetX' | 'contentOffsetY' | 'contentRotation'>
+    >,
+  ) => void;
   toggleClipMuted: (clipId: string) => void;
   trimSelectedAtPlayhead: (edge: 'in' | 'out') => void;
   setPlayhead: (seconds: number) => void;
@@ -51,6 +58,8 @@ interface EditorState {
   setCanvasAspectId: (id: CanvasAspectId) => void;
   setCanvasBackground: (color: string) => void;
   setExportState: (patch: Partial<ExportState>) => void;
+  hydrate: (composition: EditorComposition) => void;
+  getCompositionSnapshot: () => EditorComposition;
   reset: () => void;
 }
 
@@ -138,6 +147,11 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       clips: s.clips.map((c) => (c.id === clipId ? { ...c, filterId: id } : c)),
     })),
 
+  setClipContentTransform: (clipId, patch) =>
+    set((s) => ({
+      clips: s.clips.map((c) => (c.id === clipId ? { ...c, ...patch } : c)),
+    })),
+
   toggleClipMuted: (clipId) =>
     set((s) => ({
       clips: s.clips.map((c) => (c.id === clipId ? { ...c, muted: !c.muted } : c)),
@@ -174,6 +188,33 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   setCanvasBackground: (color) => set({ canvasBackground: color }),
 
   setExportState: (patch) => set((s) => ({ exportState: { ...s.exportState, ...patch } })),
+
+  hydrate: (composition) =>
+    set({
+      clips: composition.clips,
+      overlays: composition.overlays,
+      filterId: composition.filterId,
+      canvasAspectId: composition.canvasAspectId,
+      canvasBackground: composition.canvasBackground,
+      pxPerSecond: composition.pxPerSecond,
+      selectedClipId: null,
+      playhead: 0,
+      isPlaying: false,
+      exportState: initialExport,
+    }),
+
+  getCompositionSnapshot: () => {
+    const s = get();
+    return {
+      version: COMPOSITION_VERSION,
+      clips: s.clips,
+      overlays: s.overlays,
+      filterId: s.filterId,
+      canvasAspectId: s.canvasAspectId,
+      canvasBackground: s.canvasBackground,
+      pxPerSecond: s.pxPerSecond,
+    };
+  },
 
   reset: () =>
     set({

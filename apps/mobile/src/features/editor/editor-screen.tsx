@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import {
   Modal,
   StyleSheet,
@@ -15,6 +15,8 @@ import { MediaPickerModal } from '@/features/media';
 import { useEditorStore } from './editor-store';
 import { useClipThumbnails } from './hooks/use-thumbnails';
 import { useEditorMediaImport } from './hooks/use-editor-media-import';
+import { useEditorBootstrap } from './hooks/use-editor-bootstrap';
+import { useEditorPersistence } from './hooks/use-editor-persistence';
 import { useTimelinePlayer } from './hooks/use-timeline-player';
 import { BackgroundPanel } from './components/background-panel';
 import { ClipToolsBar } from './components/clip-tools-bar';
@@ -26,7 +28,6 @@ import { Preview } from './components/preview';
 import { RatioPanel } from './components/ratio-panel';
 import { Timeline } from './components/timeline';
 import { Toolbar } from './components/toolbar';
-import { consumeEditorClips } from './editor-bootstrap';
 import type { EditorEditingPanel } from './editing-panel';
 import { getStudioHeaderHeight, STUDIO_EDITOR_FLEX, STUDIO_PREVIEW_FLEX } from './studio-layout';
 
@@ -35,11 +36,12 @@ export function EditorScreen() {
   const insets = useSafeAreaInsets();
 
   const clips = useEditorStore((s) => s.clips);
-  const addClip = useEditorStore((s) => s.addClip);
   const addOverlay = useEditorStore((s) => s.addOverlay);
   const selectClip = useEditorStore((s) => s.selectClip);
   const selectedClipId = useEditorStore((s) => s.selectedClipId);
-  const reset = useEditorStore((s) => s.reset);
+
+  const persistenceReady = useEditorBootstrap(id);
+  useEditorPersistence(id, persistenceReady);
 
   const player = useTimelinePlayer();
   const thumbnails = useClipThumbnails(clips);
@@ -59,15 +61,6 @@ export function EditorScreen() {
   const togglePanel = (panel: EditorEditingPanel) => {
     setEditingPanel((current) => (current === panel ? null : panel));
   };
-
-  useEffect(() => () => reset(), [reset]);
-
-  useEffect(() => {
-    if (!id) return;
-    const staged = consumeEditorClips(id);
-    for (const clip of staged) addClip(clip);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
 
   const commitText = () => {
     if (textDraft && textDraft.trim()) {
@@ -92,7 +85,7 @@ export function EditorScreen() {
     <View style={styles.root}>
       <View style={styles.topHalf}>
         <View style={[styles.previewArea, { paddingTop: getStudioHeaderHeight(insets.top) }]}>
-          <Preview player={player} />
+          <Preview player={player} thumbnails={thumbnails} />
         </View>
       </View>
 
@@ -182,8 +175,7 @@ const styles = StyleSheet.create({
   previewArea: {
     flex: 1,
     minHeight: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: '100%',
     backgroundColor: editorTheme.preview,
   },
   bottomHalf: {

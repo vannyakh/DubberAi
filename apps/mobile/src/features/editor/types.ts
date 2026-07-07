@@ -1,7 +1,16 @@
+export const DEFAULT_CLIP_CONTENT_TRANSFORM = {
+  contentScale: 1,
+  contentOffsetX: 0,
+  contentOffsetY: 0,
+  contentRotation: 0,
+} as const;
+
 export interface EditorClip {
   id: string;
   /** Local file/content uri of the source asset. */
   uri: string;
+  /** Photo-library asset id — resolves ph:// URIs when uri alone is not playable. */
+  libraryAssetId?: string;
   /** Video or still image used as a timed clip on the timeline. */
   mediaType: 'video' | 'image';
   /** Total duration of the source asset in seconds. */
@@ -17,6 +26,13 @@ export interface EditorClip {
   waveform: number[];
   filterId: FilterId;
   muted: boolean;
+  /** Zoom relative to canvas fit (1 = contain). */
+  contentScale: number;
+  /** Normalized pan from center (-1..1). */
+  contentOffsetX: number;
+  contentOffsetY: number;
+  /** Degrees clockwise. */
+  contentRotation: number;
 }
 
 export interface TextOverlay {

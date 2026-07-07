@@ -1,5 +1,6 @@
 package expo.modules.dubbermedia
 
+import android.graphics.Bitmap
 import android.media.MediaCodec
 import android.media.MediaExtractor
 import android.media.MediaFormat
@@ -8,6 +9,8 @@ import android.net.Uri
 import expo.modules.kotlin.exception.CodedException
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
+import java.io.File
+import java.io.FileOutputStream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.math.abs
@@ -71,6 +74,31 @@ class DubberMediaModule : Module() {
         throw MediaInfoException(e.message ?: "Failed to extract waveform")
       }
     }
+
+    AsyncFunction("extractVideoFrame") { uri: String, timeSeconds: Double, outputUri: String ->
+      val retriever = MediaMetadataRetriever()
+      try {
+        setSource(retriever, uri)
+        val timeUs = (timeSeconds.coerceAtLeast(0.0) * 1_000_000).toLong()
+        val bitmap =
+          retriever.getFrameAtTime(timeUs, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+            ?: throw MediaInfoException("No video frame at ${timeSeconds}s")
+        val outPath = resolveOutputPath(outputUri)
+        val outFile = File(outPath)
+        outFile.parentFile?.mkdirs()
+        FileOutputStream(outFile).use { stream ->
+          if (!bitmap.compress(Bitmap.CompressFormat.JPEG, 86, stream)) {
+            throw MediaInfoException("Failed to write cover frame")
+          }
+        }
+        if (outPath.startsWith("/")) "file://$outPath" else outputUri
+      } catch (e: Exception) {
+        if (e is MediaInfoException) throw e
+        throw MediaInfoException(e.message ?: "Failed to extract video frame")
+      } finally {
+        retriever.release()
+      }
+    }
   }
 
   private fun setSource(retriever: MediaMetadataRetriever, uri: String) {
@@ -80,6 +108,11 @@ class DubberMediaModule : Module() {
     } else {
       retriever.setDataSource(parsed.path ?: uri)
     }
+  }
+
+  private fun resolveOutputPath(outputUri: String): String {
+    val parsed = Uri.parse(outputUri)
+    return parsed.path ?: outputUri.removePrefix("file://")
   }
 
   private fun extractWaveform(uri: String, sampleCount: Int): List<Double> {
