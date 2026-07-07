@@ -1,8 +1,8 @@
 import React from 'react';
 import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { fontSizes, radius, spacing, theme } from '@/constants';
+import { fontSizes, radius, spacing } from '@/constants';
+import { appTheme } from '@/constants/app-theme';
 import { useEditorStore } from '../editor-store';
-import { GlassPanel } from './glass-panel';
 
 const PHASE_LABEL: Record<string, string> = {
   preparing: 'Rendering overlays…',
@@ -23,32 +23,30 @@ export function ExportSheet() {
   return (
     <Modal visible={visible} transparent animationType="fade">
       <View style={styles.backdrop}>
-        <GlassPanel style={styles.sheet} intensity={60}>
-          <View style={styles.content}>
-            <Text style={styles.title}>{PHASE_LABEL[exportState.phase] ?? 'Exporting…'}</Text>
+        <View style={styles.sheet}>
+          <Text style={styles.title}>{PHASE_LABEL[exportState.phase] ?? 'Exporting…'}</Text>
 
-            {exportState.phase === 'encoding' && (
-              <View style={styles.progressTrack}>
-                <View
-                  style={[styles.progressFill, { width: `${exportState.progress * 100}%` }]}
-                />
-              </View>
-            )}
+          {exportState.phase === 'encoding' && (
+            <View style={styles.progressTrack}>
+              <View
+                style={[styles.progressFill, { width: `${exportState.progress * 100}%` }]}
+              />
+            </View>
+          )}
 
-            {exportState.error && <Text style={styles.error}>{exportState.error}</Text>}
+          {exportState.error && <Text style={styles.error}>{exportState.error}</Text>}
 
-            {dismissible && (
-              <TouchableOpacity
-                style={styles.button}
-                onPress={() =>
-                  setExportState({ phase: 'idle', progress: 0, error: null, outputUri: null })
-                }
-              >
-                <Text style={styles.buttonText}>Close</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        </GlassPanel>
+          {dismissible && (
+            <TouchableOpacity
+              style={styles.button}
+              onPress={() =>
+                setExportState({ phase: 'idle', progress: 0, error: null, outputUri: null })
+              }
+            >
+              <Text style={styles.buttonText}>Close</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
     </Modal>
   );
@@ -57,7 +55,7 @@ export function ExportSheet() {
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.55)',
+    backgroundColor: 'rgba(17,17,17,0.45)',
     alignItems: 'center',
     justifyContent: 'center',
     padding: spacing.xl,
@@ -65,44 +63,47 @@ const styles = StyleSheet.create({
   sheet: {
     width: '100%',
     maxWidth: 380,
-  },
-  content: {
+    backgroundColor: appTheme.surface,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    borderColor: appTheme.border,
     padding: spacing.xl,
     gap: spacing.md,
     alignItems: 'center',
   },
   title: {
-    color: theme.colors.textPrimary,
+    color: appTheme.text,
     fontSize: fontSizes.md,
-    fontWeight: '600',
+    fontWeight: '700',
+    textAlign: 'center',
   },
   progressTrack: {
     width: '100%',
     height: 6,
     borderRadius: radius.full,
-    backgroundColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: appTheme.surfaceMuted,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
     borderRadius: radius.full,
-    backgroundColor: theme.colors.accent,
+    backgroundColor: appTheme.accent,
   },
   error: {
-    color: theme.colors.danger,
+    color: appTheme.danger,
     fontSize: fontSizes.xs,
     textAlign: 'center',
   },
   button: {
     marginTop: spacing.sm,
     borderRadius: radius.full,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
+    backgroundColor: appTheme.accent,
     paddingHorizontal: spacing.xl,
     paddingVertical: spacing.sm,
   },
   buttonText: {
-    color: theme.colors.textPrimary,
+    color: appTheme.accentText,
     fontSize: fontSizes.sm,
+    fontWeight: '700',
   },
 });

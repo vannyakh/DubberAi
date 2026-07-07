@@ -25,10 +25,24 @@ export type SymbolName =
   | 'help'
   | 'film'
   | 'chevronRight'
+  | 'chevronLeft'
+  | 'chevronDown'
+  | 'text'
+  | 'delete'
+  | 'close'
+  | 'effects'
+  | 'overlay'
+  | 'captions'
+  | 'filters'
+  | 'adjust'
+  | 'volume'
+  | 'volumeMuted'
   | 'person'
+  | 'notification'
   | 'google'
   | 'apple'
-  | 'music';
+  | 'music'
+  | 'checkmark';
 
 type SymbolSpec = {
   ios: SFSymbol;
@@ -57,10 +71,24 @@ export const SYMBOLS = {
   help: { ios: 'questionmark.circle', android: 'help', web: 'help' },
   film: { ios: 'film.stack', android: 'movie', web: 'movie' },
   chevronRight: { ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' },
+  chevronLeft: { ios: 'chevron.left', android: 'chevron_left', web: 'chevron_left' },
+  chevronDown: { ios: 'chevron.down', android: 'expand_more', web: 'expand_more' },
+  text: { ios: 'textformat', android: 'title', web: 'title' },
+  delete: { ios: 'trash', android: 'delete', web: 'delete' },
+  close: { ios: 'xmark', android: 'close', web: 'close' },
+  effects: { ios: 'sparkles', android: 'auto_awesome', web: 'auto_awesome' },
+  overlay: { ios: 'square.on.square', android: 'layers', web: 'layers' },
+  captions: { ios: 'captions.bubble', android: 'subtitles', web: 'subtitles' },
+  filters: { ios: 'camera.filters', android: 'filter_vintage', web: 'filter_vintage' },
+  adjust: { ios: 'slider.horizontal.3', android: 'tune', web: 'tune' },
+  volume: { ios: 'speaker.wave.2.fill', android: 'volume_up', web: 'volume_up' },
+  volumeMuted: { ios: 'speaker.slash.fill', android: 'volume_off', web: 'volume_off' },
   person: { ios: 'person.crop.circle', android: 'account_circle', web: 'account_circle' },
+  notification: { ios: 'bell', android: 'notifications', web: 'notifications' },
   google: { ios: 'g.circle.fill', android: 'account_circle', web: 'account_circle' },
   apple: { ios: 'apple.logo', android: 'account_circle', web: 'account_circle' },
   music: { ios: 'music.note', android: 'music_note', web: 'music_note' },
+  checkmark: { ios: 'checkmark', android: 'check', web: 'check' },
 } as const satisfies Record<SymbolName, SymbolSpec>;
 
 interface Props {

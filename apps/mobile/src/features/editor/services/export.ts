@@ -1,3 +1,4 @@
+import { NativeModulesProxy } from 'expo-modules-core';
 import { clipDuration, EditorClip, FILTER_PRESETS, FilterId, TextOverlay, timelineDuration } from '../types';
 import { newExportFile, toFfmpegPath } from './files';
 import { saveToLibrary } from './media';
@@ -8,9 +9,14 @@ export interface ExportCallbacks {
   onProgress: (fraction: number) => void;
 }
 
+const FFMPEG_UNAVAILABLE =
+  'Export needs a development build with FFmpeg (expo run:ios / run:android). It is not available in Expo Go.';
+
 function ffmpegAvailable(): typeof import('ffmpeg-expo') | null {
+  // Avoid require('ffmpeg-expo') when native code is missing — its module init
+  // throws before our try/catch can run (EventEmitter needs ExpoFFmpeg).
+  if (!NativeModulesProxy.ExpoFFmpeg) return null;
   try {
-    // Throws in Expo Go / web where the native binary is not compiled in.
     const mod = require('ffmpeg-expo') as typeof import('ffmpeg-expo');
     mod.getVersion();
     return mod;
@@ -97,11 +103,7 @@ export async function exportTimeline(
   if (clips.length === 0) throw new Error('Add at least one clip before exporting.');
 
   const ffmpeg = ffmpegAvailable();
-  if (!ffmpeg) {
-    throw new Error(
-      'Export needs the native FFmpeg module. Run a development build (expo run:ios / run:android) — Expo Go does not include it.',
-    );
-  }
+  if (!ffmpeg) throw new Error(FFMPEG_UNAVAILABLE);
 
   callbacks.onPhase('preparing');
   const overlayPng = renderOverlayPng(overlays, 1280, 720);

@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { AppSymbol, Screen, SymbolName } from '@/components';
 import { appTheme } from '@/constants/app-theme';
 import { fontSizes, radius, spacing } from '@/constants';
+import { useSettingsHeaderInset } from './settings-header-inset-context';
 import { useAppStore, useAuthStore } from '@/stores';
 
 interface SettingsRowProps {
@@ -44,6 +45,7 @@ export function AccountScreen() {
   const { user, logout } = useAuthStore();
   const mode = useAppStore((s) => s.mode);
   const resetMode = useAppStore((s) => s.resetMode);
+  const headerInset = useSettingsHeaderInset();
 
   const isLocal = mode === 'local';
   const isCloud = mode === 'cloud' && !!user;
@@ -57,8 +59,14 @@ export function AccountScreen() {
   };
 
   return (
-    <Screen variant="light">
-      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+    <Screen variant="light" edges={[]}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.container,
+          headerInset > 0 && { paddingTop: headerInset },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.profile}>
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>{initials}</Text>

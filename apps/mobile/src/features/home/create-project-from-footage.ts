@@ -1,5 +1,4 @@
 import { EditorClip } from '@/features/editor/types';
-import { pickFootageClips } from '@/features/editor/services/media';
 import { stageEditorClips } from '@/features/editor/editor-bootstrap';
 import { useProjectsStore } from '@/stores';
 
@@ -12,8 +11,7 @@ function defaultProjectName(clips: EditorClip[]): string {
   return `Project · ${stamp}`;
 }
 
-export async function createProjectFromFootage(): Promise<string | null> {
-  const clips = await pickFootageClips(true);
+export async function createProjectFromClips(clips: EditorClip[]): Promise<string | null> {
   if (clips.length === 0) return null;
 
   const { create, update } = useProjectsStore.getState();

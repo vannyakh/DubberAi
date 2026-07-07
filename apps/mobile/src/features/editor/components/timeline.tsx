@@ -1,327 +1,672 @@
-import React, { useMemo, useRef, useState } from 'react';
-import {
-  NativeScrollEvent,
-  NativeSyntheticEvent,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  useWindowDimensions,
-  View,
-} from 'react-native';
-import { FlashList, FlashListRef } from '@shopify/flash-list';
+import React, { useMemo } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { Canvas, Line, Rect } from '@shopify/react-native-skia';
 import { Image } from 'expo-image';
 import { VideoThumbnail } from 'expo-video';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { runOnJS } from 'react-native-reanimated';
-import { fontSizes, radius, theme } from '@/constants';
+import Animated from 'react-native-reanimated';
+import { GestureDetector } from 'react-native-gesture-handler';
+import { AppSymbol } from '@/components';
+import { fontSizes } from '@/constants';
+import { editorTheme } from '@/constants/editor-theme';
+import { useTimelineGestures } from '../hooks/use-timeline-gestures';
+import {
+  STUDIO_LANE_GAP,
+  STUDIO_RULER_HEIGHT,
+  STUDIO_SIDEBAR_WIDTH,
+  STUDIO_TIMELINE_HEIGHT,
+  STUDIO_TRACKS_VIEWPORT_HEIGHT,
+  STUDIO_VIDEO_LANE_HEIGHT,
+} from '../studio-layout';
+import {
+  computeTimelineTracks,
+  overlaysForTextTrack,
+  timelineTracksContentHeight,
+  TimelineTrackRow,
+} from '../timeline-tracks';
+import {
+  buildTimelineClipSegments,
+  filmstripTileCount,
+  formatTimelineTime,
+  rulerTickStep,
+  TIMELINE_ADD_ENDING_WIDTH,
+  TIMELINE_CELL_WIDTH,
+  visibleTimelineClipSegments,
+} from '../timeline-utils';
 import { useEditorStore } from '../editor-store';
-import { clipDuration, EditorClip } from '../types';
-
-const TRACK_HEIGHT = 56;
-const WAVE_HEIGHT = 22;
-
-interface TimelineCell {
-  key: string;
-  clip: EditorClip;
-  clipIndex: number;
-  /** Cell start, seconds from the start of this clip (trimmed space). */
-  clipTime: number;
-  /** Cell width in px (last cell of a clip may be partial). */
-  width: number;
-  isClipStart: boolean;
-}
+import { EditorClip, TextOverlay, timelineDuration } from '../types';
+import { TimelineSidebar } from './timeline-sidebar';
+import { TimelineWaveformCanvas } from './timeline-waveform-canvas';
 
 interface TimelineProps {
   thumbnails: Record<string, VideoThumbnail[]>;
+  onImport: () => void;
+  onAddText: () => void;
 }
 
-/**
- * Multi-track timeline. One horizontal FlashList is the scroller — cells are
- * recycled aggressively so hour-long filmstrips don't exhaust memory. Scroll
- * position <-> playhead are two views of the same value; pinch zooms by
- * changing pixels-per-second.
- */
-export function Timeline({ thumbnails }: TimelineProps) {
+export function Timeline({ thumbnails, onImport, onAddText }: TimelineProps) {
   const { width: screenWidth } = useWindowDimensions();
+  const tracksWidth = screenWidth - STUDIO_SIDEBAR_WIDTH;
+
   const clips = useEditorStore((s) => s.clips);
+  const overlays = useEditorStore((s) => s.overlays);
   const pxPerSecond = useEditorStore((s) => s.pxPerSecond);
   const playhead = useEditorStore((s) => s.playhead);
   const isPlaying = useEditorStore((s) => s.isPlaying);
   const selectedClipId = useEditorStore((s) => s.selectedClipId);
   const setPlayhead = useEditorStore((s) => s.setPlayhead);
   const setPlaying = useEditorStore((s) => s.setPlaying);
-  const selectClip = useEditorStore((s) => s.selectClip);
   const setPxPerSecond = useEditorStore((s) => s.setPxPerSecond);
+  const selectClip = useEditorStore((s) => s.selectClip);
+  const toggleClipMuted = useEditorStore((s) => s.toggleClipMuted);
 
-  const listRef = useRef<FlashListRef<TimelineCell>>(null);
-  const isUserScrolling = useRef(false);
-  const pinchBase = useRef(pxPerSecond);
-  const [, setZoomTick] = useState(0);
+  const totalDuration = timelineDuration(clips);
+  const timelineWidth = Math.max(tracksWidth, totalDuration * pxPerSecond);
+  const contentWidth = timelineWidth + TIMELINE_ADD_ENDING_WIDTH + 8;
 
-  const cellWidth = 56;
-  const sidePad = screenWidth / 2;
+  const { sidePad, scrollOffset, gestures, contentShift } = useTimelineGestures({
+    tracksWidth,
+    totalDuration,
+    pxPerSecond,
+    playhead,
+    isPlaying,
+    setPlayhead,
+    setPlaying,
+    setPxPerSecond,
+  });
 
-  const cells = useMemo(() => {
-    const result: TimelineCell[] = [];
-    const cellSeconds = cellWidth / pxPerSecond;
-    clips.forEach((clip, clipIndex) => {
-      const duration = clipDuration(clip);
-      const count = Math.max(1, Math.ceil(duration / cellSeconds));
-      for (let i = 0; i < count; i++) {
-        const start = i * cellSeconds;
-        const remaining = duration - start;
-        result.push({
-          key: `${clip.id}:${i}`,
-          clip,
-          clipIndex,
-          clipTime: start,
-          width: Math.max(6, Math.min(cellWidth, remaining * pxPerSecond)),
-          isClipStart: i === 0,
-        });
-      }
-    });
-    return result;
-  }, [clips, pxPerSecond]);
+  const selectedClip = clips.find((c) => c.id === selectedClipId) ?? clips[0] ?? null;
 
-  // While playing, follow the playhead; while the user drags, the scroll is
-  // the source of truth instead.
-  React.useEffect(() => {
-    if (!isUserScrolling.current) {
-      listRef.current?.scrollToOffset({ offset: playhead * pxPerSecond, animated: false });
-    }
-  }, [playhead, pxPerSecond]);
-
-  const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    if (!isUserScrolling.current) return;
-    setPlayhead(e.nativeEvent.contentOffset.x / pxPerSecond);
-  };
-
-  const pinch = Gesture.Pinch()
-    .onStart(() => {
-      runOnJS(capturePinchBase)();
-    })
-    .onEnd((e) => {
-      runOnJS(commitZoom)(e.scale);
-    });
-
-  function capturePinchBase() {
-    pinchBase.current = pxPerSecond;
-  }
-  function commitZoom(scale: number) {
-    setPxPerSecond(pinchBase.current * scale);
-    setZoomTick((t) => t + 1);
-  }
-
-  if (clips.length === 0) {
-    return (
-      <View style={[styles.empty, { height: TRACK_HEIGHT + WAVE_HEIGHT + 36 }]}>
-        <Text style={styles.emptyText}>Import a video to start editing</Text>
-      </View>
-    );
-  }
-
-  return (
-    <GestureDetector gesture={pinch}>
-      <View>
-        <TimeRuler pxPerSecond={pxPerSecond} clips={clips} sidePad={sidePad} playhead={playhead} />
-        <View style={{ height: TRACK_HEIGHT + WAVE_HEIGHT }}>
-          <FlashList
-            ref={listRef}
-            data={cells}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            keyExtractor={(item) => item.key}
-            onScroll={onScroll}
-            scrollEventThrottle={16}
-            onScrollBeginDrag={() => {
-              isUserScrolling.current = true;
-              if (isPlaying) setPlaying(false);
-            }}
-            onMomentumScrollEnd={() => {
-              isUserScrolling.current = false;
-            }}
-            onScrollEndDrag={() => {
-              // Momentum may still follow; FlashList fires momentum-end after.
-              setTimeout(() => {
-                isUserScrolling.current = false;
-              }, 400);
-            }}
-            ListHeaderComponent={<View style={{ width: sidePad }} />}
-            ListFooterComponent={<View style={{ width: sidePad }} />}
-            renderItem={({ item }) => (
-              <Cell
-                cell={item}
-                pxPerSecond={pxPerSecond}
-                thumbnails={thumbnails[item.clip.uri]}
-                selected={item.clip.id === selectedClipId}
-                onSelect={() => selectClip(item.clip.id)}
-              />
-            )}
-          />
-          {/* Fixed center playhead */}
-          <View pointerEvents="none" style={[styles.playhead, { left: screenWidth / 2 - 1 }]} />
-        </View>
-      </View>
-    </GestureDetector>
+  const allSegments = useMemo(
+    () => buildTimelineClipSegments(clips, pxPerSecond),
+    [clips, pxPerSecond],
   );
-}
+  const visibleSegments = useMemo(
+    () => visibleTimelineClipSegments(allSegments, scrollOffset, tracksWidth, sidePad),
+    [allSegments, scrollOffset, tracksWidth, sidePad],
+  );
 
-function Cell({
-  cell,
-  pxPerSecond,
-  thumbnails,
-  selected,
-  onSelect,
-}: {
-  cell: TimelineCell;
-  pxPerSecond: number;
-  thumbnails: VideoThumbnail[] | undefined;
-  selected: boolean;
-  onSelect: () => void;
-}) {
-  const { clip } = cell;
-  // Map this cell's trimmed-timeline time back to source time for the thumb.
-  const sourceTime = clip.trimStart + cell.clipTime;
-  const thumb =
-    thumbnails && thumbnails.length > 0
-      ? thumbnails[
-          Math.min(
-            thumbnails.length - 1,
-            Math.round((sourceTime / Math.max(0.001, clip.sourceDuration)) * (thumbnails.length - 1)),
-          )
-        ]
-      : null;
+  const tickStep = rulerTickStep(pxPerSecond);
+  const rulerTicks = useMemo(() => {
+    const ticks: number[] = [];
+    const max = Math.max(totalDuration + tickStep, tickStep * 3);
+    for (let t = 0; t <= max; t += tickStep) ticks.push(t);
+    return ticks;
+  }, [totalDuration, tickStep]);
 
-  const waveBars = useMemo(() => {
-    if (clip.waveform.length === 0) return [];
-    const barCount = Math.max(2, Math.floor(cell.width / 3));
-    const cellSeconds = cell.width / pxPerSecond;
-    const bars: number[] = [];
-    for (let i = 0; i < barCount; i++) {
-      const t = sourceTime + (i / barCount) * cellSeconds;
-      const idx = Math.min(
-        clip.waveform.length - 1,
-        Math.floor((t / Math.max(0.001, clip.sourceDuration)) * clip.waveform.length),
-      );
-      bars.push(clip.waveform[idx]);
-    }
-    return bars;
-  }, [clip, cell.width, pxPerSecond, sourceTime]);
+  const trackRows = useMemo(
+    () => computeTimelineTracks(clips.length, overlays.length),
+    [clips.length, overlays.length],
+  );
+  const tracksContentHeight = useMemo(
+    () => timelineTracksContentHeight(trackRows),
+    [trackRows],
+  );
+
+  const hasClips = clips.length > 0;
 
   return (
-    <TouchableOpacity activeOpacity={0.9} onPress={onSelect}>
-      <View
-        style={[
-          styles.cell,
-          { width: cell.width },
-          cell.isClipStart && styles.cellClipStart,
-          selected && styles.cellSelected,
-        ]}
-      >
-        {thumb ? (
-          <Image source={thumb} style={styles.thumb} contentFit="cover" recyclingKey={cell.key} />
-        ) : (
-          <View style={[styles.thumb, styles.thumbPlaceholder]} />
-        )}
-        <View style={styles.waveRow}>
-          {waveBars.map((v, i) => (
-            <View
-              key={i}
-              style={[styles.waveBar, { height: Math.max(2, v * WAVE_HEIGHT) }]}
+    <View style={styles.frame}>
+      <View style={styles.rulerRow}>
+        <Text style={styles.rulerClock}>
+          {formatTimelineTime(playhead)} / {formatTimelineTime(totalDuration)}
+        </Text>
+        <View style={styles.rulerClip} pointerEvents="none">
+          <Animated.View style={[styles.rulerShift, { width: contentWidth }, contentShift]}>
+            <TimelineRulerCanvas
+              width={contentWidth}
+              height={STUDIO_RULER_HEIGHT}
+              ticks={rulerTicks}
+              pxPerSecond={pxPerSecond}
             />
-          ))}
+            {rulerTicks.map((t) => (
+              <Text
+                key={`label-${t}`}
+                style={[styles.rulerTickLabel, { left: t * pxPerSecond - 14 }]}
+              >
+                {formatTimelineTime(t)}
+              </Text>
+            ))}
+          </Animated.View>
         </View>
       </View>
-    </TouchableOpacity>
-  );
-}
 
-function TimeRuler({
-  pxPerSecond,
-  clips,
-  sidePad,
-  playhead,
-}: {
-  pxPerSecond: number;
-  clips: EditorClip[];
-  sidePad: number;
-  playhead: number;
-}) {
-  const total = clips.reduce((sum, c) => sum + clipDuration(c), 0);
-  const format = (s: number) =>
-    `${Math.floor(s / 60)}:${Math.floor(s % 60).toString().padStart(2, '0')}`;
-  return (
-    <View style={styles.ruler}>
-      <Text style={styles.rulerText}>
-        {format(playhead)} / {format(total)}
-      </Text>
+      <View style={styles.tracksViewport}>
+        <ScrollView
+          style={styles.tracksScroll}
+          contentContainerStyle={{ minHeight: STUDIO_TRACKS_VIEWPORT_HEIGHT }}
+          showsVerticalScrollIndicator={false}
+          bounces={false}
+          alwaysBounceVertical={false}
+          overScrollMode="never"
+          nestedScrollEnabled
+        >
+          <View style={[styles.body, { height: Math.max(tracksContentHeight, STUDIO_TRACKS_VIEWPORT_HEIGHT) }]}>
+            <TimelineSidebar
+              tracks={trackRows}
+              contentHeight={tracksContentHeight}
+              muted={selectedClip?.muted ?? false}
+              canMute={!!selectedClip?.hasAudio}
+              onToggleMute={() => {
+                if (selectedClip) toggleClipMuted(selectedClip.id);
+              }}
+              onImport={onImport}
+              onAddText={onAddText}
+            />
+
+            <View style={styles.tracksArea}>
+              <GestureDetector gesture={gestures}>
+                <View style={styles.tracksClip}>
+                  {!hasClips ? (
+                    <EmptyTrackStack trackRows={trackRows} onImport={onImport} onAddText={onAddText} />
+                  ) : (
+                    <Animated.View
+                      style={[
+                        styles.content,
+                        { width: contentWidth, height: tracksContentHeight },
+                        contentShift,
+                      ]}
+                    >
+                      {trackRows.map((track, index) => (
+                        <React.Fragment key={track.id}>
+                          {index > 0 ? <View style={styles.laneGap} /> : null}
+                          <TrackLane
+                            track={track}
+                            clips={clips}
+                            overlays={overlays}
+                            visibleSegments={visibleSegments}
+                            thumbnails={thumbnails}
+                            selectedClipId={selectedClipId}
+                            timelineWidth={timelineWidth}
+                            pxPerSecond={pxPerSecond}
+                            onImport={onImport}
+                            onAddText={onAddText}
+                            onSelectClip={(clipId) => {
+                              if (clipId === selectedClipId) selectClip(null);
+                              else selectClip(clipId);
+                            }}
+                          />
+                        </React.Fragment>
+                      ))}
+                    </Animated.View>
+                  )}
+                </View>
+              </GestureDetector>
+            </View>
+          </View>
+        </ScrollView>
+
+        <View
+          pointerEvents="none"
+          style={[
+            styles.playhead,
+            {
+              left: STUDIO_SIDEBAR_WIDTH + tracksWidth / 2 - 1,
+              height: STUDIO_TRACKS_VIEWPORT_HEIGHT,
+            },
+          ]}
+        />
+
+        {hasClips ? (
+          <Pressable
+            style={styles.addFabFixed}
+            onPress={onImport}
+            accessibilityLabel="Add clip"
+          >
+            <AppSymbol name="add" size={20} tintColor={editorTheme.background} />
+          </Pressable>
+        ) : null}
+      </View>
     </View>
   );
 }
 
+function TimelineRulerCanvas({
+  width,
+  height,
+  ticks,
+  pxPerSecond,
+}: {
+  width: number;
+  height: number;
+  ticks: number[];
+  pxPerSecond: number;
+}) {
+  return (
+    <Canvas style={{ width, height }}>
+      {ticks.map((t) => {
+        const x = t * pxPerSecond;
+        return (
+          <React.Fragment key={t}>
+            <Line
+              p1={{ x, y: height - 6 }}
+              p2={{ x, y: height }}
+              color={editorTheme.border}
+              strokeWidth={1}
+            />
+            <Rect x={x - 14} y={2} width={28} height={12} color="transparent" />
+          </React.Fragment>
+        );
+      })}
+    </Canvas>
+  );
+}
+
+function TrackLane({
+  track,
+  clips,
+  overlays,
+  visibleSegments,
+  thumbnails,
+  selectedClipId,
+  timelineWidth,
+  pxPerSecond,
+  onImport,
+  onAddText,
+  onSelectClip,
+}: {
+  track: TimelineTrackRow;
+  clips: EditorClip[];
+  overlays: TextOverlay[];
+  visibleSegments: ReturnType<typeof buildTimelineClipSegments>;
+  thumbnails: Record<string, VideoThumbnail[]>;
+  selectedClipId: string | null;
+  timelineWidth: number;
+  pxPerSecond: number;
+  onImport: () => void;
+  onAddText: () => void;
+  onSelectClip: (clipId: string) => void;
+}) {
+  if (track.kind === 'video' && track.index === 0) {
+    return (
+      <View style={[styles.videoLane, { height: track.height }]}>
+        {visibleSegments.map((segment) => (
+          <ClipSegment
+            key={segment.key}
+            segment={segment}
+            laneHeight={track.height}
+            thumbnails={thumbnails[segment.clip.uri]}
+            selected={segment.clip.id === selectedClipId}
+            onSelect={() => onSelectClip(segment.clip.id)}
+          />
+        ))}
+        <Pressable
+          style={[styles.addEnding, { left: timelineWidth + 8, height: track.height - 6 }]}
+          onPress={onImport}
+        >
+          <Text style={styles.addEndingText}>+ Add ending</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  if (track.kind === 'audio' && track.index === 0) {
+    return (
+      <TimelineWaveformCanvas
+        clips={clips}
+        pxPerSecond={pxPerSecond}
+        width={timelineWidth}
+        height={track.height}
+      />
+    );
+  }
+
+  if (track.kind === 'audio') {
+    return <EmptyLane label="+ Add audio" onPress={onImport} height={track.height} />;
+  }
+
+  const rowOverlays = overlaysForTextTrack(overlays, track.index);
+  if (rowOverlays.length === 0) {
+    return <EmptyLane label="+ Add text" onPress={onAddText} height={track.height} />;
+  }
+
+  return (
+    <View style={[styles.textLane, { width: timelineWidth, height: track.height }]}>
+      {rowOverlays.map((overlay) => (
+        <View key={overlay.id} style={styles.textChip}>
+          <Text style={styles.textChipLabel} numberOfLines={1}>
+            {overlay.text}
+          </Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+function EmptyTrackStack({
+  trackRows,
+  onImport,
+  onAddText,
+}: {
+  trackRows: TimelineTrackRow[];
+  onImport: () => void;
+  onAddText: () => void;
+}) {
+  return (
+    <View style={styles.emptyStack}>
+      {trackRows.map((track, index) => (
+        <React.Fragment key={track.id}>
+          {index > 0 ? <View style={styles.laneGap} /> : null}
+          {track.kind === 'video' ? (
+            <Pressable style={[styles.emptyVideoLane, { height: track.height }]} onPress={onImport}>
+              <AppSymbol name="add" size={18} tintColor={editorTheme.textMuted} />
+              <Text style={styles.emptyLaneText}>Add clip</Text>
+            </Pressable>
+          ) : track.kind === 'audio' ? (
+            <EmptyLane label="+ Add audio" onPress={onImport} height={track.height} />
+          ) : (
+            <EmptyLane label="+ Add text" onPress={onAddText} height={track.height} />
+          )}
+        </React.Fragment>
+      ))}
+    </View>
+  );
+}
+
+function ClipSegment({
+  segment,
+  laneHeight,
+  thumbnails,
+  selected,
+  onSelect,
+}: {
+  segment: ReturnType<typeof buildTimelineClipSegments>[number];
+  laneHeight: number;
+  thumbnails: VideoThumbnail[] | undefined;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  const tileCount = filmstripTileCount(segment.width);
+  const tiles = Array.from({ length: tileCount }, (_, index) => {
+    const width =
+      index === tileCount - 1
+        ? segment.width - TIMELINE_CELL_WIDTH * (tileCount - 1)
+        : TIMELINE_CELL_WIDTH;
+    return { index, width };
+  });
+
+  return (
+    <Pressable
+      onPress={onSelect}
+      style={[
+        styles.clipSegment,
+        {
+          left: segment.x,
+          width: segment.width,
+          height: laneHeight,
+        },
+        selected && styles.clipSelected,
+      ]}
+    >
+      <View style={styles.filmstrip}>
+        {tiles.map(({ index, width }) => (
+          <FilmstripTile
+            key={`${segment.key}:${index}`}
+            clip={segment.clip}
+            thumbnails={thumbnails}
+            tileIndex={index}
+            tileCount={tileCount}
+            width={width}
+          />
+        ))}
+      </View>
+    </Pressable>
+  );
+}
+
+function FilmstripTile({
+  clip,
+  thumbnails,
+  tileIndex,
+  tileCount,
+  width,
+}: {
+  clip: ReturnType<typeof buildTimelineClipSegments>[number]['clip'];
+  thumbnails: VideoThumbnail[] | undefined;
+  tileIndex: number;
+  tileCount: number;
+  width: number;
+}) {
+  const source = previewSourceForClip(clip, thumbnails, (tileIndex + 0.5) / tileCount);
+
+  return (
+    <View style={[styles.filmstripTile, { width }]}>
+      {source ? (
+        <Image
+          source={source}
+          style={styles.thumb}
+          contentFit="cover"
+          recyclingKey={`${clip.id}:${tileIndex}`}
+        />
+      ) : (
+        <View style={[styles.thumb, styles.thumbPlaceholder]} />
+      )}
+    </View>
+  );
+}
+
+function previewSourceForClip(
+  clip: ReturnType<typeof buildTimelineClipSegments>[number]['clip'],
+  thumbnails: VideoThumbnail[] | undefined,
+  normalizedTime: number,
+): { uri: string } | VideoThumbnail | null {
+  if (clip.mediaType === 'image') {
+    return { uri: clip.uri };
+  }
+
+  const clipLen = Math.max(0.001, clip.trimEnd - clip.trimStart);
+  const sourceTime = clip.trimStart + normalizedTime * clipLen;
+
+  if (thumbnails && thumbnails.length > 0) {
+    const idx = Math.min(
+      thumbnails.length - 1,
+      Math.round(
+        (sourceTime / Math.max(0.001, clip.sourceDuration)) * (thumbnails.length - 1),
+      ),
+    );
+    return thumbnails[idx];
+  }
+
+  return { uri: clip.uri };
+}
+
+function EmptyLane({
+  label,
+  onPress,
+  height,
+}: {
+  label: string;
+  onPress: () => void;
+  height: number;
+}) {
+  return (
+    <Pressable style={[styles.emptyLane, { height }]} onPress={onPress}>
+      <Text style={styles.emptyLaneText}>{label}</Text>
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
-  empty: {
-    alignItems: 'center',
+  frame: {
+    height: STUDIO_TIMELINE_HEIGHT,
+    backgroundColor: editorTheme.background,
+  },
+  tracksViewport: {
+    flex: 1,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  tracksScroll: {
+    flex: 1,
+  },
+  rulerRow: {
+    height: STUDIO_RULER_HEIGHT,
     justifyContent: 'center',
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: theme.colors.border,
+    paddingLeft: STUDIO_SIDEBAR_WIDTH + 4,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: editorTheme.border,
   },
-  emptyText: {
-    color: theme.colors.textMuted,
-    fontSize: fontSizes.sm,
-  },
-  ruler: {
-    alignItems: 'center',
-    paddingVertical: 4,
-  },
-  rulerText: {
-    color: theme.colors.textSecondary,
+  rulerClock: {
+    color: editorTheme.textSecondary,
     fontSize: fontSizes.xs,
+    fontWeight: '600',
+    fontVariant: ['tabular-nums'],
+    zIndex: 2,
+  },
+  rulerClip: {
+    ...StyleSheet.absoluteFill,
+    overflow: 'hidden',
+  },
+  rulerShift: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+  },
+  rulerTickLabel: {
+    position: 'absolute',
+    top: 2,
+    width: 28,
+    textAlign: 'center',
+    color: editorTheme.textMuted,
+    fontSize: 9,
+    fontWeight: '600',
     fontVariant: ['tabular-nums'],
   },
-  cell: {
-    height: TRACK_HEIGHT + WAVE_HEIGHT,
+  body: {
+    flexDirection: 'row',
   },
-  cellClipStart: {
-    borderLeftWidth: 2,
-    borderLeftColor: theme.colors.accent,
+  tracksArea: {
+    flex: 1,
+    position: 'relative',
   },
-  cellSelected: {
-    opacity: 0.85,
+  tracksClip: {
+    flex: 1,
+    overflow: 'hidden',
+    position: 'relative',
   },
-  thumb: {
-    height: TRACK_HEIGHT,
-    width: '100%',
+  content: {
+    flex: 1,
   },
-  thumbPlaceholder: {
-    backgroundColor: theme.colors.surface,
+  emptyStack: {
+    flex: 1,
+    paddingTop: 2,
   },
-  waveRow: {
-    height: WAVE_HEIGHT,
+  videoLane: {
+    backgroundColor: editorTheme.surface,
+    position: 'relative',
+  },
+  emptyVideoLane: {
+    marginHorizontal: 8,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 1,
-    paddingHorizontal: 1,
-    backgroundColor: 'rgba(20,184,166,0.08)',
+    justifyContent: 'center',
+    gap: 6,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: editorTheme.border,
+    backgroundColor: editorTheme.surfaceRaised,
   },
-  waveBar: {
+  laneGap: {
+    height: STUDIO_LANE_GAP,
+  },
+  clipSegment: {
+    position: 'absolute',
+    top: 0,
+    overflow: 'hidden',
+    borderLeftWidth: 2,
+    borderLeftColor: editorTheme.accent,
+  },
+  filmstrip: {
     flex: 1,
-    backgroundColor: theme.colors.accent,
-    borderRadius: 1,
-    opacity: 0.8,
+    flexDirection: 'row',
+    overflow: 'hidden',
+  },
+  filmstripTile: {
+    height: '100%',
+    overflow: 'hidden',
+  },
+  clipSelected: {
+    borderWidth: 2,
+    borderColor: editorTheme.text,
+  },
+  thumb: {
+    width: '100%',
+    height: '100%',
+  },
+  thumbPlaceholder: {
+    backgroundColor: editorTheme.surfaceRaised,
+  },
+  addEnding: {
+    position: 'absolute',
+    top: 3,
+    width: TIMELINE_ADD_ENDING_WIDTH,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: editorTheme.border,
+    backgroundColor: editorTheme.surfaceRaised,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addEndingText: {
+    color: editorTheme.textMuted,
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  addFabFixed: {
+    position: 'absolute',
+    right: 8,
+    top: 3,
+    width: 32,
+    height: STUDIO_VIDEO_LANE_HEIGHT - 6,
+    borderRadius: 8,
+    backgroundColor: editorTheme.text,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 30,
+  },
+  textLane: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 4,
+    backgroundColor: editorTheme.surface,
+  },
+  textChip: {
+    maxWidth: 120,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+    backgroundColor: editorTheme.surfaceRaised,
+    borderWidth: 1,
+    borderColor: editorTheme.border,
+  },
+  textChipLabel: {
+    color: editorTheme.text,
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  emptyLane: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginHorizontal: 8,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: editorTheme.border,
+    backgroundColor: editorTheme.surfaceRaised,
+  },
+  emptyLaneText: {
+    color: editorTheme.textMuted,
+    fontSize: 11,
+    fontWeight: '600',
   },
   playhead: {
     position: 'absolute',
     top: 0,
-    bottom: 0,
     width: 2,
-    backgroundColor: '#fff',
+    backgroundColor: editorTheme.text,
     borderRadius: 1,
-    shadowColor: '#000',
-    shadowOpacity: 0.6,
-    shadowRadius: 2,
-    shadowOffset: { width: 0, height: 0 },
+    zIndex: 20,
   },
 });

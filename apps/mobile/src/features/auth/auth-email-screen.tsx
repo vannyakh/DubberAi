@@ -45,7 +45,7 @@ export function AuthEmailScreen() {
       if (mode === 'login') await login({ email, password });
       else await register({ email, password });
       await enterCloudMode();
-      router.replace('/');
+      router.replace('/home');
     } catch {
       // Store surfaces API errors.
     }

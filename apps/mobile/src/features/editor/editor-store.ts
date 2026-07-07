@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import {
   clipDuration,
+  clipTimelineStart,
   EditorClip,
   ExportState,
   FilterId,
@@ -38,6 +39,9 @@ interface EditorState {
   removeOverlay: (id: string) => void;
 
   setFilter: (id: FilterId) => void;
+  setClipFilter: (clipId: string, id: FilterId) => void;
+  toggleClipMuted: (clipId: string) => void;
+  trimSelectedAtPlayhead: (edge: 'in' | 'out') => void;
   setPlayhead: (seconds: number) => void;
   setPlaying: (playing: boolean) => void;
   setPxPerSecond: (px: number) => void;
@@ -121,6 +125,33 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   removeOverlay: (id) => set((s) => ({ overlays: s.overlays.filter((o) => o.id !== id) })),
 
   setFilter: (id) => set({ filterId: id }),
+
+  setClipFilter: (clipId, id) =>
+    set((s) => ({
+      clips: s.clips.map((c) => (c.id === clipId ? { ...c, filterId: id } : c)),
+    })),
+
+  toggleClipMuted: (clipId) =>
+    set((s) => ({
+      clips: s.clips.map((c) => (c.id === clipId ? { ...c, muted: !c.muted } : c)),
+    })),
+
+  trimSelectedAtPlayhead: (edge) => {
+    const { clips, selectedClipId, playhead } = get();
+    if (!selectedClipId) return;
+    const clip = clips.find((c) => c.id === selectedClipId);
+    if (!clip) return;
+    const start = clipTimelineStart(clips, selectedClipId);
+    const local = playhead - start;
+    const duration = clipDuration(clip);
+    if (local <= 0.05 || local >= duration - 0.05) return;
+    if (edge === 'in') {
+      get().trimClip(selectedClipId, clip.trimStart + local, clip.trimEnd);
+      set({ playhead: start });
+    } else {
+      get().trimClip(selectedClipId, clip.trimStart, clip.trimStart + local);
+    }
+  },
 
   setPlayhead: (seconds) =>
     set((s) => ({

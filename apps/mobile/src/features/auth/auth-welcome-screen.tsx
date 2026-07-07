@@ -26,7 +26,7 @@ export function AuthWelcomeScreen() {
 
   const continueWithoutAccount = async () => {
     await enterLocalMode();
-    router.replace('/');
+    router.replace('/home');
   };
 
   return (

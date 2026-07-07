@@ -15,6 +15,8 @@ export interface EditorClip {
   hasAudio: boolean;
   /** Normalized 0..1 audio RMS buckets for the waveform lane. */
   waveform: number[];
+  filterId: FilterId;
+  muted: boolean;
 }
 
 export interface TextOverlay {
@@ -94,6 +96,15 @@ export const clipDuration = (clip: EditorClip) => Math.max(0, clip.trimEnd - cli
 
 export const timelineDuration = (clips: EditorClip[]) =>
   clips.reduce((sum, clip) => sum + clipDuration(clip), 0);
+
+export function clipTimelineStart(clips: EditorClip[], clipId: string): number {
+  let cursor = 0;
+  for (const clip of clips) {
+    if (clip.id === clipId) return cursor;
+    cursor += clipDuration(clip);
+  }
+  return 0;
+}
 
 /** Maps a global timeline time to the clip that contains it. */
 export function clipAtTime(

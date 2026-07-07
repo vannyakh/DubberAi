@@ -8,7 +8,7 @@ export default function TabsWebLayout() {
     <Tabs>
       <TabSlot />
       <TabList style={styles.tabList}>
-        <TabTrigger name="index" href="/" style={styles.tab}>
+        <TabTrigger name="home" href="/home" style={styles.tab}>
           Home
         </TabTrigger>
         <TabTrigger name="settings" href="/settings" style={styles.tab}>

@@ -1,13 +1,12 @@
 import React, { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { VideoPlayer, VideoView } from 'expo-video';
+import { Image } from 'expo-image';
 import { Canvas, Fill, RadialGradient, Rect, vec } from '@shopify/react-native-skia';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
-import { radius } from '@/constants';
 import { useEditorStore } from '../editor-store';
-import { clipAtTime, clipDuration, FILTER_PRESETS, TextOverlay } from '../types';
-import { Image } from 'expo-image';
+import { clipAtTime, FILTER_PRESETS, TextOverlay } from '../types';
 
 interface PreviewProps {
   player: VideoPlayer;
@@ -21,12 +20,15 @@ interface PreviewProps {
 export function Preview({ player }: PreviewProps) {
   const clips = useEditorStore((s) => s.clips);
   const playhead = useEditorStore((s) => s.playhead);
-  const filterId = useEditorStore((s) => s.filterId);
+  const selectedClipId = useEditorStore((s) => s.selectedClipId);
+  const globalFilterId = useEditorStore((s) => s.filterId);
   const overlays = useEditorStore((s) => s.overlays);
   const [size, setSize] = useState({ width: 0, height: 0 });
 
-  const preset = FILTER_PRESETS.find((p) => p.id === filterId) ?? FILTER_PRESETS[0];
   const active = clipAtTime(clips, playhead);
+  const selectedClip = selectedClipId ? clips.find((c) => c.id === selectedClipId) : null;
+  const filterId = selectedClip?.filterId ?? active?.clip.filterId ?? globalFilterId;
+  const preset = FILTER_PRESETS.find((p) => p.id === filterId) ?? FILTER_PRESETS[0];
   const showImage = active?.clip.mediaType === 'image';
 
   return (
@@ -135,7 +137,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#000',
-    borderRadius: radius.lg,
     overflow: 'hidden',
   },
   overlay: {

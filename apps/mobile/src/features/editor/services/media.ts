@@ -1,5 +1,6 @@
 import * as ImagePicker from 'expo-image-picker';
-import * as MediaLibrary from 'expo-media-library';
+import * as MediaLibrary from 'expo-media-library/legacy';
+import type { Asset as LibraryAsset } from 'expo-media-library/legacy';
 import { getAudioWaveform, getVideoInfo } from '../../../../modules/dubber-media';
 import { EditorClip } from '../types';
 
@@ -32,6 +33,8 @@ async function assetToClip(asset: ImagePicker.ImagePickerAsset): Promise<EditorC
       height: info?.height ?? asset.height ?? 0,
       hasAudio: info?.hasAudio ?? true,
       waveform,
+      filterId: 'none',
+      muted: false,
     };
   }
 
@@ -49,6 +52,59 @@ async function assetToClip(asset: ImagePicker.ImagePickerAsset): Promise<EditorC
     height: asset.height ?? 1920,
     hasAudio: false,
     waveform: flatWave,
+    filterId: 'none',
+    muted: false,
+  };
+}
+
+/** Converts library assets into editor clips (used by the in-app media picker). */
+export async function clipsFromLibraryAssets(assets: LibraryAsset[]): Promise<EditorClip[]> {
+  return Promise.all(assets.map(libraryAssetToClip));
+}
+
+async function libraryAssetToClip(asset: LibraryAsset): Promise<EditorClip> {
+  const id = `clip-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+  const isVideo = asset.mediaType === 'video' || asset.mediaType === 'pairedVideo';
+
+  if (isVideo) {
+    const [info, waveform] = await Promise.all([
+      getVideoInfo(asset.uri),
+      getAudioWaveform(asset.uri, 512),
+    ]);
+    const duration = info?.duration ?? asset.duration ?? 0;
+
+    return {
+      id,
+      uri: asset.uri,
+      mediaType: 'video',
+      sourceDuration: duration,
+      trimStart: 0,
+      trimEnd: duration,
+      width: info?.width ?? asset.width ?? 0,
+      height: info?.height ?? asset.height ?? 0,
+      hasAudio: info?.hasAudio ?? true,
+      waveform,
+      filterId: 'none',
+      muted: false,
+    };
+  }
+
+  const duration = IMAGE_CLIP_DURATION;
+  const flatWave = Array.from({ length: 256 }, () => 0.08);
+
+  return {
+    id,
+    uri: asset.uri,
+    mediaType: 'image',
+    sourceDuration: duration,
+    trimStart: 0,
+    trimEnd: duration,
+    width: asset.width ?? 1080,
+    height: asset.height ?? 1920,
+    hasAudio: false,
+    waveform: flatWave,
+    filterId: 'none',
+    muted: false,
   };
 }
 

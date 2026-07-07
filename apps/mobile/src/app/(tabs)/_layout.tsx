@@ -30,7 +30,7 @@ export default function TabsLayout() {
           selected: { color: appTheme.text, fontSize: 11, fontWeight: '700' },
         }}
       >
-        <NativeTabs.Trigger name="index" contentStyle={{ backgroundColor: appTheme.background }}>
+        <NativeTabs.Trigger name="home" contentStyle={{ backgroundColor: appTheme.background }}>
           <NativeTabs.Trigger.Label>Home</NativeTabs.Trigger.Label>
           <NativeTabs.Trigger.Icon
             sf={{ default: 'house', selected: 'house.fill' }}

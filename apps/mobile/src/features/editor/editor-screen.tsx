@@ -7,42 +7,57 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
-import { fontSizes, radius, spacing, theme } from '@/constants';
-import { AppSymbol, Screen } from '@/components';
+import { useLocalSearchParams } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { fontSizes, radius, spacing } from '@/constants';
+import { editorTheme } from '@/constants/editor-theme';
+import { MediaPickerModal } from '@/features/media';
 import { useEditorStore } from './editor-store';
 import { useClipThumbnails } from './hooks/use-thumbnails';
+import { useEditorMediaImport } from './hooks/use-editor-media-import';
 import { useTimelinePlayer } from './hooks/use-timeline-player';
+import { ClipToolsBar } from './components/clip-tools-bar';
+import { EditorEditPanel } from './components/editor-edit-panel';
 import { ExportSheet } from './components/export-sheet';
-import { FilterBar } from './components/filter-bar';
+import { FiltersPanel } from './components/filters-panel';
+import { PlaybackControls } from './components/playback-controls';
 import { Preview } from './components/preview';
 import { Timeline } from './components/timeline';
 import { Toolbar } from './components/toolbar';
-import { exportTimeline } from './services/export';
 import { consumeEditorClips } from './editor-bootstrap';
-import { pickFootageClips } from './services/media';
+import type { EditorEditingPanel } from './editing-panel';
+import { STUDIO_TIMELINE_HEIGHT, getStudioHeaderHeight } from './studio-layout';
 
 export function EditorScreen() {
-  const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
+  const insets = useSafeAreaInsets();
 
   const clips = useEditorStore((s) => s.clips);
-  const overlays = useEditorStore((s) => s.overlays);
-  const filterId = useEditorStore((s) => s.filterId);
-  const isPlaying = useEditorStore((s) => s.isPlaying);
   const addClip = useEditorStore((s) => s.addClip);
   const addOverlay = useEditorStore((s) => s.addOverlay);
-  const setPlaying = useEditorStore((s) => s.setPlaying);
-  const setExportState = useEditorStore((s) => s.setExportState);
+  const selectClip = useEditorStore((s) => s.selectClip);
+  const selectedClipId = useEditorStore((s) => s.selectedClipId);
   const reset = useEditorStore((s) => s.reset);
 
   const player = useTimelinePlayer();
   const thumbnails = useClipThumbnails(clips);
+  const {
+    pickerVisible,
+    pickerAdding,
+    openMediaPicker,
+    closeMediaPicker,
+    confirmMediaPicker,
+  } = useEditorMediaImport();
 
   const [textDraft, setTextDraft] = useState<string | null>(null);
+  const [editingPanel, setEditingPanel] = useState<EditorEditingPanel | null>(null);
 
-  // The editor is scoped to a single session per project visit.
+  const closeEditingPanel = () => setEditingPanel(null);
+
+  const toggleFiltersPanel = () => {
+    setEditingPanel((current) => (current === 'filters' ? null : 'filters'));
+  };
+
   useEffect(() => () => reset(), [reset]);
 
   useEffect(() => {
@@ -51,27 +66,6 @@ export function EditorScreen() {
     for (const clip of staged) addClip(clip);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
-
-  const importClip = async () => {
-    const picked = await pickFootageClips(true);
-    for (const clip of picked) addClip(clip);
-  };
-
-  const startExport = async () => {
-    setExportState({ phase: 'preparing', progress: 0, error: null, outputUri: null });
-    try {
-      const uri = await exportTimeline(clips, filterId, overlays, {
-        onPhase: (phase) => setExportState({ phase }),
-        onProgress: (progress) => setExportState({ progress }),
-      });
-      setExportState({ phase: 'done', progress: 1, outputUri: uri });
-    } catch (err) {
-      setExportState({
-        phase: 'error',
-        error: err instanceof Error ? err.message : 'Export failed',
-      });
-    }
-  };
 
   const commitText = () => {
     if (textDraft && textDraft.trim()) {
@@ -87,51 +81,56 @@ export function EditorScreen() {
     setTextDraft(null);
   };
 
-  return (
-    <Screen>
-      <LinearGradient
-        colors={['rgba(45,212,191,0.08)', 'transparent', 'rgba(139,92,246,0.08)']}
-        style={StyleSheet.absoluteFill}
-        pointerEvents="none"
-      />
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()}>
-            <Text style={styles.headerAction}>Back</Text>
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Editor</Text>
-          <TouchableOpacity onPress={startExport} disabled={clips.length === 0}>
-            <Text style={[styles.headerAction, clips.length === 0 && styles.disabled]}>
-              Export
-            </Text>
-          </TouchableOpacity>
-        </View>
+  const handleDeselectClip = () => {
+    selectClip(null);
+    closeEditingPanel();
+  };
 
+  return (
+    <View style={styles.root}>
+      <View style={[styles.workspace, { paddingTop: getStudioHeaderHeight(insets.top) }]}>
         <View style={styles.previewArea}>
           <Preview player={player} />
-          <TouchableOpacity
-            style={styles.playButton}
-            onPress={() => setPlaying(!isPlaying)}
-            disabled={clips.length === 0}
-          >
-            <AppSymbol
-              name={isPlaying ? 'pause' : 'play'}
-              size={28}
-              tintColor="#FFFFFF"
+        </View>
+        <PlaybackControls onImport={openMediaPicker} />
+      </View>
+
+      <View style={styles.dock}>
+        <View style={styles.timelineSlot}>
+          {editingPanel === 'filters' ? (
+            <EditorEditPanel title="Filters" onDone={closeEditingPanel}>
+              <FiltersPanel clipId={selectedClipId} />
+            </EditorEditPanel>
+          ) : (
+            <Timeline thumbnails={thumbnails} onImport={openMediaPicker} onAddText={() => setTextDraft('')} />
+          )}
+        </View>
+        <View style={[styles.toolbarSafe, { paddingBottom: insets.bottom }]}>
+          {selectedClipId ? (
+            <ClipToolsBar
+              activePanel={editingPanel}
+              onOpenFilters={toggleFiltersPanel}
+              onDeselect={handleDeselectClip}
             />
-          </TouchableOpacity>
+          ) : (
+            <Toolbar
+              onImport={openMediaPicker}
+              onAddText={() => setTextDraft('')}
+              activePanel={editingPanel}
+              onOpenFilters={toggleFiltersPanel}
+            />
+          )}
         </View>
-
-        <FilterBar />
-
-        <View style={styles.timelineArea}>
-          <Timeline thumbnails={thumbnails} />
-        </View>
-
-        <Toolbar onImport={importClip} onAddText={() => setTextDraft('')} />
       </View>
 
       <ExportSheet />
+
+      <MediaPickerModal
+        visible={pickerVisible}
+        adding={pickerAdding}
+        onClose={closeMediaPicker}
+        onConfirm={confirmMediaPicker}
+      />
 
       <Modal visible={textDraft !== null} transparent animationType="fade">
         <View style={styles.textBackdrop}>
@@ -142,75 +141,53 @@ export function EditorScreen() {
               value={textDraft ?? ''}
               onChangeText={setTextDraft}
               placeholder="Your caption…"
-              placeholderTextColor={theme.colors.textMuted}
+              placeholderTextColor={editorTheme.textMuted}
               autoFocus
             />
             <View style={styles.textActions}>
               <TouchableOpacity onPress={() => setTextDraft(null)}>
-                <Text style={styles.headerAction}>Cancel</Text>
+                <Text style={styles.action}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={commitText}>
-                <Text style={styles.headerAction}>Add</Text>
+                <Text style={styles.actionPrimary}>Add</Text>
               </TouchableOpacity>
             </View>
           </View>
         </View>
       </Modal>
-    </Screen>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  root: {
     flex: 1,
+    backgroundColor: editorTheme.background,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-  },
-  headerTitle: {
-    color: theme.colors.textPrimary,
-    fontSize: fontSizes.md,
-    fontWeight: '700',
-  },
-  headerAction: {
-    color: theme.colors.accent,
-    fontSize: fontSizes.sm,
-    fontWeight: '600',
-  },
-  disabled: {
-    opacity: 0.4,
+  workspace: {
+    flex: 1,
+    minHeight: 0,
+    backgroundColor: editorTheme.preview,
   },
   previewArea: {
     flex: 1,
-    marginHorizontal: spacing.lg,
+    minHeight: 0,
   },
-  playButton: {
-    position: 'absolute',
-    bottom: spacing.md,
-    alignSelf: 'center',
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+  dock: {
+    flexShrink: 0,
+    backgroundColor: editorTheme.background,
   },
-  playIcon: {
-    color: '#fff',
-    fontSize: fontSizes.md,
+  toolbarSafe: {
+    flexShrink: 0,
+    backgroundColor: editorTheme.surface,
   },
-  timelineArea: {
-    paddingVertical: spacing.sm,
+  timelineSlot: {
+    height: STUDIO_TIMELINE_HEIGHT,
+    overflow: 'hidden',
   },
   textBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.55)',
+    backgroundColor: 'rgba(0,0,0,0.65)',
     alignItems: 'center',
     justifyContent: 'center',
     padding: spacing.xl,
@@ -218,30 +195,41 @@ const styles = StyleSheet.create({
   textCard: {
     width: '100%',
     maxWidth: 380,
-    backgroundColor: theme.colors.surface,
+    backgroundColor: editorTheme.surfaceRaised,
     borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderColor: editorTheme.border,
     padding: spacing.lg,
     gap: spacing.md,
   },
   textCardTitle: {
-    color: theme.colors.textPrimary,
+    color: editorTheme.text,
     fontSize: fontSizes.md,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   textInput: {
-    color: theme.colors.textPrimary,
+    color: editorTheme.text,
     borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderColor: editorTheme.border,
     borderRadius: radius.md,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     fontSize: fontSizes.sm,
+    backgroundColor: editorTheme.surface,
   },
   textActions: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
     gap: spacing.xl,
+  },
+  action: {
+    color: editorTheme.textSecondary,
+    fontSize: fontSizes.sm,
+    fontWeight: '600',
+  },
+  actionPrimary: {
+    color: editorTheme.accent,
+    fontSize: fontSizes.sm,
+    fontWeight: '700',
   },
 });
