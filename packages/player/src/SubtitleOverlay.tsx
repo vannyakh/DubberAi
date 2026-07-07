@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { CaptionCue } from '@video-voice-translator/types';
+import { findActiveCue } from '@video-voice-translator/player-core';
 import { cn } from '@video-voice-translator/utils';
 
 export interface SubtitleOverlayProps {
@@ -15,10 +16,7 @@ export const SubtitleOverlay: React.FC<SubtitleOverlayProps> = ({
   showSpeaker = false,
   className,
 }) => {
-  const activeCue = useMemo(
-    () => cues.find((cue) => currentTime >= cue.start && currentTime < cue.end),
-    [cues, currentTime]
-  );
+  const activeCue = useMemo(() => findActiveCue(cues, currentTime), [cues, currentTime]);
 
   if (!activeCue) return null;
 

@@ -1,0 +1,22 @@
+{
+  "name": "@video-voice-translator/store",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@video-voice-translator/api-client": "workspace:*",
+    "@video-voice-translator/auth": "workspace:*",
+    "@video-voice-translator/types": "workspace:*",
+    "zustand": "^5.0.14"
+  },
+  "devDependencies": {
+    "@video-voice-translator/config": "workspace:*",
+    "typescript": "~5.8.2"
+  }
+}

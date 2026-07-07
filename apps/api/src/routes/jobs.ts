@@ -1,7 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { RenderJob } from '@video-voice-translator/types';
-import { store, newId } from '../store';
+import { prisma } from '../db';
+import { serializeJob } from '../serialize';
 
 const createJobInput = z.object({
   projectId: z.string(),
@@ -17,54 +17,49 @@ const updateJobInput = z.object({
 export async function jobRoutes(app: FastifyInstance) {
   app.get('/', async (request) => {
     const { status, kind } = request.query as { status?: string; kind?: string };
-    let jobs = Array.from(store.jobs.values());
-    if (status) jobs = jobs.filter((j) => j.status === status);
-    if (kind) jobs = jobs.filter((j) => j.kind === kind);
-    return jobs;
+    const jobs = await prisma.renderJob.findMany({
+      where: { status: status || undefined, kind: kind || undefined },
+      orderBy: { createdAt: 'asc' },
+    });
+    return jobs.map(serializeJob);
   });
 
   app.get('/:id', async (request, reply) => {
     const { id } = request.params as { id: string };
-    const job = store.jobs.get(id);
+    const job = await prisma.renderJob.findUnique({ where: { id } });
     if (!job) return reply.code(404).send({ error: 'Job not found' });
-    return job;
+    return serializeJob(job);
   });
 
   app.post('/', async (request, reply) => {
     const body = createJobInput.parse(request.body);
-    const now = new Date().toISOString();
-    const job: RenderJob = {
-      id: newId(),
-      projectId: body.projectId,
-      kind: body.kind,
-      status: 'queued',
-      progress: 0,
-      createdAt: now,
-      updatedAt: now,
-    };
-    store.jobs.set(job.id, job);
-    return reply.code(201).send(job);
+    const job = await prisma.renderJob.create({
+      data: { projectId: body.projectId, kind: body.kind },
+    });
+    return reply.code(201).send(serializeJob(job));
   });
 
   /** Workers claim the oldest queued job of a given kind. */
   app.post('/claim', async (request, reply) => {
     const { kind } = z.object({ kind: z.enum(['render', 'export', 'ai']) }).parse(request.body);
-    const queued = Array.from(store.jobs.values())
-      .filter((j) => j.status === 'queued' && j.kind === kind)
-      .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
-    const job = queued[0];
+    const job = await prisma.renderJob.findFirst({
+      where: { status: 'queued', kind },
+      orderBy: { createdAt: 'asc' },
+    });
     if (!job) return reply.code(204).send();
-    job.status = 'processing';
-    job.updatedAt = new Date().toISOString();
-    return job;
+    const claimed = await prisma.renderJob.update({
+      where: { id: job.id },
+      data: { status: 'processing' },
+    });
+    return serializeJob(claimed);
   });
 
   app.patch('/:id', async (request, reply) => {
     const { id } = request.params as { id: string };
-    const job = store.jobs.get(id);
-    if (!job) return reply.code(404).send({ error: 'Job not found' });
+    const existing = await prisma.renderJob.findUnique({ where: { id } });
+    if (!existing) return reply.code(404).send({ error: 'Job not found' });
     const body = updateJobInput.parse(request.body);
-    Object.assign(job, body, { updatedAt: new Date().toISOString() });
-    return job;
+    const job = await prisma.renderJob.update({ where: { id }, data: body });
+    return serializeJob(job);
   });
 }

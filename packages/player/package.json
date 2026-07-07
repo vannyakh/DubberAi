@@ -10,6 +10,7 @@
     "lint": "tsc --noEmit"
   },
   "dependencies": {
+    "@video-voice-translator/player-core": "workspace:*",
     "@video-voice-translator/types": "workspace:*",
     "@video-voice-translator/utils": "workspace:*"
   },

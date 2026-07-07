@@ -47,6 +47,8 @@ export interface StudioContextType {
   createProject: (name: string) => string;
   loadProject: (id: string) => boolean;
   deleteProject: (id: string) => void;
+  renameProject: (id: string, name: string) => void;
+  duplicateProject: (id: string) => void;
   exitProject: () => void;
 
   // File States
@@ -402,6 +404,49 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setDriveAudioFile(null);
     }
   }, [projectId, resetProject, user]);
+
+  const renameProject = useCallback((id: string, name: string) => {
+    const existingRaw = localStorage.getItem('studio_projects');
+    const projectsList: Project[] = existingRaw ? JSON.parse(existingRaw) : [];
+    const index = projectsList.findIndex(p => p.id === id);
+    if (index === -1) return;
+
+    projectsList[index] = { ...projectsList[index], name };
+    localStorage.setItem('studio_projects', JSON.stringify(projectsList));
+    setRecentProjects(projectsList);
+
+    if (projectId === id) setProjectName(name);
+
+    if (user) {
+      saveProjectToFirestore(projectsList[index], user.uid).catch(err => {
+        console.error('Error renaming project in Firestore:', err);
+      });
+    }
+  }, [projectId, user]);
+
+  const duplicateProject = useCallback((id: string) => {
+    const existingRaw = localStorage.getItem('studio_projects');
+    const projectsList: Project[] = existingRaw ? JSON.parse(existingRaw) : [];
+    const source = projectsList.find(p => p.id === id);
+    if (!source) return;
+
+    const copyId = 'PRJ-' + Math.random().toString(36).substring(2, 6).toUpperCase() + '-' + Math.random().toString(36).substring(2, 6).toUpperCase();
+    const copy: Project = {
+      ...source,
+      id: copyId,
+      name: `${source.name} (Copy)`,
+      createdAt: new Date().toISOString(),
+    };
+    projectsList.push(copy);
+    localStorage.setItem('studio_projects', JSON.stringify(projectsList));
+    setRecentProjects(projectsList);
+
+    if (user) {
+      saveProjectToFirestore(copy, user.uid).catch(err => {
+        console.error('Error duplicating project to Firestore:', err);
+      });
+    }
+  }, [user]);
 
   const exitProject = useCallback(() => {
     setProjectId(null);
@@ -1525,6 +1570,8 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     createProject,
     loadProject,
     deleteProject,
+    renameProject,
+    duplicateProject,
     exitProject,
 
     // Firebase Auth & Google Drive Storage

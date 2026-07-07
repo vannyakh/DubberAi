@@ -4,6 +4,10 @@ dist/
 dist-electron/
 coverage/
 .turbo/
+.expo/
+uploads/
+*.db
+*.db-journal
 .DS_Store
 *.log
 .env*

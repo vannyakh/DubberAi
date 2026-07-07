@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { cn } from '@video-voice-translator/utils';
-import { formatTimecode } from './time';
+import { computeTicks, formatTimecode } from '@video-voice-translator/timeline-core';
 
 interface TimeRulerProps {
   duration: number;
@@ -9,14 +9,7 @@ interface TimeRulerProps {
 }
 
 export const TimeRuler: React.FC<TimeRulerProps> = ({ duration, pixelsPerSecond, className }) => {
-  const ticks = useMemo(() => {
-    // Choose a tick interval that keeps labels at least ~60px apart
-    const intervals = [0.5, 1, 2, 5, 10, 15, 30, 60, 120, 300];
-    const interval = intervals.find((i) => i * pixelsPerSecond >= 60) ?? 300;
-    const result: number[] = [];
-    for (let t = 0; t <= duration; t += interval) result.push(t);
-    return result;
-  }, [duration, pixelsPerSecond]);
+  const ticks = useMemo(() => computeTicks(duration, pixelsPerSecond), [duration, pixelsPerSecond]);
 
   return (
     <div

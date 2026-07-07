@@ -34,6 +34,18 @@ export interface VideoAnalysis {
 export type AppStatus = 'idle' | 'transcribing' | 'translating' | 'speaking' | 'analyzing' | 'error';
 export type ActiveTab = 'translate' | 'transcript' | 'analysis' | 'media' | 'text' | 'audio' | 'stickers' | 'effects' | 'transitions' | 'dub' | 'history';
 
+export interface User {
+  id: string;
+  email: string;
+  name?: string;
+  createdAt: string;
+}
+
+export interface Session {
+  token: string;
+  user: User;
+}
+
 export interface CaptionCue {
   index: number;
   /** Start time in seconds */

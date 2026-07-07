@@ -8,8 +8,8 @@ import { createRoot } from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { StudioProvider } from './context/StudioContext';
 import { useStudio } from './hooks/useStudio';
-import { LandingPage } from './pages/LandingPage';
-import { StudioPage } from './pages/StudioPage';
+import { ProjectsPage } from './pages/ProjectsPage';
+import { EditorPage } from './pages/EditorPage';
 import { ThemeProvider } from './context/ThemeContext';
 import './index.css';
 
@@ -23,8 +23,9 @@ const queryClient = new QueryClient({
 });
 
 function MainApp() {
-  const { videoUrl } = useStudio();
-  return videoUrl ? <StudioPage /> : <LandingPage />;
+  const { projectId } = useStudio();
+  // Two pages, OpenCut-style: /projects (default) and /editor/[project]
+  return projectId ? <EditorPage /> : <ProjectsPage />;
 }
 
 createRoot(document.getElementById('root')!).render(

@@ -8,87 +8,82 @@ AI-powered video voice translation / dubbing studio. Monorepo built with pnpm wo
 video-voice-translator/
 │
 ├── apps/
-│   ├── desktop/              # Electron application (React renderer + IPC)
-│   ├── api/                  # Node.js backend (Fastify: projects, AI, jobs)
-│   └── web/                  # Web version (Vite + React studio)
+│   ├── desktop/              # Electron: full editor (timeline, player, IPC file dialogs)
+│   ├── mobile/               # Expo: companion app (login, projects, transcripts, captions, AI translation)
+│   ├── api/                  # Fastify: auth, projects, AI, jobs, uploads (Prisma + SQLite)
+│   └── web/                  # Vite + React studio (Gemini + Firebase)
 │
 ├── packages/
-│   ├── ui/                   # Shared React components (Button, Modal, Spinner)
-│   ├── types/                # Shared TypeScript types
-│   ├── utils/                # Shared utility functions
-│   ├── database/             # Firebase (Firestore + Google Drive); Prisma/SQLite later
-│   ├── ffmpeg/               # Video processing (trim, split, merge, export...)
-│   ├── transcript/           # Transcription providers (Gemini, Faster-Whisper)
-│   ├── captions/             # Subtitle generation (SRT, VTT, ASS)
-│   ├── ai/                   # Gemini/LLM services (translate, TTS, summarize...)
-│   ├── timeline/             # Timeline editor components
-│   ├── player/               # Video player + subtitle overlay
+│   ├── types/                # Shared TypeScript types          (desktop, mobile, api, web)
+│   ├── utils/                # Shared utility functions         (desktop, mobile, api, web)
+│   ├── api-client/           # Typed REST client for apps/api   (desktop, mobile)
+│   ├── auth/                 # Token storage, validation, types (desktop, mobile, api)
+│   ├── store/                # Zustand store factories          (desktop, mobile)
+│   ├── ai/                   # Gemini/LLM services              (desktop, api, web)
+│   ├── captions/             # SRT / VTT / ASS generation       (desktop, mobile, web)
+│   ├── transcript/           # Gemini + Faster-Whisper providers(desktop, api)
+│   ├── timeline-core/        # Pure timeline logic              (desktop)
+│   ├── player-core/          # Pure playback/cue logic          (desktop, mobile)
+│   ├── timeline/             # React timeline components (DOM)
+│   ├── player/               # React player components (DOM)
+│   ├── ui/                   # React components (Button, Modal, Spinner)
+│   ├── design-system/        # Design tokens + light/dark themes
+│   ├── database/             # Firebase (web); API uses Prisma
+│   ├── ffmpeg/               # Video processing (trim, merge, export...)
 │   └── config/               # Shared tsconfig presets
 │
 ├── services/
-│   ├── render-worker/        # Claims and processes render jobs
-│   ├── ai-worker/            # Claims and processes AI jobs
-│   └── export-worker/        # Claims and processes export jobs
+│   ├── render-worker/        # Claims render jobs from the API
+│   ├── ai-worker/            # Claims AI jobs
+│   └── export-worker/        # Claims export jobs
 │
-├── scripts/                  # check-env.mjs (ffmpeg + env validation)
+├── scripts/                  # check-env.mjs, smoke-api.mjs
 ├── turbo.json
 ├── pnpm-workspace.yaml
-├── package.json
-└── tsconfig.base.json
+└── package.json
+```
+
+## Communication
+
+```text
+                  API (Fastify + Prisma/SQLite + JWT)
+                   │
+        ┌──────────┴──────────┐
+        │                     │
+ Desktop (Electron)     Mobile (Expo)
+        │                     │
+        └──────────┬──────────┘
+                   │
+     Shared packages (api-client, auth, store, ...)
 ```
 
 ## Run Locally
 
-**Prerequisites:** Node.js, pnpm, ffmpeg (for video processing features)
+**Prerequisites:** Node.js, pnpm, ffmpeg (for video processing)
 
-1. Install dependencies:
-   ```bash
-   pnpm install
-   ```
-2. Set `GEMINI_API_KEY` (and optionally `KIRI_TTS_API_KEY`) in `.env.local` at the repo root (see `.env.example`).
-3. Verify your environment:
-   ```bash
-   pnpm check-env
-   ```
-4. Start the web app:
-   ```bash
-   pnpm dev
-   ```
-
-The web app runs at http://localhost:3000.
-
-## Scripts
+1. `pnpm install`
+2. Set `GEMINI_API_KEY` (and optionally `KIRI_TTS_API_KEY`) in `.env.local` at the repo root.
+3. Create the API database: `pnpm db:push`
+4. Verify: `pnpm check-env`
 
 | Command | Description |
 | --- | --- |
-| `pnpm dev` | Start the web app |
-| `pnpm dev:api` | Start the API server (http://localhost:4000) |
-| `pnpm dev:desktop` | Start the Electron desktop app |
-| `pnpm dev:all` | Start every app, API, and worker |
-| `pnpm build` | Build all packages and apps |
-| `pnpm lint` | Type-check all packages and apps |
-| `pnpm check-env` | Verify ffmpeg + API keys are configured |
+| `pnpm dev` | Web studio (http://localhost:3000) |
+| `pnpm dev:api` | API server (http://localhost:4000) |
+| `pnpm dev:desktop` | Electron desktop app |
+| `pnpm dev:mobile` | Expo dev server (scan QR with Expo Go) |
+| `pnpm dev:all` | Everything, including workers |
+| `pnpm build` / `pnpm lint` | Build / type-check all packages |
+| `pnpm smoke-api` | End-to-end API test (auth, projects, jobs) |
 
-## Workers
+### Mobile notes
 
-Workers poll the API for queued jobs (`POST /api/jobs/claim`) and report progress back (`PATCH /api/jobs/:id`). Start the API first, then any worker:
+- Expo SDK 57 with expo-router file-based routing (`apps/mobile/src/app`): `/login`, `/` (projects), `/project/[id]`. Typed routes are enabled.
+- Set `EXPO_PUBLIC_API_URL` to your API address (Android emulator: `http://10.0.2.2:4000`; physical device: your machine's LAN IP).
+- Sessions currently use in-memory token storage; swap in an `expo-secure-store` adapter (see `apps/mobile/src/api.ts`) to persist logins.
 
-```bash
-pnpm dev:api
-pnpm --filter @video-voice-translator/render-worker dev
-```
+### API notes
 
-## Dependency Graph
-
-```text
-web      → ai, database, captions, player, timeline, ui, types, utils
-desktop  → captions, player, timeline, ui, types, utils
-api      → ai, transcript, captions, ffmpeg, types, utils
-workers  → ffmpeg, ai, transcript, captions, types
-timeline → types, utils
-player   → types, utils
-captions → types
-transcript → ai, types
-ai       → types
-ui       → utils
-```
+- Auth is JWT (Bearer). Set `AUTH_SECRET` in production (`apps/api/.env`).
+- Database is SQLite via Prisma (`apps/api/prisma/schema.prisma`); switch the datasource to PostgreSQL for production.
+- Workers poll `POST /api/jobs/claim` and report progress with `PATCH /api/jobs/:id`.
