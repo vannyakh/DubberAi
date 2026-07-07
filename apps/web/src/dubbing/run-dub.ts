@@ -5,6 +5,7 @@ import {
 	generateMultiSpeakerSpeech,
 } from "@/services/ai-client";
 import { parseSegments, fileToBase64 } from "@video-voice-translator/utils";
+import { extractAudioForTranscription } from "./extract-audio";
 import type { Segment } from "@video-voice-translator/types";
 import type { EditorCore } from "@/core";
 import type { MediaAsset } from "@/media/types";
@@ -25,14 +26,32 @@ export async function runTranscription({
 	store.setError(null);
 	store.setStatus("transcribing");
 	try {
-		const base64 = await fileToBase64(asset.file);
-		const result = await transcribeVideo(
-			base64,
-			asset.file.type || "video/mp4",
-		);
+		// Send only the audio track: whole videos routinely exceed the
+		// model's inline-data limit and get rejected with "I cannot
+		// process video content". Fall back to the raw file when the
+		// audio can't be decoded locally.
+		let payload: { base64: string; mimeType: string };
+		try {
+			payload = await extractAudioForTranscription({ file: asset.file });
+		} catch (extractError) {
+			console.warn(
+				"Audio extraction failed, sending original file:",
+				extractError,
+			);
+			payload = {
+				base64: await fileToBase64(asset.file),
+				mimeType: asset.file.type || "video/mp4",
+			};
+		}
+		const result = await transcribeVideo(payload.base64, payload.mimeType);
 		const transcript: string = result?.transcript ?? "";
 		if (!transcript) {
 			throw new Error("Transcription returned no dialogue");
+		}
+		if (/^\s*I(?:'m| am)? (?:sorry|cannot|can't)/i.test(transcript)) {
+			throw new Error(
+				"The AI could not process this file's audio. Try a shorter clip or a different format (mp4/webm).",
+			);
 		}
 		store.setTranscription({
 			transcript,

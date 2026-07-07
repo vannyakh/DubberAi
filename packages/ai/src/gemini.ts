@@ -46,10 +46,10 @@ export async function transcribeVideo(videoBase64: string, mimeType: string) {
               },
             },
             {
-              text: `Please provide a verbatim transcript of the spoken dialogue in this video. 
+              text: `Please provide a verbatim transcript of the spoken dialogue in this media (video or audio recording). 
 
 IMPORTANT: 
-- Identify the primary spoken language in the video.
+- Identify the primary spoken language.
 - Ignore background music, songs, or non-speech sounds. 
 - Only transcribe spoken words. 
 - Identify different speakers (e.g., Speaker 1, Speaker 2).
