@@ -61,8 +61,6 @@ export const LANGUAGES = [
 ];
 
 export const VOICES = [
-  { id: 'kiri_Kiri', label: 'Khmer Female (Kiri)' },
-  { id: 'kiri_Phearith', label: 'Khmer Male (Phearith)' },
   { id: 'Kore', label: 'Female (Kore)' },
   { id: 'Zephyr', label: 'Female (Zephyr)' },
   { id: 'Puck', label: 'Male (Puck)' },

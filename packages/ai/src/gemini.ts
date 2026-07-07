@@ -1,15 +1,24 @@
 import { GoogleGenAI, Modality } from "@google/genai";
+import { API_302_KEY, API_302_BASE_URL, assertAiKey } from "./config";
+import { chatComplete } from "./chat";
 
-// Ensure the API key is present for Gemini calls
-const apiKey = process.env.GEMINI_API_KEY;
-const ai = new GoogleGenAI({ apiKey: apiKey || "" });
+/**
+ * Multimodal calls (video transcription/analysis, TTS) go through the 302.AI
+ * gateway using the official Gemini API format. The SDK builds
+ * {baseUrl}/v1beta/models/{model}:generateContent, matching 302.AI's
+ * official-format route at /v1/v1beta/models/{model}:generateContent.
+ */
+const ai = new GoogleGenAI({
+  apiKey: API_302_KEY || "",
+  httpOptions: { baseUrl: `${API_302_BASE_URL}/v1` },
+});
 
 async function withRetry<T>(fn: () => Promise<T>, retries: number = 3, delay: number = 1000): Promise<T> {
   try {
     return await fn();
   } catch (error: any) {
     if (retries > 0 && (error.status === 500 || error.status === 503 || error.status === 429)) {
-      console.warn(`Gemini API error (${error.status}). Retrying in ${delay}ms... (${retries} attempts left)`);
+      console.warn(`302.AI error (${error.status}). Retrying in ${delay}ms... (${retries} attempts left)`);
       await new Promise(resolve => setTimeout(resolve, delay));
       return withRetry(fn, retries - 1, delay * 2);
     }
@@ -17,10 +26,13 @@ async function withRetry<T>(fn: () => Promise<T>, retries: number = 3, delay: nu
   }
 }
 
+/** Legacy voice ids (e.g. "kiri_Kiri" from saved projects) map to a default prebuilt voice. */
+function normalizeVoice(voice: string): string {
+  return voice.startsWith("kiri_") ? "Kore" : voice;
+}
+
 export async function transcribeVideo(videoBase64: string, mimeType: string) {
-  if (!apiKey) {
-    throw new Error("GEMINI_API_KEY environment variable is not defined.");
-  }
+  assertAiKey();
   return withRetry(async () => {
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",
@@ -61,9 +73,7 @@ Format your response as a JSON object:
 }
 
 export async function analyzeVideo(videoBase64: string, mimeType: string, language: string) {
-  if (!apiKey) {
-    throw new Error("GEMINI_API_KEY environment variable is not defined.");
-  }
+  assertAiKey();
   return withRetry(async () => {
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",
@@ -102,14 +112,8 @@ Format as JSON:
 }
 
 export async function translateText(text: string, targetLanguage: string, sourceLanguage?: string) {
-  if (!apiKey) {
-    throw new Error("GEMINI_API_KEY environment variable is not defined.");
-  }
-  return withRetry(async () => {
-    const sourceContext = sourceLanguage ? `from ${sourceLanguage} ` : "";
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: `Translate the following transcript ${sourceContext}into ${targetLanguage}. 
+  const sourceContext = sourceLanguage ? `from ${sourceLanguage} ` : "";
+  return chatComplete(`Translate the following transcript ${sourceContext}into ${targetLanguage}. 
 
 Guidelines:
 - Maintain the speaker identification and timestamp format exactly: [MM:SS] Speaker: Text.
@@ -118,65 +122,12 @@ Guidelines:
 - If there are multiple speakers, ensure the distinction between their voices is clear in the translation.
 
 Transcript:
-${text}`,
-    });
-    return response.text;
-  });
-}
-
-export async function generateKiriSpeech(text: string, voice: string = 'Kiri') {
-  return withRetry(async () => {
-    const actualKey = process.env.KIRI_TTS_API_KEY;
-    if (!actualKey) {
-      throw new Error("KIRI_TTS_API_KEY environment variable is not defined.");
-    }
-    
-    const url = 'https://api.kiritts.com/v1/audio/speech';
-    
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${actualKey}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: 'kiritts-1',
-        input: text.replace(/\[\d{2}:\d{2}\]\s+/g, '').trim(),
-        voice: voice,
-        speed: 1.0,
-        response_format: 'mp3'
-      })
-    });
-
-    if (!response.ok) {
-      const errText = await response.text();
-      let errorMessage = `Kiri TTS Status ${response.status}`;
-      try {
-        const errJson = JSON.parse(errText);
-        errorMessage = errJson.detail || errJson.message || errorMessage;
-      } catch (e) {
-        errorMessage = errText || errorMessage;
-      }
-      throw new Error(`Kiri TTS API Error: ${errorMessage}`);
-    }
-
-    const arrayBuffer = await response.arrayBuffer();
-    const uint8Array = new Uint8Array(arrayBuffer);
-    let binary = '';
-    for (let i = 0; i < uint8Array.byteLength; i++) {
-        binary += String.fromCharCode(uint8Array[i]);
-    }
-    return btoa(binary);
-  });
+${text}`);
 }
 
 export async function generateSpeech(text: string, voice: string = 'Kore') {
-  if (voice.startsWith('kiri_')) {
-    return generateKiriSpeech(text, voice.replace('kiri_', ''));
-  }
-  if (!apiKey) {
-    throw new Error("GEMINI_API_KEY environment variable is not defined.");
-  }
+  assertAiKey();
+  const voiceName = normalizeVoice(voice);
   return withRetry(async () => {
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",
@@ -185,7 +136,7 @@ export async function generateSpeech(text: string, voice: string = 'Kore') {
         responseModalities: [Modality.AUDIO],
         speechConfig: {
           voiceConfig: {
-            prebuiltVoiceConfig: { voiceName: voice },
+            prebuiltVoiceConfig: { voiceName },
           },
         },
       },
@@ -199,21 +150,15 @@ export async function generateSpeech(text: string, voice: string = 'Kore') {
 }
 
 export async function generateMultiSpeakerSpeech(text: string, speakerVoices: Record<string, string>) {
+  assertAiKey();
   const speakerEntries = Object.entries(speakerVoices);
-  const firstVoice = speakerEntries.length > 0 ? speakerEntries[0][1] : 'Kore';
-  if (firstVoice.startsWith('kiri_')) {
-    return generateKiriSpeech(text, firstVoice.replace('kiri_', ''));
-  }
 
   if (speakerEntries.length === 2) {
-    if (!apiKey) {
-      throw new Error("GEMINI_API_KEY environment variable is not defined.");
-    }
     try {
       const speakerConfigs = speakerEntries.map(([speaker, voice]) => ({
         speaker,
         voiceConfig: {
-          prebuiltVoiceConfig: { voiceName: voice }
+          prebuiltVoiceConfig: { voiceName: normalizeVoice(voice) }
         }
       }));
 

@@ -11,6 +11,8 @@
     "db:push": "pnpm --filter @video-voice-translator/api db:push",
     "smoke-api": "node scripts/smoke-api.mjs",
     "build": "turbo build",
+    "build:wasm": "wasm-pack build rust/wasm --target web --out-dir pkg --release",
+    "dev:wasm": "wasm-pack build rust/wasm --target web --out-dir pkg --dev",
     "lint": "turbo lint",
     "clean": "turbo clean",
     "check-env": "node scripts/check-env.mjs"

@@ -23,13 +23,14 @@ console.log('Binaries:');
 check('ffmpeg', () => execSync('ffmpeg -version', { stdio: 'pipe' }));
 check('ffprobe', () => execSync('ffprobe -version', { stdio: 'pipe' }));
 
-console.log('Environment (.env.local at repo root):');
-const envPath = resolve(process.cwd(), '.env.local');
-const envContent = existsSync(envPath) ? readFileSync(envPath, 'utf8') : '';
-for (const key of ['GEMINI_API_KEY', 'KIRI_TTS_API_KEY']) {
-  const present = process.env[key] || new RegExp(`^${key}=.+`, 'm').test(envContent);
-  console.log(`  [${present ? 'ok' : 'MISSING'}] ${key}`);
-  if (!present && key === 'GEMINI_API_KEY') ok = false;
-}
+console.log('Environment (.env / .env.local at repo root):');
+const envContent = ['.env', '.env.local']
+  .map((f) => resolve(process.cwd(), f))
+  .filter((p) => existsSync(p))
+  .map((p) => readFileSync(p, 'utf8'))
+  .join('\n');
+const has = (key) => Boolean(process.env[key]) || new RegExp(`^${key}=.+`, 'm').test(envContent);
+console.log(`  [${has('API_KEY_302') ? 'ok' : 'MISSING'}] API_KEY_302`);
+if (!has('API_KEY_302')) ok = false;
 
 process.exit(ok ? 0 : 1);

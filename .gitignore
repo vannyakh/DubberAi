@@ -12,3 +12,6 @@ uploads/
 *.log
 .env*
 !.env.example
+same-template
+rust/target/
+rust/wasm/pkg/

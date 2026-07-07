@@ -97,6 +97,8 @@ export interface RenderJob {
 export interface Project {
   id: string;
   name: string;
+  /** Composition frame ratio, e.g. "16:9" | "9:16" | "1:1" */
+  aspectRatio?: string;
   videoUrl?: string;
   transcript?: string;
   translatedText?: string;

@@ -19,6 +19,7 @@ export function serializeUser(user: {
 export function serializeProject(project: {
   id: string;
   name: string;
+  aspectRatio?: string | null;
   videoUrl: string | null;
   transcript: string | null;
   translatedText: string | null;
@@ -29,6 +30,7 @@ export function serializeProject(project: {
   return {
     id: project.id,
     name: project.name,
+    aspectRatio: project.aspectRatio ?? undefined,
     videoUrl: project.videoUrl ?? undefined,
     transcript: project.transcript ?? undefined,
     translatedText: project.translatedText ?? undefined,

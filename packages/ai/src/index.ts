@@ -1,9 +1,11 @@
+export { chatComplete, chatJson } from './chat';
+export type { ChatOptions } from './chat';
+
 export {
   transcribeVideo,
   analyzeVideo,
   translateText,
   generateSpeech,
-  generateKiriSpeech,
   generateMultiSpeakerSpeech,
 } from './gemini';
 

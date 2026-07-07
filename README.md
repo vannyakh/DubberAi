@@ -62,7 +62,7 @@ video-voice-translator/
 **Prerequisites:** Node.js, pnpm, ffmpeg (for video processing)
 
 1. `pnpm install`
-2. Set `GEMINI_API_KEY` (and optionally `KIRI_TTS_API_KEY`) in `.env.local` at the repo root.
+2. Set `API_KEY_302` (a [302.AI](https://302.ai) key — one key for all LLM/AI services) in `.env` at the repo root.
 3. Create the API database: `pnpm db:push`
 4. Verify: `pnpm check-env`
 
@@ -85,5 +85,11 @@ video-voice-translator/
 ### API notes
 
 - Auth is JWT (Bearer). Set `AUTH_SECRET` in production (`apps/api/.env`).
-- Database is SQLite via Prisma (`apps/api/prisma/schema.prisma`); switch the datasource to PostgreSQL for production.
+- Database is MongoDB via Prisma (`apps/api/prisma/schema.prisma`). Paste your MongoDB Atlas
+  connection string into `DATABASE_URL` in `apps/api/.env` (include a database name in the path),
+  then run `pnpm db:push` once to sync indexes.
+- Cache is Redis (optional): set `REDIS_URL` in `apps/api/.env`. If Redis is unset or goes down,
+  the API automatically falls back to hitting the database directly — nothing breaks.
+- RabbitMQ is optional: set `RABBITMQ_URL` to publish job created/updated events to the `jobs`
+  queue for push-style workers. Without it, workers keep polling `POST /api/jobs/claim` as before.
 - Workers poll `POST /api/jobs/claim` and report progress with `PATCH /api/jobs/:id`.

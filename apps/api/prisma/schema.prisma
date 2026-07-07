@@ -3,42 +3,112 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "mongodb"
   url      = env("DATABASE_URL")
 }
 
+// Auth models mirror OpenCut's Better Auth schema
+// (apps/web/migrations/0000_brainy_saracen.sql), adapted to MongoDB.
+
 model User {
-  id           String    @id @default(uuid())
-  email        String    @unique
-  name         String?
-  passwordHash String
-  createdAt    DateTime  @default(now())
-  projects     Project[]
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  name          String
+  email         String    @unique
+  emailVerified Boolean   @default(false) @map("email_verified")
+  image         String?
+  /// Credential hash for this API's JWT auth (Better Auth keeps it in accounts.password).
+  passwordHash  String    @map("password_hash")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  sessions      Session[]
+  accounts      Account[]
+  projects      Project[]
+
+  @@map("users")
 }
 
+model Session {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  expiresAt DateTime @map("expires_at")
+  token     String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  ipAddress String?  @map("ip_address")
+  userAgent String?  @map("user_agent")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String   @map("user_id") @db.ObjectId
+
+  @@map("sessions")
+}
+
+model Account {
+  id                    String    @id @default(auto()) @map("_id") @db.ObjectId
+  accountId             String    @map("account_id")
+  providerId            String    @map("provider_id")
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId                String    @map("user_id") @db.ObjectId
+  accessToken           String?   @map("access_token")
+  refreshToken          String?   @map("refresh_token")
+  idToken               String?   @map("id_token")
+  accessTokenExpiresAt  DateTime? @map("access_token_expires_at")
+  refreshTokenExpiresAt DateTime? @map("refresh_token_expires_at")
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  @@map("accounts")
+}
+
+model Verification {
+  id         String    @id @default(auto()) @map("_id") @db.ObjectId
+  identifier String
+  value      String
+  expiresAt  DateTime  @map("expires_at")
+  createdAt  DateTime? @map("created_at")
+  updatedAt  DateTime? @map("updated_at")
+
+  @@map("verifications")
+}
+
+model Waitlist {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  email     String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("waitlist")
+}
+
+// App-specific models (not part of the OpenCut migration).
+
 model Project {
-  id             String      @id @default(uuid())
+  id             String      @id @default(auto()) @map("_id") @db.ObjectId
   name           String
-  videoUrl       String?
+  aspectRatio    String?     @map("aspect_ratio")
+  videoUrl       String?     @map("video_url")
   transcript     String?
-  translatedText String?
-  targetLang     String?
-  selectedVoice  String?
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
+  translatedText String?     @map("translated_text")
+  targetLang     String?     @map("target_lang")
+  selectedVoice  String?     @map("selected_voice")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
   owner          User        @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  ownerId        String
+  ownerId        String      @map("owner_id") @db.ObjectId
   jobs           RenderJob[]
+
+  @@map("projects")
 }
 
 model RenderJob {
-  id        String   @id @default(uuid())
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
   kind      String
   status    String   @default("queued")
   progress  Int      @default(0)
   error     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
   project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  projectId String
+  projectId String   @map("project_id") @db.ObjectId
+
+  @@map("render_jobs")
 }

@@ -24,7 +24,8 @@ export async function authRoutes(app: FastifyInstance) {
     const user = await prisma.user.create({
       data: {
         email: body.email,
-        name: body.name,
+        // OpenCut's users.name is NOT NULL; default to the email local part
+        name: body.name || body.email.split('@')[0],
         passwordHash: hashPassword(body.password),
       },
     });

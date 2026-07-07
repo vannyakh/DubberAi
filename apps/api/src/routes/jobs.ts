@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { prisma } from '../db';
+import { publishJobEvent } from '../queue';
 import { serializeJob } from '../serialize';
 
 const createJobInput = z.object({
@@ -36,6 +37,14 @@ export async function jobRoutes(app: FastifyInstance) {
     const job = await prisma.renderJob.create({
       data: { projectId: body.projectId, kind: body.kind },
     });
+    // Optional push-style notification; workers also poll /claim.
+    publishJobEvent({
+      event: 'created',
+      jobId: job.id,
+      projectId: job.projectId,
+      kind: job.kind,
+      status: job.status,
+    });
     return reply.code(201).send(serializeJob(job));
   });
 
@@ -60,6 +69,13 @@ export async function jobRoutes(app: FastifyInstance) {
     if (!existing) return reply.code(404).send({ error: 'Job not found' });
     const body = updateJobInput.parse(request.body);
     const job = await prisma.renderJob.update({ where: { id }, data: body });
+    publishJobEvent({
+      event: 'updated',
+      jobId: job.id,
+      projectId: job.projectId,
+      kind: job.kind,
+      status: job.status,
+    });
     return serializeJob(job);
   });
 }
