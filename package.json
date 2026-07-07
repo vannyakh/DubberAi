@@ -21,5 +21,10 @@
     "turbo": "^2.5.4",
     "typescript": "~5.8.2"
   },
-  "packageManager": "pnpm@9.15.9"
+  "packageManager": "pnpm@9.15.9",
+  "pnpm": {
+    "patchedDependencies": {
+      "ffmpeg-expo@0.0.2": "patches/ffmpeg-expo@0.0.2.patch"
+    }
+  }
 }
