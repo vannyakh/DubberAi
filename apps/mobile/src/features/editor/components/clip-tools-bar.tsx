@@ -10,7 +10,7 @@ import type { EditorEditingPanel } from '../editing-panel';
 
 interface ClipToolsBarProps {
   activePanel: EditorEditingPanel | null;
-  onOpenFilters: () => void;
+  onOpenPanel: (panel: EditorEditingPanel) => void;
   onDeselect: () => void;
 }
 
@@ -24,7 +24,7 @@ interface ToolItem {
 }
 
 /** Contextual clip tools — shown when a timeline clip is selected. */
-export function ClipToolsBar({ activePanel, onOpenFilters, onDeselect }: ClipToolsBarProps) {
+export function ClipToolsBar({ activePanel, onOpenPanel, onDeselect }: ClipToolsBarProps) {
   const clips = useEditorStore((s) => s.clips);
   const selectedClipId = useEditorStore((s) => s.selectedClipId);
   const playhead = useEditorStore((s) => s.playhead);
@@ -74,8 +74,15 @@ export function ClipToolsBar({ activePanel, onOpenFilters, onDeselect }: ClipToo
       id: 'filters',
       symbol: 'filters',
       label: 'Filters',
-      onPress: onOpenFilters,
+      onPress: () => onOpenPanel('filters'),
       active: activePanel === 'filters',
+    },
+    {
+      id: 'ratio',
+      symbol: 'aspectRatio',
+      label: 'Ratio',
+      onPress: () => onOpenPanel('ratio'),
+      active: activePanel === 'ratio',
     },
     {
       id: 'effects',

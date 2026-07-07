@@ -11,71 +11,45 @@ interface ToolbarProps {
   onImport: () => void;
   onAddText: () => void;
   activePanel: EditorEditingPanel | null;
-  onOpenFilters: () => void;
+  onOpenPanel: (panel: EditorEditingPanel) => void;
 }
 
 interface ToolItem {
   id: string;
   symbol: SymbolName;
   label: string;
-  onPress: () => void;
+  panel?: EditorEditingPanel;
+  onPress?: () => void;
   disabled?: boolean;
-  active?: boolean;
 }
 
 /** Main CapCut-style tool strip — shown when no clip is selected. */
-export function Toolbar({ onImport, onAddText, activePanel, onOpenFilters }: ToolbarProps) {
+export function Toolbar({ onImport, onAddText, activePanel, onOpenPanel }: ToolbarProps) {
   const clips = useEditorStore((s) => s.clips);
+  const hasClips = clips.length > 0;
 
   const tools: ToolItem[] = [
+    { id: 'edit', symbol: 'scissors', label: 'Edit', disabled: true },
+    { id: 'audio', symbol: 'music', label: 'Audio', onPress: onImport },
+    { id: 'text', symbol: 'text', label: 'Text', onPress: onAddText, disabled: !hasClips },
+    { id: 'effects', symbol: 'effects', label: 'Effects', disabled: true },
+    { id: 'overlay', symbol: 'overlay', label: 'Overlay', onPress: onImport, disabled: !hasClips },
+    { id: 'captions', symbol: 'captions', label: 'Captions', disabled: true },
+    { id: 'filters', symbol: 'filters', label: 'Filters', panel: 'filters', disabled: !hasClips },
+    { id: 'adjust', symbol: 'adjust', label: 'Adjust', disabled: true },
     {
-      id: 'filters',
-      symbol: 'filters',
-      label: 'Filters',
-      onPress: onOpenFilters,
-      active: activePanel === 'filters',
-      disabled: clips.length === 0,
+      id: 'ratio',
+      symbol: 'aspectRatio',
+      label: 'Ratio',
+      panel: 'ratio',
+      disabled: !hasClips,
     },
     {
-      id: 'adjust',
-      symbol: 'adjust',
-      label: 'Adjust',
-      onPress: () => {},
-      disabled: true,
-    },
-    {
-      id: 'audio',
-      symbol: 'music',
-      label: 'Audio',
-      onPress: onImport,
-    },
-    {
-      id: 'text',
-      symbol: 'text',
-      label: 'Text',
-      onPress: onAddText,
-      disabled: clips.length === 0,
-    },
-    {
-      id: 'effects',
-      symbol: 'effects',
-      label: 'Effects',
-      onPress: () => {},
-      disabled: true,
-    },
-    {
-      id: 'overlay',
-      symbol: 'overlay',
-      label: 'Overlay',
-      onPress: onImport,
-      disabled: clips.length === 0,
-    },
-    {
-      id: 'captions',
-      symbol: 'captions',
-      label: 'Captions',
-      onPress: () => {},
-      disabled: true,
+      id: 'background',
+      symbol: 'backgroundBlur',
+      label: 'Background',
+      panel: 'background',
+      disabled: !hasClips,
     },
   ];
 
@@ -90,37 +64,44 @@ export function Toolbar({ onImport, onAddText, activePanel, onOpenFilters }: Too
         style={styles.scroll}
         contentContainerStyle={styles.row}
       >
-        {tools.map((tool) => (
-          <TouchableOpacity
-            key={tool.id}
-            style={[styles.item, tool.disabled && styles.itemDisabled]}
-            onPress={tool.onPress}
-            disabled={tool.disabled}
-            accessibilityLabel={tool.label}
-            accessibilityState={{ selected: tool.active }}
-          >
-            <AppSymbol
-              name={tool.symbol}
-              size={22}
-              tintColor={
-                tool.active
-                  ? editorTheme.accent
-                  : tool.disabled
-                    ? editorTheme.textMuted
-                    : editorTheme.text
-              }
-            />
-            <Text
-              style={[
-                styles.label,
-                tool.active && styles.labelActive,
-                tool.disabled && styles.labelDisabled,
-              ]}
+        {tools.map((tool) => {
+          const active = tool.panel ? activePanel === tool.panel : false;
+          const onPress = tool.panel
+            ? () => onOpenPanel(tool.panel!)
+            : tool.onPress;
+
+          return (
+            <TouchableOpacity
+              key={tool.id}
+              style={[styles.item, tool.disabled && styles.itemDisabled]}
+              onPress={onPress}
+              disabled={tool.disabled || !onPress}
+              accessibilityLabel={tool.label}
+              accessibilityState={{ selected: active }}
             >
-              {tool.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
+              <AppSymbol
+                name={tool.symbol}
+                size={22}
+                tintColor={
+                  active
+                    ? editorTheme.accent
+                    : tool.disabled
+                      ? editorTheme.textMuted
+                      : editorTheme.text
+                }
+              />
+              <Text
+                style={[
+                  styles.label,
+                  active && styles.labelActive,
+                  tool.disabled && styles.labelDisabled,
+                ]}
+              >
+                {tool.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </ScrollView>
     </View>
   );

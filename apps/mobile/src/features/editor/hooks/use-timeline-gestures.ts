@@ -106,8 +106,8 @@ export function useTimelineGestures({
 
   const gestures = useMemo(() => {
     const pan = Gesture.Pan()
-      .activeOffsetX([-6, 6])
-      .failOffsetY([-14, 14])
+      .activeOffsetX([-8, 8])
+      .failOffsetY([-24, 24])
       .onBegin(() => {
         panStartX.value = scrollX.value;
         runOnJS(beginDrag)();

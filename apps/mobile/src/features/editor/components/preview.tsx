@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { VideoPlayer, VideoView } from 'expo-video';
 import { Image } from 'expo-image';
 import { Canvas, Fill, RadialGradient, Rect, vec } from '@shopify/react-native-skia';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
+import { resolveCanvasAspectRatio } from '../aspect-ratios';
 import { useEditorStore } from '../editor-store';
+import { fitSizeToAspect } from '../preview-aspect';
 import { clipAtTime, FILTER_PRESETS, TextOverlay } from '../types';
 
 interface PreviewProps {
@@ -22,8 +24,10 @@ export function Preview({ player }: PreviewProps) {
   const playhead = useEditorStore((s) => s.playhead);
   const selectedClipId = useEditorStore((s) => s.selectedClipId);
   const globalFilterId = useEditorStore((s) => s.filterId);
+  const canvasAspectId = useEditorStore((s) => s.canvasAspectId);
+  const canvasBackground = useEditorStore((s) => s.canvasBackground);
   const overlays = useEditorStore((s) => s.overlays);
-  const [size, setSize] = useState({ width: 0, height: 0 });
+  const [available, setAvailable] = useState({ width: 0, height: 0 });
 
   const active = clipAtTime(clips, playhead);
   const selectedClip = selectedClipId ? clips.find((c) => c.id === selectedClipId) : null;
@@ -31,40 +35,62 @@ export function Preview({ player }: PreviewProps) {
   const preset = FILTER_PRESETS.find((p) => p.id === filterId) ?? FILTER_PRESETS[0];
   const showImage = active?.clip.mediaType === 'image';
 
+  const aspectRatio = useMemo(
+    () => resolveCanvasAspectRatio(clips, canvasAspectId),
+    [clips, canvasAspectId],
+  );
+  const frame = useMemo(
+    () => fitSizeToAspect(available.width, available.height, aspectRatio),
+    [available.width, available.height, aspectRatio],
+  );
+
   return (
     <View
       style={styles.container}
-      onLayout={(e) => setSize(e.nativeEvent.layout)}
+      onLayout={(e) => {
+        const { width, height } = e.nativeEvent.layout;
+        setAvailable({ width, height });
+      }}
     >
-      {showImage && active ? (
-        <Image source={{ uri: active.clip.uri }} style={StyleSheet.absoluteFill} contentFit="contain" />
-      ) : (
-        <VideoView
-          player={player}
-          style={StyleSheet.absoluteFill}
-          contentFit="contain"
-          nativeControls={false}
-        />
-      )}
+      <View
+        style={[
+          styles.frame,
+          { backgroundColor: canvasBackground },
+          frame.width > 0 && frame.height > 0
+            ? { width: frame.width, height: frame.height }
+            : styles.frameFallback,
+        ]}
+      >
+        {showImage && active ? (
+          <Image source={{ uri: active.clip.uri }} style={StyleSheet.absoluteFill} contentFit="contain" />
+        ) : (
+          <VideoView
+            player={player}
+            style={StyleSheet.absoluteFill}
+            contentFit="contain"
+            nativeControls={false}
+          />
+        )}
 
-      {size.width > 0 && (preset.id !== 'none') && (
-        <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
-          {preset.tint !== 'transparent' && <Fill color={preset.tint} />}
-          {preset.vignette > 0 && (
-            <Rect x={0} y={0} width={size.width} height={size.height}>
-              <RadialGradient
-                c={vec(size.width / 2, size.height / 2)}
-                r={Math.max(size.width, size.height) * 0.72}
-                colors={['rgba(0,0,0,0)', `rgba(0,0,0,${preset.vignette})`]}
-              />
-            </Rect>
-          )}
-        </Canvas>
-      )}
+        {frame.width > 0 && preset.id !== 'none' && (
+          <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
+            {preset.tint !== 'transparent' && <Fill color={preset.tint} />}
+            {preset.vignette > 0 && (
+              <Rect x={0} y={0} width={frame.width} height={frame.height}>
+                <RadialGradient
+                  c={vec(frame.width / 2, frame.height / 2)}
+                  r={Math.max(frame.width, frame.height) * 0.72}
+                  colors={['rgba(0,0,0,0)', `rgba(0,0,0,${preset.vignette})`]}
+                />
+              </Rect>
+            )}
+          </Canvas>
+        )}
 
-      {overlays.map((overlay) => (
-        <DraggableOverlay key={overlay.id} overlay={overlay} bounds={size} />
-      ))}
+        {overlays.map((overlay) => (
+          <DraggableOverlay key={overlay.id} overlay={overlay} bounds={frame} />
+        ))}
+      </View>
     </View>
   );
 }
@@ -136,8 +162,18 @@ function DraggableOverlay({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: '#000',
     overflow: 'hidden',
+  },
+  frame: {
+    overflow: 'hidden',
+    borderRadius: 2,
+  },
+  frameFallback: {
+    flex: 1,
+    alignSelf: 'stretch',
   },
   overlay: {
     position: 'absolute',

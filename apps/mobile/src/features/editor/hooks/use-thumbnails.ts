@@ -1,58 +1,21 @@
 import { useEffect, useRef, useState } from 'react';
-import * as MediaLibrary from 'expo-media-library/legacy';
 import { createVideoPlayer, VideoThumbnail } from 'expo-video';
+import { loadPlayerSource } from '../services/video-playback';
 import { EditorClip } from '../types';
 
 const MAX_THUMBS_PER_CLIP = 90;
-const PLAYER_READY_TIMEOUT_MS = 12_000;
-
-async function resolvePlayableUri(uri: string): Promise<string> {
-  if (uri.startsWith('file://') || uri.startsWith('content://')) return uri;
-  try {
-    const info = await MediaLibrary.getAssetInfoAsync(uri);
-    if (info.localUri) return info.localUri;
-  } catch {
-    // Fall back to the library uri (works for expo-image on iOS).
-  }
-  return uri;
-}
-
-async function waitForPlayerReady(player: ReturnType<typeof createVideoPlayer>): Promise<void> {
-  if (player.status === 'readyToPlay') return;
-
-  await new Promise<void>((resolve, reject) => {
-    let sub: { remove: () => void } | null = null;
-    const timeout = setTimeout(() => {
-      sub?.remove();
-      reject(new Error('Timed out waiting for video to load'));
-    }, PLAYER_READY_TIMEOUT_MS);
-
-    sub = player.addListener('statusChange', ({ status, error }) => {
-      if (status === 'readyToPlay') {
-        clearTimeout(timeout);
-        sub?.remove();
-        resolve();
-      } else if (status === 'error') {
-        clearTimeout(timeout);
-        sub?.remove();
-        reject(error ?? new Error('Failed to load video'));
-      }
-    });
-  });
-}
 
 async function generateForClip(clip: EditorClip): Promise<VideoThumbnail[]> {
   if (clip.mediaType === 'image') return [];
 
-  const playableUri = await resolvePlayableUri(clip.uri);
   const step = Math.max(0.25, clip.sourceDuration / MAX_THUMBS_PER_CLIP);
   const times: number[] = [];
   for (let t = 0; t < clip.sourceDuration; t += step) times.push(t);
   if (times.length === 0) times.push(0);
 
-  const player = createVideoPlayer(playableUri);
+  const player = createVideoPlayer(null);
   try {
-    await waitForPlayerReady(player);
+    await loadPlayerSource(player, clip.uri, 0);
     return await player.generateThumbnailsAsync(times, { maxWidth: 120, maxHeight: 120 });
   } finally {
     player.release();

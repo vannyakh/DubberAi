@@ -16,17 +16,19 @@ import { useEditorStore } from './editor-store';
 import { useClipThumbnails } from './hooks/use-thumbnails';
 import { useEditorMediaImport } from './hooks/use-editor-media-import';
 import { useTimelinePlayer } from './hooks/use-timeline-player';
+import { BackgroundPanel } from './components/background-panel';
 import { ClipToolsBar } from './components/clip-tools-bar';
 import { EditorEditPanel } from './components/editor-edit-panel';
 import { ExportSheet } from './components/export-sheet';
 import { FiltersPanel } from './components/filters-panel';
 import { PlaybackControls } from './components/playback-controls';
 import { Preview } from './components/preview';
+import { RatioPanel } from './components/ratio-panel';
 import { Timeline } from './components/timeline';
 import { Toolbar } from './components/toolbar';
 import { consumeEditorClips } from './editor-bootstrap';
 import type { EditorEditingPanel } from './editing-panel';
-import { STUDIO_TIMELINE_HEIGHT, getStudioHeaderHeight } from './studio-layout';
+import { getStudioHeaderHeight, STUDIO_EDITOR_FLEX, STUDIO_PREVIEW_FLEX } from './studio-layout';
 
 export function EditorScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -54,8 +56,8 @@ export function EditorScreen() {
 
   const closeEditingPanel = () => setEditingPanel(null);
 
-  const toggleFiltersPanel = () => {
-    setEditingPanel((current) => (current === 'filters' ? null : 'filters'));
+  const togglePanel = (panel: EditorEditingPanel) => {
+    setEditingPanel((current) => (current === panel ? null : panel));
   };
 
   useEffect(() => () => reset(), [reset]);
@@ -88,18 +90,26 @@ export function EditorScreen() {
 
   return (
     <View style={styles.root}>
-      <View style={[styles.workspace, { paddingTop: getStudioHeaderHeight(insets.top) }]}>
-        <View style={styles.previewArea}>
+      <View style={styles.topHalf}>
+        <View style={[styles.previewArea, { paddingTop: getStudioHeaderHeight(insets.top) }]}>
           <Preview player={player} />
         </View>
-        <PlaybackControls onImport={openMediaPicker} />
       </View>
 
-      <View style={styles.dock}>
-        <View style={styles.timelineSlot}>
+      <View style={styles.bottomHalf}>
+        <PlaybackControls />
+        <View style={styles.editorBody}>
           {editingPanel === 'filters' ? (
             <EditorEditPanel title="Filters" onDone={closeEditingPanel}>
               <FiltersPanel clipId={selectedClipId} />
+            </EditorEditPanel>
+          ) : editingPanel === 'ratio' ? (
+            <EditorEditPanel title="Ratio" onDone={closeEditingPanel}>
+              <RatioPanel />
+            </EditorEditPanel>
+          ) : editingPanel === 'background' ? (
+            <EditorEditPanel title="Background" onDone={closeEditingPanel}>
+              <BackgroundPanel />
             </EditorEditPanel>
           ) : (
             <Timeline thumbnails={thumbnails} onImport={openMediaPicker} onAddText={() => setTextDraft('')} />
@@ -109,7 +119,7 @@ export function EditorScreen() {
           {selectedClipId ? (
             <ClipToolsBar
               activePanel={editingPanel}
-              onOpenFilters={toggleFiltersPanel}
+              onOpenPanel={togglePanel}
               onDeselect={handleDeselectClip}
             />
           ) : (
@@ -117,7 +127,7 @@ export function EditorScreen() {
               onImport={openMediaPicker}
               onAddText={() => setTextDraft('')}
               activePanel={editingPanel}
-              onOpenFilters={toggleFiltersPanel}
+              onOpenPanel={togglePanel}
             />
           )}
         </View>
@@ -164,26 +174,31 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: editorTheme.background,
   },
-  workspace: {
-    flex: 1,
+  topHalf: {
+    flex: STUDIO_PREVIEW_FLEX,
     minHeight: 0,
     backgroundColor: editorTheme.preview,
   },
   previewArea: {
     flex: 1,
     minHeight: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: editorTheme.preview,
   },
-  dock: {
-    flexShrink: 0,
+  bottomHalf: {
+    flex: STUDIO_EDITOR_FLEX,
+    minHeight: 0,
     backgroundColor: editorTheme.background,
+  },
+  editorBody: {
+    flex: 1,
+    minHeight: 0,
+    overflow: 'hidden',
   },
   toolbarSafe: {
     flexShrink: 0,
     backgroundColor: editorTheme.surface,
-  },
-  timelineSlot: {
-    height: STUDIO_TIMELINE_HEIGHT,
-    overflow: 'hidden',
   },
   textBackdrop: {
     flex: 1,

@@ -1,1 +1,1 @@
-export type EditorEditingPanel = 'filters';
+export type EditorEditingPanel = 'filters' | 'ratio' | 'background';

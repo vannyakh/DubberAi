@@ -42,7 +42,14 @@ export type SymbolName =
   | 'google'
   | 'apple'
   | 'music'
-  | 'checkmark';
+  | 'checkmark'
+  | 'aspectRatio'
+  | 'aspectOriginal'
+  | 'expand'
+  | 'layers'
+  | 'undo'
+  | 'redo'
+  | 'backgroundBlur';
 
 type SymbolSpec = {
   ios: SFSymbol;
@@ -89,6 +96,13 @@ export const SYMBOLS = {
   apple: { ios: 'apple.logo', android: 'account_circle', web: 'account_circle' },
   music: { ios: 'music.note', android: 'music_note', web: 'music_note' },
   checkmark: { ios: 'checkmark', android: 'check', web: 'check' },
+  aspectRatio: { ios: 'aspectratio', android: 'aspect_ratio', web: 'aspect_ratio' },
+  aspectOriginal: { ios: 'crop', android: 'crop', web: 'crop' },
+  expand: { ios: 'arrow.up.left.and.arrow.down.right', android: 'open_in_full', web: 'open_in_full' },
+  layers: { ios: 'square.stack.3d.up', android: 'layers', web: 'layers' },
+  undo: { ios: 'arrow.uturn.backward', android: 'undo', web: 'undo' },
+  redo: { ios: 'arrow.uturn.forward', android: 'redo', web: 'redo' },
+  backgroundBlur: { ios: 'drop.fill', android: 'blur_on', web: 'blur_on' },
 } as const satisfies Record<SymbolName, SymbolSpec>;
 
 interface Props {

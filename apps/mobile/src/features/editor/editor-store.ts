@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { CanvasAspectId } from './aspect-ratios';
 import {
   clipDuration,
   clipTimelineStart,
@@ -25,6 +26,8 @@ interface EditorState {
   isPlaying: boolean;
   /** Timeline zoom: pixels per second. Pinch gesture writes here. */
   pxPerSecond: number;
+  canvasAspectId: CanvasAspectId;
+  canvasBackground: string;
   exportState: ExportState;
 
   addClip: (clip: EditorClip) => void;
@@ -45,6 +48,8 @@ interface EditorState {
   setPlayhead: (seconds: number) => void;
   setPlaying: (playing: boolean) => void;
   setPxPerSecond: (px: number) => void;
+  setCanvasAspectId: (id: CanvasAspectId) => void;
+  setCanvasBackground: (color: string) => void;
   setExportState: (patch: Partial<ExportState>) => void;
   reset: () => void;
 }
@@ -59,6 +64,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   playhead: 0,
   isPlaying: false,
   pxPerSecond: 60,
+  canvasAspectId: 'original',
+  canvasBackground: '#000000',
   exportState: initialExport,
 
   addClip: (clip) =>
@@ -162,6 +169,10 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   setPxPerSecond: (px) => set({ pxPerSecond: Math.max(12, Math.min(px, 480)) }),
 
+  setCanvasAspectId: (id) => set({ canvasAspectId: id }),
+
+  setCanvasBackground: (color) => set({ canvasBackground: color }),
+
   setExportState: (patch) => set((s) => ({ exportState: { ...s.exportState, ...patch } })),
 
   reset: () =>
@@ -173,6 +184,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       playhead: 0,
       isPlaying: false,
       pxPerSecond: 60,
+      canvasAspectId: 'original',
+      canvasBackground: '#000000',
       exportState: initialExport,
     }),
 }));

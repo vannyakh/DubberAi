@@ -16,16 +16,12 @@ export interface TimelineTrackRow {
 
 const OVERLAYS_PER_TEXT_TRACK = 3;
 
-/** Builds timeline rows; extra audio/text lanes appear as projects grow. */
-export function computeTimelineTracks(clipCount: number, overlayCount: number): TimelineTrackRow[] {
+/** Core timeline lanes — extra text rows appear as overlays grow. */
+export function computeTimelineTracks(overlayCount: number): TimelineTrackRow[] {
   const rows: TimelineTrackRow[] = [
     { id: 'video-0', kind: 'video', height: STUDIO_VIDEO_LANE_HEIGHT, index: 0 },
+    { id: 'audio-0', kind: 'audio', height: STUDIO_AUDIO_LANE_HEIGHT, index: 0 },
   ];
-
-  const audioRows = clipCount > 2 ? 2 : 1;
-  for (let i = 0; i < audioRows; i++) {
-    rows.push({ id: `audio-${i}`, kind: 'audio', height: STUDIO_AUDIO_LANE_HEIGHT, index: i });
-  }
 
   const textRows = Math.max(1, Math.ceil(Math.max(overlayCount, 1) / OVERLAYS_PER_TEXT_TRACK));
   for (let i = 0; i < textRows; i++) {
