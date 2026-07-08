@@ -1,45 +1,36 @@
-import { useEffect } from "react";
-import { useSoundsStore } from "@/sounds/sounds-store";
+import { useEffect, useState } from "react";
+import type { SoundEffect } from "@/sounds/types";
+
+export type SoundLibraryType = "effects" | "music";
 
 export function useSoundSearch({
 	query,
 	commercialOnly,
+	type,
 }: {
 	query: string;
 	commercialOnly: boolean;
+	type: SoundLibraryType;
 }) {
-	const {
-		searchResults,
-		isSearching,
-		searchError,
-		lastSearchQuery,
-		currentPage,
-		hasNextPage,
-		isLoadingMore,
-		totalCount,
-		setSearchResults,
-		setSearching,
-		setSearchError,
-		setLastSearchQuery,
-		setCurrentPage,
-		setHasNextPage,
-		setTotalCount,
-		setLoadingMore,
-		appendSearchResults,
-		appendTopSounds,
-		resetPagination,
-	} = useSoundsStore();
+	const [searchResults, setSearchResults] = useState<SoundEffect[]>([]);
+	const [isSearching, setIsSearching] = useState(false);
+	const [searchError, setSearchError] = useState<string | null>(null);
+	const [lastSearchQuery, setLastSearchQuery] = useState("");
+	const [currentPage, setCurrentPage] = useState(1);
+	const [hasNextPage, setHasNextPage] = useState(false);
+	const [isLoadingMore, setIsLoadingMore] = useState(false);
+	const [totalCount, setTotalCount] = useState(0);
 
 	const loadMore = async () => {
 		if (isLoadingMore || !hasNextPage) return;
 
 		try {
-			setLoadingMore({ loading: true });
+			setIsLoadingMore(true);
 			const nextPage = currentPage + 1;
 
 			const searchParams = new URLSearchParams({
 				page: nextPage.toString(),
-				type: "effects",
+				type,
 			});
 
 			if (query.trim()) {
@@ -53,33 +44,30 @@ export function useSoundSearch({
 
 			if (response.ok) {
 				const data = await response.json();
-
-				if (query.trim()) {
-					appendSearchResults(data.results);
-				} else {
-					appendTopSounds(data.results);
-				}
-
-				setCurrentPage({ page: nextPage });
-				setHasNextPage({ hasNext: !!data.next });
+				setSearchResults((prev) => [...prev, ...data.results]);
+				setCurrentPage(nextPage);
+				setHasNextPage(!!data.next);
 				setTotalCount(data.count);
 			} else {
-				setSearchError({ error: `Load more failed: ${response.status}` });
+				setSearchError(`Load more failed: ${response.status}`);
 			}
 		} catch (err) {
-			setSearchError({
-				error: err instanceof Error ? err.message : "Load more failed",
-			});
+			setSearchError(
+				err instanceof Error ? err.message : "Load more failed",
+			);
 		} finally {
-			setLoadingMore({ loading: false });
+			setIsLoadingMore(false);
 		}
 	};
 
 	useEffect(() => {
 		if (!query.trim()) {
-			setSearchResults({ results: [] });
-			setSearchError({ error: null });
-			setLastSearchQuery({ query: "" });
+			setSearchResults([]);
+			setSearchError(null);
+			setLastSearchQuery("");
+			setCurrentPage(1);
+			setHasNextPage(false);
+			setTotalCount(0);
 			return;
 		}
 
@@ -91,35 +79,37 @@ export function useSoundSearch({
 
 		const timeoutId = setTimeout(async () => {
 			try {
-				setSearching({ searching: true });
-				setSearchError({ error: null });
-				resetPagination();
+				setIsSearching(true);
+				setSearchError(null);
+				setCurrentPage(1);
+				setHasNextPage(false);
+				setTotalCount(0);
 
 				const response = await fetch(
-					`/api/sounds/search?q=${encodeURIComponent(query)}&type=effects&page=1`,
+					`/api/sounds/search?q=${encodeURIComponent(query)}&type=${type}&page=1&commercial_only=${commercialOnly}`,
 				);
 
 				if (!ignore) {
 					if (response.ok) {
 						const data = await response.json();
-						setSearchResults({ results: data.results });
-						setLastSearchQuery({ query: query });
-						setHasNextPage({ hasNext: !!data.next });
-						setTotalCount({ count: data.count });
-						setCurrentPage({ page: 1 });
+						setSearchResults(data.results);
+						setLastSearchQuery(query);
+						setHasNextPage(!!data.next);
+						setTotalCount(data.count);
+						setCurrentPage(1);
 					} else {
-						setSearchError({ error: `Search failed: ${response.status}` });
+						setSearchError(`Search failed: ${response.status}`);
 					}
 				}
 			} catch (err) {
 				if (!ignore) {
-					setSearchError({
-						error: err instanceof Error ? err.message : "Search failed",
-					});
+					setSearchError(
+						err instanceof Error ? err.message : "Search failed",
+					);
 				}
 			} finally {
 				if (!ignore) {
-					setSearching({ searching: false });
+					setIsSearching(false);
 				}
 			}
 		}, 300);
@@ -128,19 +118,7 @@ export function useSoundSearch({
 			clearTimeout(timeoutId);
 			ignore = true;
 		};
-	}, [
-		query,
-		lastSearchQuery,
-		searchResults.length,
-		setSearchResults,
-		setSearching,
-		setSearchError,
-		setLastSearchQuery,
-		setCurrentPage,
-		setHasNextPage,
-		setTotalCount,
-		resetPagination,
-	]);
+	}, [query, lastSearchQuery, searchResults.length, type, commercialOnly]);
 
 	return {
 		results: searchResults,

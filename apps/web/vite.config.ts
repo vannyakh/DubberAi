@@ -1,13 +1,25 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
+import {
+  metadataJsonPlugin,
+  resolveRepoMetadataPath,
+} from './src/config/metadata-json-plugin';
+import { resolveApiProxyTarget } from './src/config/resolve-api-proxy';
 
 const rootDir = path.resolve(__dirname, '../..');
+const metadataPath = resolveRepoMetadataPath(rootDir);
 
-export default defineConfig(() => {
+export default defineConfig(async ({ mode }) => {
+  const env = loadEnv(mode, rootDir, '');
+  const apiTarget = await resolveApiProxyTarget({
+    basePort: Number(env.PORT || 4000),
+    explicitUrl: env.VITE_API_URL || undefined,
+  });
+
   return {
-    plugins: [react(), tailwindcss()],
+    plugins: [react(), tailwindcss(), metadataJsonPlugin({ metadataPath })],
     envDir: rootDir,
     resolve: {
       alias: [
@@ -32,6 +44,14 @@ export default defineConfig(() => {
       hmr: process.env.DISABLE_HMR !== 'true',
       fs: {
         allow: [rootDir],
+      },
+      // Relative /api/* calls (e.g. the OpenCut sounds panel) go to the
+      // Fastify backend instead of falling through to index.html.
+      proxy: {
+        '/api': {
+          target: apiTarget,
+          changeOrigin: true,
+        },
       },
     },
   };

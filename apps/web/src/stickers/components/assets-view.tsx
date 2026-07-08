@@ -123,7 +123,7 @@ function StickerGrid({
 
 function StickerRow({ items }: { items: StickerData[] }) {
 	return (
-		<div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hidden">
+		<div className="scrollbar-x-hidden flex gap-2 overflow-x-auto pb-1">
 			{items.map((item) => (
 				<div key={item.id} className="w-20 shrink-0">
 					<StickerItem item={item} shouldCapSize containerClassName="w-full" />

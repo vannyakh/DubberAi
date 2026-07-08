@@ -16,3 +16,16 @@ export {
   generateHashtags,
   generateTitles,
 } from './text';
+
+export { planAutoCutRanges } from './autocut';
+export type { AutoCutPlanInput, AutoCutCutRange } from './autocut';
+
+export { classifyAgentCutIntent, planAgentCut } from './agent-cut';
+export type {
+  AgentCutIntent,
+  AgentCutClipSummary,
+  AgentCutRange,
+  AgentCutAction,
+  AgentCutPlanInput,
+  AgentCutPlanResult,
+} from './agent-cut';

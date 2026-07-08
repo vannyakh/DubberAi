@@ -33,7 +33,7 @@ const defaultTextElement: Omit<TextElement, "id"> = {
 	name: "Text",
 	content: "Default text",
 	fontSize: 15,
-	fontFamily: "Arial",
+	fontFamily: "Noto Sans Khmer",
 	color: "#ffffff",
 	background: { ...defaultTextBackground },
 	textAlign: "center",

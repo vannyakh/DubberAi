@@ -3,6 +3,7 @@ resolver = "2"
 members = [
     "crates/time",
     "crates/bridge",
+    "crates/audio",
     "crates/effects",
     "crates/gpu",
     "crates/masks",

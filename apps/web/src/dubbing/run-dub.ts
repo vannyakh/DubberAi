@@ -2,9 +2,8 @@ import {
 	transcribeVideo,
 	translateText,
 	generateSpeech,
-	generateMultiSpeakerSpeech,
 } from "@/services/ai-client";
-import { parseSegments, fileToBase64 } from "@dubbercut/utils";
+import { parseSegments, fileToBase64, VOICES } from "@dubbercut/utils";
 import { extractAudioForTranscription } from "./extract-audio";
 import type { Segment } from "@dubbercut/types";
 import type { EditorCore } from "@/core";
@@ -13,92 +12,42 @@ import { useDubbingStore } from "./dubbing-store";
 import {
 	applySegmentsAsTextElements,
 	applySegmentedDubToTimeline,
-	applyTtsAudioToTimeline,
+	ensureSegmentTimeline,
+	getMainTrackDurationSeconds,
 	type DubClip,
 } from "./apply-to-timeline";
 
-export async function runTranscription({
-	asset,
-}: {
-	asset: MediaAsset;
-}): Promise<void> {
-	const store = useDubbingStore.getState();
-	store.setError(null);
-	store.setStatus("transcribing");
-	try {
-		// Send only the audio track: whole videos routinely exceed the
-		// model's inline-data limit and get rejected with "I cannot
-		// process video content". Fall back to the raw file when the
-		// audio can't be decoded locally.
-		let payload: { base64: string; mimeType: string };
-		try {
-			payload = await extractAudioForTranscription({ file: asset.file });
-		} catch (extractError) {
-			console.warn(
-				"Audio extraction failed, sending original file:",
-				extractError,
-			);
-			payload = {
-				base64: await fileToBase64(asset.file),
-				mimeType: asset.file.type || "video/mp4",
-			};
-		}
-		const result = await transcribeVideo(payload.base64, payload.mimeType);
-		const transcript: string = result?.transcript ?? "";
-		if (!transcript) {
-			throw new Error("Transcription returned no dialogue");
-		}
-		if (/^\s*I(?:'m| am)? (?:sorry|cannot|can't)/i.test(transcript)) {
-			throw new Error(
-				"The AI could not process this file's audio. Try a shorter clip or a different format (mp4/webm).",
-			);
-		}
-		store.setTranscription({
-			transcript,
-			segments: parseSegments(transcript),
-			detectedLanguage: result?.detectedLanguage ?? null,
-		});
-		store.setStatus("idle");
-	} catch (error) {
-		store.setError(
-			error instanceof Error ? error.message : "Transcription failed",
-		);
-		throw error;
+class DubCancelledError extends Error {
+	constructor() {
+		super("Dubbing cancelled");
+		this.name = "DubCancelledError";
 	}
 }
 
-export async function runTranslation(): Promise<void> {
-	const store = useDubbingStore.getState();
-	const { transcript, targetLang, detectedLanguage } = store;
-	if (!transcript) return;
-	store.setError(null);
-	store.setStatus("translating");
-	try {
-		const translated =
-			(await translateText(
-				transcript,
-				targetLang,
-				detectedLanguage ?? undefined,
-			)) ?? "";
-		if (!translated) {
-			throw new Error("Translation returned no text");
-		}
-		store.setTranslation({
-			text: translated,
-			segments: parseSegments(translated),
-		});
-		store.setStatus("idle");
-	} catch (error) {
-		store.setError(
-			error instanceof Error ? error.message : "Translation failed",
-		);
-		throw error;
-	}
+function assertNotCancelled(signal?: AbortSignal): void {
+	if (signal?.aborted) throw new DubCancelledError();
 }
 
-/** Segments carry usable timing when at least one has a real timestamp. */
-function hasTimingInfo(segments: Segment[]): boolean {
-	return segments.some((segment) => segment.time > 0);
+function setStageProgress(percent: number): void {
+	useDubbingStore.getState().setOverlayPercent(percent);
+}
+
+/** Rotate distinct TTS voices across speakers when the user hasn't mapped them. */
+function ensureSpeakerVoices(segments: Segment[]): void {
+	const store = useDubbingStore.getState();
+	const { speakerVoices, defaultVoice } = store;
+	const voiceIds = VOICES.map((voice) => voice.id);
+	const speakers = [
+		...new Set(segments.map((segment) => segment.speaker || "Speaker")),
+	];
+
+	speakers.forEach((speaker, index) => {
+		if (speakerVoices[speaker]) return;
+		const preferred =
+			voiceIds[(index + voiceIds.indexOf(defaultVoice)) % voiceIds.length] ??
+			defaultVoice;
+		store.setSpeakerVoice(speaker, preferred);
+	});
 }
 
 function voiceForSpeaker({
@@ -113,97 +62,261 @@ function voiceForSpeaker({
 	return speakerVoices[speaker] || defaultVoice;
 }
 
-/**
- * Generate one TTS clip per translated segment (with each character's
- * assigned voice) so clips can be laid out on the timeline at their
- * original beat timestamps.
- */
+export async function runTranscription({
+	asset,
+	signal,
+}: {
+	asset: MediaAsset;
+	signal?: AbortSignal;
+}): Promise<void> {
+	const store = useDubbingStore.getState();
+	store.setError(null);
+	store.setStatus("transcribing");
+	setStageProgress(4);
+	try {
+		assertNotCancelled(signal);
+		setStageProgress(12);
+
+		let payload: { base64: string; mimeType: string };
+		try {
+			payload = await extractAudioForTranscription({ file: asset.file });
+		} catch (extractError) {
+			console.warn(
+				"Audio extraction failed, sending original file:",
+				extractError,
+			);
+			assertNotCancelled(signal);
+			payload = {
+				base64: await fileToBase64(asset.file),
+				mimeType: asset.file.type || "video/mp4",
+			};
+		}
+
+		assertNotCancelled(signal);
+		setStageProgress(28);
+
+		const tick = window.setInterval(() => {
+			const current = useDubbingStore.getState().overlayPercent;
+			if (current < 78) {
+				useDubbingStore.getState().setOverlayPercent(current + 2);
+			}
+		}, 450);
+
+		let result: Awaited<ReturnType<typeof transcribeVideo>>;
+		try {
+			result = await transcribeVideo(payload.base64, payload.mimeType);
+		} finally {
+			window.clearInterval(tick);
+		}
+
+		assertNotCancelled(signal);
+		setStageProgress(88);
+
+		const transcript: string = result?.transcript ?? "";
+		if (!transcript) {
+			throw new Error("Transcription returned no dialogue");
+		}
+		if (
+			/^\s*I(?:'m| am)? (?:sorry|cannot|can't)/i.test(transcript) ||
+			/cannot (directly )?access|unable to (provide|access|process)|i am an ai/i.test(
+				transcript,
+			)
+		) {
+			throw new Error(
+				"The AI could not process this file's audio. Try a shorter main-track clip (wav/mp4/webm).",
+			);
+		}
+		const segments = parseSegments(transcript);
+		store.setTranscription({
+			transcript,
+			segments,
+			detectedLanguage: result?.detectedLanguage ?? null,
+		});
+		ensureSpeakerVoices(segments);
+		setStageProgress(100);
+		store.setStatus("idle");
+	} catch (error) {
+		if (error instanceof DubCancelledError || signal?.aborted) {
+			throw new DubCancelledError();
+		}
+		store.setError(
+			error instanceof Error ? error.message : "Transcription failed",
+		);
+		throw error;
+	}
+}
+
+export async function runTranslation({
+	signal,
+}: {
+	signal?: AbortSignal;
+} = {}): Promise<void> {
+	const store = useDubbingStore.getState();
+	const { transcript, targetLang, detectedLanguage } = store;
+	if (!transcript) return;
+	store.setError(null);
+	store.setStatus("translating");
+	setStageProgress(8);
+	try {
+		assertNotCancelled(signal);
+		setStageProgress(35);
+		const translated =
+			(await translateText(
+				transcript,
+				targetLang,
+				detectedLanguage ?? undefined,
+			)) ?? "";
+		assertNotCancelled(signal);
+		setStageProgress(85);
+		if (!translated) {
+			throw new Error("Translation returned no text");
+		}
+		const segments = parseSegments(translated);
+		store.setTranslation({
+			text: translated,
+			segments,
+		});
+		ensureSpeakerVoices(segments);
+		setStageProgress(100);
+		store.setStatus("idle");
+	} catch (error) {
+		if (error instanceof DubCancelledError || signal?.aborted) {
+			throw new DubCancelledError();
+		}
+		store.setError(
+			error instanceof Error ? error.message : "Translation failed",
+		);
+		throw error;
+	}
+}
+
 async function generateSegmentClips({
 	segments,
 	speakerVoices,
 	defaultVoice,
+	signal,
 }: {
 	segments: Segment[];
 	speakerVoices: Record<string, string>;
 	defaultVoice: string;
+	signal?: AbortSignal;
 }): Promise<DubClip[]> {
 	const store = useDubbingStore.getState();
-	const clips: DubClip[] = [];
-	for (let index = 0; index < segments.length; index++) {
-		const segment = segments[index];
-		store.setProgress({ current: index + 1, total: segments.length });
-		const voice = voiceForSpeaker({
-			speaker: segment.speaker,
-			speakerVoices,
-			defaultVoice,
-		});
-		const audio = await generateSpeech(segment.text, voice);
-		if (!audio) {
-			throw new Error(
-				`Speech synthesis returned no audio for segment ${index + 1}`,
+	const spoken = segments
+		.map((segment, index) => ({ segment, index }))
+		.filter(({ segment }) => segment.text.trim().length > 0);
+
+	if (spoken.length === 0) {
+		throw new Error("No dialogue lines available for speech synthesis");
+	}
+
+	store.setProgress({ current: 0, total: spoken.length });
+	store.setOverlayPercent(4);
+
+	// Segment-by-segment parallel TTS: synthesize lines concurrently, keep order.
+	const concurrency = Math.min(4, spoken.length);
+	const clips: Array<DubClip | null> = Array.from(
+		{ length: spoken.length },
+		() => null,
+	);
+	let completed = 0;
+	let cursor = 0;
+
+	async function worker() {
+		while (cursor < spoken.length) {
+			assertNotCancelled(signal);
+			const jobIndex = cursor++;
+			const { segment } = spoken[jobIndex];
+			const voice = voiceForSpeaker({
+				speaker: segment.speaker || "Speaker",
+				speakerVoices,
+				defaultVoice,
+			});
+			const audio = await generateSpeech(segment.text.trim(), voice);
+			assertNotCancelled(signal);
+			if (!audio) {
+				throw new Error(
+					`Speech synthesis returned no audio for segment ${jobIndex + 1}`,
+				);
+			}
+			clips[jobIndex] = {
+				segment: {
+					...segment,
+					speaker: segment.speaker || "Speaker 1",
+				},
+				audioBase64: audio,
+			};
+			completed += 1;
+			store.setProgress({ current: completed, total: spoken.length });
+			store.setOverlayPercent(
+				Math.round((completed / spoken.length) * 100),
 			);
 		}
-		clips.push({ segment, audioBase64: audio });
 	}
-	return clips;
+
+	await Promise.all(
+		Array.from({ length: concurrency }, () => worker()),
+	);
+
+	const ordered = clips.filter((clip): clip is DubClip => clip != null);
+	if (ordered.length === 0) {
+		throw new Error("No dialogue lines available for speech synthesis");
+	}
+	return ordered;
 }
 
 export async function runSpeechAndApply({
 	editor,
+	signal,
 }: {
 	editor: EditorCore;
+	signal?: AbortSignal;
 }): Promise<void> {
 	const store = useDubbingStore.getState();
 	const { translatedText, translationSegments, speakerVoices, defaultVoice } =
 		store;
 	if (!translatedText) return;
+	ensureSpeakerVoices(translationSegments);
+	const voices = useDubbingStore.getState().speakerVoices;
+	const footageEnd = getMainTrackDurationSeconds(editor);
+	const timedSegments = ensureSegmentTimeline({
+		segments: translationSegments,
+		footageEndSeconds: footageEnd,
+	});
+
 	store.setError(null);
 	store.setStatus("speaking");
 	store.setProgress(null);
+	setStageProgress(4);
 	try {
-		if (hasTimingInfo(translationSegments)) {
-			// Per-beat pipeline: one voiceover clip per dialogue segment,
-			// placed at the segment's timestamp and trimmed to its window.
-			const clips = await generateSegmentClips({
-				segments: translationSegments,
-				speakerVoices,
-				defaultVoice,
-			});
-			store.setStatus("applying");
-			store.setProgress(null);
-			await applySegmentedDubToTimeline({
-				editor,
-				clips,
-				namePrefix: `dub-${store.targetLang.toLowerCase()}`,
-			});
-		} else {
-			// No timestamps to align against: fall back to a single
-			// multi-speaker (or single-voice) audio bed.
-			let audio: string | null = null;
-			const voices = { ...speakerVoices };
-			for (const segment of translationSegments) {
-				voices[segment.speaker] ??= defaultVoice;
-			}
-			try {
-				audio = await generateMultiSpeakerSpeech(translatedText, voices);
-			} catch {
-				audio = await generateSpeech(translatedText, defaultVoice);
-			}
-			if (!audio) {
-				throw new Error("Speech synthesis returned no audio");
-			}
-			store.setStatus("applying");
-			await applyTtsAudioToTimeline({
-				editor,
-				audioBase64: audio,
-				name: `dub-${store.targetLang.toLowerCase()}.wav`,
-				startTimeSeconds: translationSegments[0]?.time ?? 0,
-			});
-		}
-
-		applySegmentsAsTextElements({ editor, segments: translationSegments });
+		assertNotCancelled(signal);
+		const clips = await generateSegmentClips({
+			segments: timedSegments,
+			speakerVoices: voices,
+			defaultVoice,
+			signal,
+		});
+		assertNotCancelled(signal);
+		store.setStatus("applying");
+		store.setProgress(null);
+		setStageProgress(92);
+		await applySegmentedDubToTimeline({
+			editor,
+			clips,
+			namePrefix: `dub-${store.targetLang.toLowerCase()}`,
+		});
+		assertNotCancelled(signal);
+		await applySegmentsAsTextElements({
+			editor,
+			segments: timedSegments,
+			targetLanguage: store.targetLang,
+		});
+		setStageProgress(100);
 		store.setStatus("done");
 	} catch (error) {
+		if (error instanceof DubCancelledError || signal?.aborted) {
+			throw new DubCancelledError();
+		}
 		store.setError(
 			error instanceof Error ? error.message : "Speech synthesis failed",
 		);
@@ -216,11 +329,15 @@ export async function runSpeechAndApply({
 export async function runFullDub({
 	editor,
 	asset,
+	signal,
 }: {
 	editor: EditorCore;
 	asset: MediaAsset;
+	signal?: AbortSignal;
 }): Promise<void> {
-	await runTranscription({ asset });
-	await runTranslation();
-	await runSpeechAndApply({ editor });
+	await runTranscription({ asset, signal });
+	assertNotCancelled(signal);
+	await runTranslation({ signal });
+	assertNotCancelled(signal);
+	await runSpeechAndApply({ editor, signal });
 }

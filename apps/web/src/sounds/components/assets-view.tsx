@@ -22,7 +22,10 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
-import { useSoundSearch } from "@/sounds/use-sound-search";
+import {
+	useSoundSearch,
+	type SoundLibraryType,
+} from "@/sounds/use-sound-search";
 import { useSoundsStore } from "@/sounds/sounds-store";
 import type { SavedSound, SoundEffect } from "@/sounds/types";
 import { cn } from "@/utils/ui";
@@ -38,19 +41,34 @@ import { HugeiconsIcon } from "@hugeicons/react";
 export function SoundsView() {
 	return (
 		<div className="flex h-full flex-col">
-			<Tabs defaultValue="sound-effects" className="flex h-full flex-col">
+			<Tabs defaultValue="music" className="flex h-full flex-col">
 				<div className="px-3 pt-4 pb-0">
 					<TabsList>
+						<TabsTrigger value="music">Music</TabsTrigger>
 						<TabsTrigger value="sound-effects">Sound effects</TabsTrigger>
 						<TabsTrigger value="saved">Saved</TabsTrigger>
 					</TabsList>
 				</div>
 				<Separator className="my-4" />
 				<TabsContent
+					value="music"
+					className="mt-0 flex min-h-0 flex-1 flex-col p-5 pt-0"
+				>
+					<SoundLibraryView
+						type="music"
+						searchPlaceholder="Search music"
+						emptyLabel="No music found"
+					/>
+				</TabsContent>
+				<TabsContent
 					value="sound-effects"
 					className="mt-0 flex min-h-0 flex-1 flex-col p-5 pt-0"
 				>
-					<SoundEffectsView />
+					<SoundLibraryView
+						type="effects"
+						searchPlaceholder="Search sound effects"
+						emptyLabel="No sound effects found"
+					/>
 				</TabsContent>
 				<TabsContent
 					value="saved"
@@ -63,35 +81,41 @@ export function SoundsView() {
 	);
 }
 
-function SoundEffectsView() {
+function SoundLibraryView({
+	type,
+	searchPlaceholder,
+	emptyLabel,
+}: {
+	type: SoundLibraryType;
+	searchPlaceholder: string;
+	emptyLabel: string;
+}) {
 	const {
-		topSoundEffects,
-		isLoading,
-		searchQuery,
-		setSearchQuery,
-		scrollPosition,
-		setScrollPosition,
 		loadSavedSounds,
 		showCommercialOnly,
 		toggleCommercialFilter,
-		hasLoaded,
-		setTopSoundEffects,
-		setLoading,
-		setError,
-		setHasLoaded,
-		setCurrentPage,
-		setHasNextPage,
-		setTotalCount,
 	} = useSoundsStore();
+
+	const [searchQuery, setSearchQuery] = useState("");
+	const [topSounds, setTopSounds] = useState<SoundEffect[]>([]);
+	const [isLoading, setIsLoading] = useState(false);
+	const [error, setError] = useState<string | null>(null);
+	const [hasLoaded, setHasLoaded] = useState(false);
+	const [scrollPosition, setScrollPosition] = useState(0);
+	const [currentPage, setCurrentPage] = useState(1);
+	const [hasNextPage, setHasNextPage] = useState(false);
+	const [isLoadingMore, setIsLoadingMore] = useState(false);
+
 	const {
 		results: searchResults,
 		isLoading: isSearching,
-		loadMore,
-		hasNextPage,
-		isLoadingMore,
+		loadMore: loadMoreSearch,
+		hasNextPage: hasNextSearchPage,
+		isLoadingMore: isLoadingMoreSearch,
 	} = useSoundSearch({
 		query: searchQuery,
 		commercialOnly: showCommercialOnly,
+		type,
 	});
 
 	const [playingId, setPlayingId] = useState<number | null>(null);
@@ -100,9 +124,34 @@ function SoundEffectsView() {
 	);
 
 	const { scrollAreaRef, handleScroll } = useInfiniteScroll({
-		onLoadMore: loadMore,
-		hasMore: hasNextPage,
-		isLoading: isLoadingMore || isSearching,
+		onLoadMore: async () => {
+			if (searchQuery.trim()) {
+				await loadMoreSearch();
+				return;
+			}
+			if (isLoadingMore || !hasNextPage) return;
+
+			try {
+				setIsLoadingMore(true);
+				const nextPage = currentPage + 1;
+				const response = await fetch(
+					`/api/sounds/search?page=${nextPage}&page_size=50&sort=downloads&type=${type}&commercial_only=${showCommercialOnly}`,
+				);
+				if (response.ok) {
+					const data = await response.json();
+					setTopSounds((prev) => [...prev, ...data.results]);
+					setCurrentPage(nextPage);
+					setHasNextPage(!!data.next);
+				}
+			} catch (err) {
+				console.error("Failed to load more sounds:", err);
+			} finally {
+				setIsLoadingMore(false);
+			}
+		},
+		hasMore: searchQuery ? hasNextSearchPage : hasNextPage,
+		isLoading:
+			isLoadingMore || isLoadingMoreSearch || isSearching || isLoading,
 	});
 
 	useEffect(() => {
@@ -110,78 +159,75 @@ function SoundEffectsView() {
 	}, [loadSavedSounds]);
 
 	useEffect(() => {
-		if (hasLoaded) {
-			return;
-		}
+		setHasLoaded(false);
+		setTopSounds([]);
+		setSearchQuery("");
+	}, [type, showCommercialOnly]);
+
+	useEffect(() => {
+		if (hasLoaded) return;
 
 		let shouldIgnore = false;
 
 		const fetchTopSounds = async () => {
 			try {
 				if (!shouldIgnore) {
-					setLoading({ loading: true });
-					setError({ error: null });
+					setIsLoading(true);
+					setError(null);
 				}
 
 				const response = await fetch(
-					"/api/sounds/search?page_size=50&sort=downloads",
+					`/api/sounds/search?page_size=50&sort=downloads&type=${type}&commercial_only=${showCommercialOnly}`,
 				);
 
 				if (!shouldIgnore) {
 					if (!response.ok) {
-						throw new Error(`Failed to fetch: ${response.status}`);
+						const body = await response
+							.json()
+							.catch(() => null as { message?: string } | null);
+						throw new Error(
+							body?.message ?? `Failed to fetch: ${response.status}`,
+						);
 					}
 
 					const data = await response.json();
-					setTopSoundEffects({ sounds: data.results });
-					setHasLoaded({ loaded: true });
-
-					setCurrentPage({ page: 1 });
-					setHasNextPage({ hasNext: !!data.next });
-					setTotalCount({ count: data.count });
+					setTopSounds(data.results);
+					setHasLoaded(true);
+					setCurrentPage(1);
+					setHasNextPage(!!data.next);
 				}
-			} catch (error) {
+			} catch (fetchError) {
 				if (!shouldIgnore) {
-					console.error("Failed to fetch top sounds:", error);
-					setError({
-						error:
-							error instanceof Error ? error.message : "Failed to load sounds",
-					});
+					console.error("Failed to fetch top sounds:", fetchError);
+					setError(
+						fetchError instanceof Error
+							? fetchError.message
+							: "Failed to load sounds",
+					);
 				}
 			} finally {
 				if (!shouldIgnore) {
-					setLoading({ loading: false });
+					setIsLoading(false);
 				}
 			}
 		};
 
-		const timeoutId = setTimeout(fetchTopSounds, 100, {});
+		const timeoutId = setTimeout(fetchTopSounds, 100);
 
 		return () => {
 			shouldIgnore = true;
 			clearTimeout(timeoutId);
 		};
-	}, [
-		hasLoaded,
-		setTopSoundEffects,
-		setLoading,
-		setError,
-		setHasLoaded,
-		setCurrentPage,
-		setHasNextPage,
-		setTotalCount,
-	]);
+	}, [hasLoaded, type, showCommercialOnly]);
 
 	useEffect(() => {
-		if (!scrollAreaRef.current || scrollPosition <= 0) {
-			return;
-		}
+		if (!scrollAreaRef.current || scrollPosition <= 0) return;
 
 		const restoreScrollPosition = () => {
 			scrollAreaRef.current?.scrollTo({ top: scrollPosition });
 		};
 
-		const timeoutId = setTimeout(restoreScrollPosition, 100, {});
+		const timeoutId = setTimeout(restoreScrollPosition, 100);
 
 		return () => clearTimeout(timeoutId);
 	}, [scrollPosition, scrollAreaRef]);
@@ -190,11 +236,12 @@ function SoundEffectsView() {
 		currentTarget,
 	}: React.UIEvent<HTMLDivElement>) => {
 		const { scrollTop } = currentTarget;
-		setScrollPosition({ position: scrollTop });
+		setScrollPosition(scrollTop);
 		handleScroll({ currentTarget } as React.UIEvent<HTMLDivElement>);
 	};
 
-	const displayedSounds = searchQuery ? searchResults : topSoundEffects;
+	const displayedSounds = searchQuery ? searchResults : topSounds;
+	const loadingMore = searchQuery ? isLoadingMoreSearch : isLoadingMore;
 
 	const playSound = ({ sound }: { sound: SoundEffect }) => {
 		if (playingId === sound.id) {
@@ -227,15 +274,15 @@ function SoundEffectsView() {
 		<div className="mt-1 flex h-full flex-col gap-5">
 			<div className="flex items-center gap-3">
 				<Input
-					placeholder="Search sound effects"
+					placeholder={searchPlaceholder}
 					className="w-full"
 					containerClassName="w-full"
 					value={searchQuery}
 					onChange={({ currentTarget }) =>
-						setSearchQuery({ query: currentTarget.value })
+						setSearchQuery(currentTarget.value)
 					}
 					showClearIcon
-					onClear={() => setSearchQuery({ query: "" })}
+					onClear={() => setSearchQuery("")}
 				/>
 				<DropdownMenu>
 					<DropdownMenuTrigger asChild>
@@ -287,11 +334,16 @@ function SoundEffectsView() {
 							/>
 						))}
 						{!isLoading && !isSearching && displayedSounds.length === 0 && (
-							<div className="text-muted-foreground text-sm">
-								{searchQuery ? "No sounds found" : "No sounds available"}
+							<div className="text-muted-foreground flex flex-col gap-1 text-sm">
+								<span>
+									{searchQuery ? emptyLabel : "Sound library unavailable"}
+								</span>
+								{error ? (
+									<span className="text-xs text-destructive">{error}</span>
+								) : null}
 							</div>
 						)}
-						{isLoadingMore && (
+						{loadingMore && (
 							<div className="text-muted-foreground py-4 text-center text-sm">
 								Loading more sounds...
 							</div>
@@ -445,10 +497,8 @@ function SavedSoundsView() {
 							</Button>
 							<Button
 								variant="destructive"
-								onClick={async ({
-									stopPropagation,
-								}: React.MouseEvent<HTMLButtonElement>) => {
-									stopPropagation();
+								onClick={async (event) => {
+									event.stopPropagation();
 									await clearSavedSounds();
 									setShowClearDialog(false);
 								}}
@@ -493,17 +543,15 @@ function AudioItem({ sound, isPlaying, onPlay }: AudioItemProps) {
 		onPlay({ sound });
 	};
 
-	const handleSaveClick = ({
-		stopPropagation,
-	}: React.MouseEvent<HTMLButtonElement>) => {
-		stopPropagation();
+	const handleSaveClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+		event.stopPropagation();
 		toggleSavedSound({ soundEffect: sound });
 	};
 
-	const handleAddToTimeline = async ({
-		stopPropagation,
-	}: React.MouseEvent<HTMLButtonElement>) => {
-		stopPropagation();
+	const handleAddToTimeline = async (
+		event: React.MouseEvent<HTMLButtonElement>,
+	) => {
+		event.stopPropagation();
 		await addSoundToTimeline({ sound });
 	};
 

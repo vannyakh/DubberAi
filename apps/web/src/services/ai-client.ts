@@ -1,6 +1,8 @@
 /**
  * Client for the backend AI routes. Model calls run on the API server,
  * which holds API_KEY_302 — the key never ships to the browser.
+ *
+ * Requires MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API (see metadata.json).
  */
 
 const API_BASE: string =
@@ -58,4 +60,82 @@ export function generateMultiSpeakerSpeech(
 	speakerVoices: Record<string, string>,
 ): Promise<string> {
 	return postAi<string>("tts-multi", { text, speakerVoices });
+}
+
+export interface AutoCutPlanRequest {
+	transcript: string;
+	durationSeconds: number;
+	minCutSeconds: number;
+	paddingSeconds: number;
+	cutFillers?: boolean;
+	cutLongPauses?: boolean;
+	cutRetakes?: boolean;
+}
+
+export interface AutoCutCutRange {
+	startSeconds: number;
+	endSeconds: number;
+	reason?: string;
+}
+
+export type AgentCutIntent =
+	| "autocut"
+	| "trim-dialogue"
+	| "remove-pauses"
+	| "story-tighten"
+	| "audio-cleanup"
+	| "text-timing"
+	| "footage-selection"
+	| "external-source"
+	| "unknown";
+
+export interface AgentCutClipSummary {
+	name: string;
+	trackLabel: string;
+	category: "main" | "overlay" | "audio";
+	durationSeconds?: number;
+}
+
+export interface AgentCutAction {
+	type:
+		| "cut"
+		| "trim"
+		| "audio"
+		| "text"
+		| "footage"
+		| "external_source";
+	label: string;
+	reason?: string;
+	payload?: unknown;
+}
+
+export interface AgentCutPlanRequest {
+	prompt: string;
+	transcript: string;
+	durationSeconds: number;
+	minCutSeconds: number;
+	paddingSeconds: number;
+	clipSummaries?: AgentCutClipSummary[];
+}
+
+export interface AgentCutPlanResult {
+	intent: AgentCutIntent;
+	summary: string;
+	status: "planned" | "needs_clarification";
+	cuts: AutoCutCutRange[];
+	actions: AgentCutAction[];
+	questions: string[];
+}
+
+/** Anthropic (Claude) via 302.AI — plans cut ranges from a timestamped transcript. */
+export function planAutoCutRanges(
+	body: AutoCutPlanRequest,
+): Promise<AutoCutCutRange[]> {
+	return postAi<AutoCutCutRange[]>("autocut-plan", body);
+}
+
+export function planAgentCut(
+	body: AgentCutPlanRequest,
+): Promise<AgentCutPlanResult> {
+	return postAi<AgentCutPlanResult>("agent-cut-plan", body);
 }

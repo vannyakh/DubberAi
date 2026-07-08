@@ -55,13 +55,25 @@ function preloadChunkImages({ atlas }: { atlas: FontAtlas }): void {
 export async function loadFullFont({
 	family,
 	weights = [400, 700],
+	textSample,
 }: {
 	family: string;
 	weights?: number[];
+	/** Optional Unicode sample — helps Google Fonts serve the right glyphs. */
+	textSample?: string;
 }): Promise<void> {
 	if (fullLoaded.has(family)) return;
 
-	const url = `${GOOGLE_FONTS_CSS}?family=${encodeGoogleFontsFamily(family)}:wght@${weights.join(";")}&display=swap`;
+	const familyParam = encodeGoogleFontsFamily(family);
+	const weightParam = `:wght@${weights.join(";")}`;
+	const textParam =
+		textSample && textSample.length > 0
+			? `&text=${encodeURIComponent(textSample.slice(0, 120))}`
+			: family.includes("Khmer")
+				? "&text=" + encodeURIComponent("ខ្មែរភាសាខ្មែរ ABCDEFG")
+				: "";
+
+	const url = `${GOOGLE_FONTS_CSS}?family=${familyParam}${weightParam}${textParam}&display=swap`;
 	const link = document.createElement("link");
 	link.rel = "stylesheet";
 	link.href = url;
@@ -80,9 +92,18 @@ export async function loadFullFont({
 
 export async function loadFonts({
 	families,
+	textSamples,
 }: {
 	families: string[];
+	textSamples?: Record<string, string>;
 }): Promise<void> {
 	const googleFonts = families.filter((family) => !SYSTEM_FONTS.has(family));
-	await Promise.all(googleFonts.map((family) => loadFullFont({ family })));
+	await Promise.all(
+		googleFonts.map((family) =>
+			loadFullFont({
+				family,
+				textSample: textSamples?.[family],
+			}),
+		),
+	);
 }

@@ -574,9 +574,8 @@ function ElementInner({
 						isExpanded && "bg-background",
 					)}
 				>
-					<button
-						type="button"
-						tabIndex={-1}
+					<div
+						role="presentation"
 						className="absolute inset-0 size-full flex flex-col"
 						onClick={(event) => onElementClick(event, element)}
 						onMouseDown={(event) => onElementMouseDown(event, element)}
@@ -598,7 +597,7 @@ function ElementInner({
 							</div>
 						</div>
 						{expandedContent}
-					</button>
+					</div>
 				</div>
 			</div>
 

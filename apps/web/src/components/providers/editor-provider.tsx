@@ -10,6 +10,8 @@ import { useKeybindingsStore } from "@/actions/keybindings-store";
 import { useTimelineStore } from "@/timeline/timeline-store";
 import { useEditorActions } from "@/actions/use-editor-actions";
 import { loadFontAtlas } from "@/fonts/google-fonts";
+import { ensurePriorityLanguageFonts } from "@/fonts/language-fonts";
+import { getPersistedTargetLanguage } from "@/preferences/language-preferences-store";
 import {
 	initializeGpuRenderer,
 	isGpuAvailable,
@@ -46,6 +48,7 @@ export function EditorProvider({ projectId, children }: EditorProviderProps) {
 
 				setIsLoading(false);
 				loadFontAtlas();
+				void ensurePriorityLanguageFonts(getPersistedTargetLanguage());
 			} catch (err) {
 				if (cancelled) return;
 

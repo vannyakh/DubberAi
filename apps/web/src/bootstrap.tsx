@@ -15,6 +15,7 @@ import {
   localeResources,
 } from './locales';
 import { ThemeProvider } from './context/ThemeContext';
+import { applyAppMetadata } from './config/apply-app-metadata';
 import { TooltipProvider } from './components/ui/tooltip';
 import { Toaster } from './components/ui/sonner';
 import { DesktopTitleBar } from './components/desktop-title-bar';
@@ -55,6 +56,7 @@ initI18n({
   defaultNS: 'system',
   storageKey: LOCALE_STORAGE_KEY,
 }).then(() => {
+  applyAppMetadata();
   createRoot(document.getElementById('root')!).render(
     <StrictMode>
       <I18nProvider>

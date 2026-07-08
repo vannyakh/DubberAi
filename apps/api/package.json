@@ -23,6 +23,7 @@
     "@dubbercut/utils": "workspace:*",
     "@fastify/cors": "^10.0.2",
     "@fastify/multipart": "^9.0.3",
+    "@fastify/websocket": "^11.2.0",
     "@prisma/client": "^6.3.1",
     "amqplib": "^2.0.1",
     "fastify": "^5.2.1",

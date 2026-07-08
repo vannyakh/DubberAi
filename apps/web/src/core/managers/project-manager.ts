@@ -25,6 +25,8 @@ import {
 	type MigrationProgress,
 } from "@/services/storage/migrations";
 import { loadFonts } from "@/fonts/google-fonts";
+import { getPriorityGoogleFonts } from "@/fonts/language-fonts";
+import { getPersistedTargetLanguage } from "@/preferences/language-preferences-store";
 import { DEFAULTS } from "@/timeline/defaults";
 import { getElementFontFamilies } from "@/timeline/element-utils";
 import { getRaisedProjectFpsForImportedMedia } from "@/fps/utils";
@@ -158,11 +160,12 @@ export class ProjectManager {
 
 			await loadFonts({
 				families: [
-					...new Set(
-						(project.scenes ?? []).flatMap((scene) =>
+					...new Set([
+						...getPriorityGoogleFonts(getPersistedTargetLanguage()),
+						...(project.scenes ?? []).flatMap((scene) =>
 							getElementFontFamilies({ tracks: scene.tracks }),
 						),
-					),
+					]),
 				],
 			});
 

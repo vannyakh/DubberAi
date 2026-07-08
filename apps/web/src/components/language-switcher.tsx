@@ -1,5 +1,6 @@
 import { setLocale, useTranslation } from '@dubbercut/i18n';
 import { LOCALES, type Locale } from '@/locales';
+import { useLanguagePreferencesStore } from '@/preferences/language-preferences-store';
 import {
   Select,
   SelectContent,
@@ -19,7 +20,10 @@ export function LanguageSwitcher() {
   return (
     <Select
       value={i18n.language}
-      onValueChange={(value) => setLocale(value as Locale)}
+      onValueChange={(value) => {
+        void setLocale(value as Locale);
+        useLanguagePreferencesStore.getState().setUiLocale(value);
+      }}
     >
       <SelectTrigger className="h-10 w-[130px]" aria-label={t('language')}>
         <SelectValue />

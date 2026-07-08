@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { appMetadata } from '@/config/app-metadata';
 import type { CSSProperties } from 'react';
 
 const DRAG: CSSProperties = { WebkitAppRegion: 'drag' } as CSSProperties;
@@ -29,7 +30,7 @@ export function DesktopTitleBar() {
       className="bg-background border-border/50 flex h-9 shrink-0 items-center justify-between border-b select-none"
     >
       <div className={`flex items-center gap-2 ${isMac ? 'pl-20' : 'pl-3'}`}>
-        <span className="text-foreground/80 text-xs font-semibold tracking-wide">DubberCut</span>
+        <span className="text-foreground/80 text-xs font-semibold tracking-wide">{appMetadata.name}</span>
       </div>
 
       {isMac ? (

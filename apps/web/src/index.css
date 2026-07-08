@@ -52,7 +52,11 @@
   --sidebar-ring: hsl(0 0% 16.9%);
   --sidebar: hsl(0 0% 98%);
 
-  /* Legacy studio vars kept for the not-yet-ported dub components */
+  /* Thin themed scrollbars */
+  --scrollbar-size: 4px;
+  --scrollbar-thumb: color-mix(in srgb, var(--muted-foreground) 28%, transparent);
+  --scrollbar-thumb-hover: color-mix(in srgb, var(--primary) 55%, var(--muted-foreground) 45%);
+  --scrollbar-track: transparent;
   --panel: hsl(210, 20%, 98%);
   --panel-foreground: hsl(0, 0%, 13%);
   --panel-border: hsl(0, 0%, 87%);
@@ -89,6 +93,8 @@
   --border: hsl(0 0% 87%);
   --input: hsl(0 0% 93%);
   --ring: hsl(0, 0%, 53%);
+  --scrollbar-thumb: color-mix(in srgb, var(--muted-foreground) 32%, transparent);
+  --scrollbar-thumb-hover: color-mix(in srgb, var(--primary) 50%, var(--muted-foreground) 50%);
 }
 
 .dark {
@@ -129,6 +135,9 @@
   --studio-accent2: hsl(200, 98%, 61%);
   --studio-accent2-hover: hsl(200, 98%, 70%);
   --studio-accent2-soft: hsla(200, 98%, 61%, 0.13);
+
+  --scrollbar-thumb: color-mix(in srgb, var(--muted-foreground) 38%, transparent);
+  --scrollbar-thumb-hover: color-mix(in srgb, var(--primary) 45%, var(--muted-foreground) 55%);
 }
 
 .dark .panel {
@@ -145,6 +154,8 @@
   --border: hsl(0 0% 18%);
   --input: hsl(0 0% 22%);
   --ring: hsl(0, 0%, 52%);
+  --scrollbar-thumb: color-mix(in srgb, var(--muted-foreground) 42%, transparent);
+  --scrollbar-thumb-hover: color-mix(in srgb, var(--primary) 40%, var(--muted-foreground) 60%);
 }
 
 @layer base {
@@ -313,19 +324,32 @@
 }
 
 @utility scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+
   &::-webkit-scrollbar {
-    width: 7px;
-    height: 7px;
+    width: var(--scrollbar-size);
+    height: var(--scrollbar-size);
   }
+
   &::-webkit-scrollbar-track {
-    background: transparent;
+    background: var(--scrollbar-track);
   }
+
   &::-webkit-scrollbar-thumb {
-    background: var(--border);
-    border-radius: 4px;
+    background: var(--scrollbar-thumb);
+    border-radius: 9999px;
+    border: 1px solid transparent;
+    background-clip: padding-box;
   }
+
   &::-webkit-scrollbar-thumb:hover {
-    background: var(--muted-foreground);
+    background: var(--scrollbar-thumb-hover);
+    background-clip: padding-box;
+  }
+
+  &::-webkit-scrollbar-corner {
+    background: transparent;
   }
 }
 
@@ -338,31 +362,31 @@
   overflow: hidden;
 }
 
-/* Default scrollbars */
+/* Global thin themed scrollbars (panels inherit .panel token overrides) */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: var(--scrollbar-size);
+  height: var(--scrollbar-size);
 }
 
 ::-webkit-scrollbar-track {
-  background: transparent;
+  background: var(--scrollbar-track);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.16);
+  background: var(--scrollbar-thumb);
   border-radius: 9999px;
+  border: 1px solid transparent;
+  background-clip: padding-box;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.28);
-}
-
-.dark ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.16);
-}
-
-.dark ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.28);
+  background: var(--scrollbar-thumb-hover);
+  background-clip: padding-box;
 }
 
 ::-webkit-scrollbar-corner {
@@ -377,4 +401,34 @@
 }
 .desktop-app .w-screen {
   width: 100%;
+}
+
+/* Auto Cut modal motion */
+.autocut-modal {
+  animation: autocut-modal-in 280ms cubic-bezier(0.18, 0.89, 0.32, 1.15);
+  transform-origin: center;
+}
+
+.autocut-icon-wrap {
+  animation: autocut-icon-float 2.4s ease-in-out infinite;
+}
+
+@keyframes autocut-modal-in {
+  0% {
+    opacity: 0;
+    transform: translateY(14px) scale(0.96);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes autocut-icon-float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-2px);
+  }
 }

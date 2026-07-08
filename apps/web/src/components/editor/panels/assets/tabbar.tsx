@@ -49,7 +49,7 @@ export function TabBar() {
 		<div className="relative flex">
 			<div
 				ref={scrollRef}
-				className="scrollbar-hidden relative flex size-full p-1 flex-col items-center justify-start gap-0.5 overflow-y-auto"
+				className="scrollbar-thin relative flex size-full flex-col items-center justify-start gap-0.5 overflow-y-auto p-1"
 			>
 				{TAB_KEYS.map((tabKey) => {
 					const tab = tabs[tabKey];

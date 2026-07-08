@@ -22,6 +22,9 @@ import { PreviewPanel } from "@/preview/components";
 import { EditorHeader } from "@/components/editor/editor-header";
 import { EditorProvider } from "@/components/providers/editor-provider";
 import { MigrationDialog } from "@/project/components/migration-dialog";
+import { AutoCutOverlay } from "@/autocut/components/autocut-overlay";
+import { useAutoCutKeyblock } from "@/autocut/use-autocut-keyblock";
+import { DubbingOverlay } from "@/dubbing/components/dubbing-overlay";
 import { usePanelStore } from "@/editor/panel-store";
 import { usePasteMedia } from "@/media/use-paste-media";
 import { MobileGate } from "@/components/editor/mobile-gate";
@@ -55,9 +58,20 @@ export function EditorPage() {
 						<EditorLayout />
 					</div>
 					<MigrationDialog />
+					<AutoCutPipelineLayer />
 				</div>
 			</EditorProvider>
 		</MobileGate>
+	);
+}
+
+function AutoCutPipelineLayer() {
+	useAutoCutKeyblock();
+	return (
+		<>
+			<AutoCutOverlay />
+			<DubbingOverlay />
+		</>
 	);
 }
 

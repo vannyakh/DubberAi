@@ -13,7 +13,7 @@ export type I18nNamespace = (typeof I18N_NAMESPACES)[number];
 export const LOCALES = ['en', 'kh-KH'] as const;
 export type Locale = (typeof LOCALES)[number];
 
-export const DEFAULT_LOCALE: Locale = 'en';
+export const DEFAULT_LOCALE: Locale = 'kh-KH';
 export const LOCALE_STORAGE_KEY = 'dubbercut-locale';
 
 /** Bundled into i18next via `initI18n({ resources: localeResources, ... })`. */

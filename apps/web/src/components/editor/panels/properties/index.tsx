@@ -64,7 +64,7 @@ export function PropertiesPanel() {
 	return (
 		<div className="panel bg-background flex h-full overflow-hidden rounded-sm border">
 			<TooltipProvider delayDuration={0}>
-				<div className="flex shrink-0 flex-col gap-0.5 border-r p-1 scrollbar-hidden overflow-y-auto">
+				<div className="scrollbar-thin flex shrink-0 flex-col gap-0.5 overflow-y-auto border-r p-1">
 					{visibleTabs.map((tab) => (
 						<Tooltip key={tab.id}>
 							<TooltipTrigger asChild>
@@ -87,7 +87,7 @@ export function PropertiesPanel() {
 					))}
 				</div>
 			</TooltipProvider>
-			<ScrollArea className="flex-1 scrollbar-hidden">
+			<ScrollArea className="flex-1">
 				{activeTab.content({ trackId: track.id })}
 			</ScrollArea>
 		</div>

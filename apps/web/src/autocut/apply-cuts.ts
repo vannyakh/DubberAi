@@ -5,8 +5,11 @@
  */
 
 import type { SceneTracks, TimelineElement, TimelineTrack } from "@/timeline";
+import { isVisualElement } from "@/timeline";
 import { EditorCore } from "@/core";
+import { BatchCommand } from "@/commands";
 import { TracksSnapshotCommand } from "@/commands/timeline/tracks-snapshot";
+import { AddClipEffectCommand } from "@/commands/timeline/element/effects/add-effect";
 import { generateUUID } from "@/utils/id";
 import {
 	mediaTimeFromSeconds,
@@ -16,6 +19,7 @@ import {
 	type MediaTime,
 } from "@/wasm";
 import type { SilenceRange } from "./silence";
+import type { AutoCutPipelineConfig } from "./config";
 
 /** Kept clip pieces shorter than this are dropped entirely. */
 const MIN_KEEP_SECONDS = 0.05;
@@ -154,9 +158,225 @@ function mapTrack<TTrack extends TimelineTrack>({
 	return { ...track, elements } as TTrack;
 }
 
+function sourceSilencesToTimeline({
+	element,
+	sourceSilences,
+}: {
+	element: TimelineElement;
+	sourceSilences: SilenceRange[];
+}): Array<{ startSeconds: number; endSeconds: number }> {
+	const trimSec = mediaTimeToSeconds({ time: element.trimStart });
+	const startSec = mediaTimeToSeconds({ time: element.startTime });
+
+	return sourceSilences
+		.map((silence) => ({
+			startSeconds: startSec + (silence.startSeconds - trimSec),
+			endSeconds: startSec + (silence.endSeconds - trimSec),
+		}))
+		.filter((range) => range.endSeconds > range.startSeconds);
+}
+
+function timelineSilencesToSource({
+	element,
+	timelineSilences,
+}: {
+	element: TimelineElement;
+	timelineSilences: Array<{ startSeconds: number; endSeconds: number }>;
+}): SilenceRange[] {
+	const trimSec = mediaTimeToSeconds({ time: element.trimStart });
+	const startSec = mediaTimeToSeconds({ time: element.startTime });
+
+	return timelineSilences
+		.map((silence) => ({
+			startSeconds: trimSec + (silence.startSeconds - startSec),
+			endSeconds: trimSec + (silence.endSeconds - startSec),
+		}))
+		.filter((range) => range.endSeconds > range.startSeconds);
+}
+
+function getCuttableElement({
+	editor,
+	target,
+}: {
+	editor: EditorCore;
+	target: CuttableElementRef;
+}): { track: TimelineTrack; element: TimelineElement } | null {
+	const track = editor.timeline.getTrackById({ trackId: target.trackId });
+	const element = track?.elements.find((el) => el.id === target.elementId);
+	if (!track || !element || !isCuttableElement(element)) return null;
+	return { track, element };
+}
+
+function applyReplacementsToTrack<TTrack extends TimelineTrack>({
+	track,
+	replacements,
+	rippleAfter,
+	removedTicks,
+	rippleTimeline,
+}: {
+	track: TTrack;
+	replacements: Map<string, TimelineElement[]>;
+	rippleAfter: number;
+	removedTicks: number;
+	rippleTimeline: boolean;
+}): TTrack {
+	const elements = track.elements.flatMap((element): TimelineElement[] => {
+		const key = `${track.id}:${element.id}`;
+		const replacement = replacements.get(key);
+		if (replacement) return replacement;
+
+		if (
+			rippleTimeline &&
+			removedTicks > 0 &&
+			(element.startTime as number) >= rippleAfter
+		) {
+			return [
+				{
+					...element,
+					startTime: roundMediaTime({
+						time: Math.max(
+							0,
+							(element.startTime as number) - removedTicks,
+						),
+					}),
+				},
+			];
+		}
+		return [element];
+	});
+
+	return { ...track, elements } as TTrack;
+}
+
 export interface ApplyCutsResult {
 	segmentCount: number;
 	removedSeconds: number;
+}
+
+/** Multi-clip pipeline: one analysis, many targets, optional style effects. */
+export function applyAutoCutPipeline({
+	editor,
+	targets,
+	primaryTarget,
+	sourceSilences,
+	pipeline,
+}: {
+	editor: EditorCore;
+	targets: CuttableElementRef[];
+	primaryTarget: CuttableElementRef;
+	sourceSilences: SilenceRange[];
+	pipeline: AutoCutPipelineConfig;
+}): ApplyCutsResult {
+	if (targets.length === 0 || sourceSilences.length === 0) {
+		return { segmentCount: 0, removedSeconds: 0 };
+	}
+
+	const primary = getCuttableElement({ editor, target: primaryTarget });
+	if (!primary) {
+		throw new Error("Primary clip for auto-cut was not found");
+	}
+
+	const timelineSilences = sourceSilencesToTimeline({
+		element: primary.element,
+		sourceSilences,
+	});
+
+	const replacements = new Map<string, TimelineElement[]>();
+	let totalRemovedSeconds = 0;
+	let totalSegments = 0;
+
+	for (const target of targets) {
+		const found = getCuttableElement({ editor, target });
+		if (!found) continue;
+
+		const mappedSilences = timelineSilencesToSource({
+			element: found.element,
+			timelineSilences,
+		});
+		const keptRanges = computeKeptClipRanges({
+			element: found.element,
+			silences: mappedSilences,
+		});
+		if (keptRanges.length === 0) continue;
+
+		const keptTicks = keptRanges.reduce(
+			(sum, range) => sum + (range.end - range.start),
+			0,
+		);
+		const removedTicks = (found.element.duration as number) - keptTicks;
+		totalRemovedSeconds += mediaTimeToSeconds({
+			time: roundMediaTime({ time: removedTicks }),
+		});
+		totalSegments += keptRanges.length;
+
+		replacements.set(
+			`${target.trackId}:${target.elementId}`,
+			buildSegmentElements({ element: found.element, keptRanges }),
+		);
+	}
+
+	if (replacements.size === 0) {
+		throw new Error("Auto-cut would remove all selected clips");
+	}
+
+	const primaryKept = computeKeptClipRanges({
+		element: primary.element,
+		silences: sourceSilences,
+	});
+	const primaryKeptTicks = primaryKept.reduce(
+		(sum, range) => sum + (range.end - range.start),
+		0,
+	);
+	const removedTicks = (primary.element.duration as number) - primaryKeptTicks;
+	const rippleAfter =
+		(primary.element.startTime as number) + (primary.element.duration as number);
+
+	const before = editor.scenes.getActiveScene().tracks;
+	const applyToTrack = <TTrack extends TimelineTrack>(track: TTrack) =>
+		applyReplacementsToTrack({
+			track,
+			replacements,
+			rippleAfter,
+			removedTicks: Math.max(0, removedTicks),
+			rippleTimeline: pipeline.rippleTimeline,
+		});
+
+	const after: SceneTracks = {
+		overlay: before.overlay.map(applyToTrack),
+		main: applyToTrack(before.main),
+		audio: before.audio.map(applyToTrack),
+	};
+
+	editor.command.execute({
+		command: new TracksSnapshotCommand(before, after),
+	});
+
+	if (pipeline.applyEffectsAfterCut && pipeline.selectedEffectTypes.length > 0) {
+		const effectCommands: AddClipEffectCommand[] = [];
+		for (const [key, segments] of replacements) {
+			const [trackId] = key.split(":");
+			for (const segment of segments) {
+				if (!isVisualElement(segment)) continue;
+				for (const effectType of pipeline.selectedEffectTypes) {
+					effectCommands.push(
+						new AddClipEffectCommand({
+							trackId,
+							elementId: segment.id,
+							effectType,
+						}),
+					);
+				}
+			}
+		}
+		if (effectCommands.length > 0) {
+			editor.command.execute({ command: new BatchCommand(effectCommands) });
+		}
+	}
+
+	return {
+		segmentCount: totalSegments,
+		removedSeconds: totalRemovedSeconds,
+	};
 }
 
 export function applyCutsToElement({

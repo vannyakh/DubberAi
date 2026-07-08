@@ -6,8 +6,17 @@
 export interface Segment {
   time: number;
   speaker: string;
+  /** Spoken text with pause markers stripped (safe for TTS / captions). */
   text: string;
   raw: string;
+  /** Leading silence marker `(...Ns)` before dialogue. */
+  pauseBeforeSeconds?: number;
+  /** Trailing silence marker `(...Ns)` after dialogue. */
+  pauseAfterSeconds?: number;
+  /** Inline silence markers embedded inside the dialogue. */
+  inlinePauses?: number[];
+  /** Optional end time when known from the next segment beat. */
+  end?: number;
 }
 
 export interface Language {
