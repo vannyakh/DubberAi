@@ -8,6 +8,8 @@ pub const DEFAULT_PADDING_SECONDS: f64 = 0.08;
 const WINDOW_SECONDS: f64 = 0.03;
 const HOP_SECONDS: f64 = 0.01;
 const MIN_KEEP_AFTER_PAD: f64 = 0.01;
+/// Recompute rolling energy from scratch this often to limit f32 drift.
+const RECOMPUTE_EVERY: usize = 64;
 
 #[cfg_attr(feature = "wasm", derive(tsify_next::Tsify))]
 #[cfg_attr(feature = "wasm", tsify(into_wasm_abi))]
@@ -64,6 +66,35 @@ pub fn detect_silences(
     )
 }
 
+/// Direct Float32Array bridge for WASM — avoids serde-deserializing samples
+/// through a JS options object (still one typed-array copy into Wasm memory).
+#[cfg(feature = "wasm")]
+#[wasm_bindgen::prelude::wasm_bindgen(js_name = detectSilencesF32)]
+pub fn detect_silences_f32(
+    samples: &[f32],
+    sample_rate: f64,
+    threshold_db: f64,
+    min_silence_seconds: f64,
+    padding_seconds: f64,
+) -> Vec<SilenceRange> {
+    detect_silences_impl(
+        samples,
+        sample_rate,
+        threshold_db,
+        min_silence_seconds,
+        padding_seconds,
+    )
+}
+
+#[inline]
+fn window_sum_squares(samples: &[f32], start: usize, end: usize) -> f32 {
+    let mut sum = 0.0f32;
+    for sample in &samples[start..end] {
+        sum += sample * sample;
+    }
+    sum
+}
+
 pub fn detect_silences_impl(
     samples: &[f32],
     sample_rate: f64,
@@ -77,7 +108,8 @@ pub fn detect_silences_impl(
 
     let window_size = ((sample_rate * WINDOW_SECONDS).round() as usize).max(1);
     let hop_size = ((sample_rate * HOP_SECONDS).round() as usize).max(1);
-    let threshold = 10f64.powf(threshold_db / 20.0);
+    let threshold = 10f32.powf((threshold_db as f32) / 20.0);
+    let threshold_energy = threshold * threshold;
 
     let window_count = if samples.len() >= window_size {
         (samples.len() - window_size) / hop_size + 1
@@ -86,16 +118,37 @@ pub fn detect_silences_impl(
     };
 
     let mut silent_windows = vec![false; window_count];
-    for window_index in 0..window_count {
-        let start = window_index * hop_size;
-        let end = (start + window_size).min(samples.len());
-        let mut sum_squares = 0.0f64;
-        for sample in &samples[start..end] {
-            let value = f64::from(*sample);
-            sum_squares += value * value;
+
+    if samples.len() < window_size {
+        let sum_squares = window_sum_squares(samples, 0, samples.len());
+        silent_windows[0] = sum_squares / (samples.len() as f32) < threshold_energy;
+    } else {
+        let mut sum_squares = window_sum_squares(samples, 0, window_size);
+        silent_windows[0] = sum_squares / (window_size as f32) < threshold_energy;
+
+        for window_index in 1..window_count {
+            let start = window_index * hop_size;
+            let prev_start = (window_index - 1) * hop_size;
+            let end = start + window_size;
+
+            if window_index % RECOMPUTE_EVERY == 0 {
+                sum_squares = window_sum_squares(samples, start, end);
+            } else {
+                for sample in &samples[prev_start..start] {
+                    sum_squares -= sample * sample;
+                }
+                let prev_end = prev_start + window_size;
+                for sample in &samples[prev_end..end] {
+                    sum_squares += sample * sample;
+                }
+                if sum_squares < 0.0 {
+                    sum_squares = 0.0;
+                }
+            }
+
+            silent_windows[window_index] =
+                sum_squares / (window_size as f32) < threshold_energy;
         }
-        let rms = (sum_squares / (end - start) as f64).sqrt();
-        silent_windows[window_index] = rms < threshold;
     }
 
     let duration_seconds = samples.len() as f64 / sample_rate;
@@ -150,6 +203,22 @@ mod tests {
     }
 
     #[test]
+    fn full_speech_returns_no_silence() {
+        let samples = vec![0.5f32; 2000];
+        let ranges = detect_silences_impl(&samples, 1000.0, -20.0, 0.2, 0.0);
+        assert!(ranges.is_empty());
+    }
+
+    #[test]
+    fn full_silence_is_detected() {
+        let samples = vec![0.0f32; 2000];
+        let ranges = detect_silences_impl(&samples, 1000.0, -40.0, 0.5, 0.0);
+        assert_eq!(ranges.len(), 1);
+        assert!(ranges[0].start_seconds < 0.05);
+        assert!((ranges[0].end_seconds - 2.0).abs() < 0.05);
+    }
+
+    #[test]
     fn silence_is_detected() {
         let sample_rate = 1000.0;
         let mut samples = vec![0.0f32; 2000];
@@ -158,5 +227,37 @@ mod tests {
         }
         let ranges = detect_silences_impl(&samples, sample_rate, -20.0, 0.2, 0.0);
         assert!(!ranges.is_empty());
+        // Leading silence ~0–0.5s and trailing ~1.5–2.0s.
+        assert!(ranges.len() >= 2);
+        assert!(ranges[0].end_seconds <= 0.55);
+        assert!(ranges.last().unwrap().start_seconds >= 1.45);
+    }
+
+    #[test]
+    fn short_silence_below_min_duration_is_discarded() {
+        let sample_rate = 1000.0;
+        let mut samples = vec![0.5f32; 2000];
+        // 100ms of silence — below 0.3s min.
+        for sample in &mut samples[900..1000] {
+            *sample = 0.0;
+        }
+        let ranges = detect_silences_impl(&samples, sample_rate, -20.0, 0.3, 0.0);
+        assert!(ranges.is_empty());
+    }
+
+    #[test]
+    fn padding_shrinks_detected_ranges() {
+        let samples = vec![0.0f32; 2000];
+        let unpadded = detect_silences_impl(&samples, 1000.0, -40.0, 0.5, 0.0);
+        let padded = detect_silences_impl(&samples, 1000.0, -40.0, 0.5, 0.1);
+        assert_eq!(unpadded.len(), 1);
+        assert_eq!(padded.len(), 1);
+        assert!(padded[0].start_seconds > unpadded[0].start_seconds);
+        assert!(padded[0].end_seconds < unpadded[0].end_seconds);
+    }
+
+    #[test]
+    fn invalid_sample_rate_returns_empty() {
+        assert!(detect_silences_impl(&[0.0], 0.0, -40.0, 0.1, 0.0).is_empty());
     }
 }
