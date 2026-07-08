@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { Segment } from "@dubbercut/types";
+import type { Segment, SpeakerVocalProfile } from "@dubbercut/types";
 import {
 	getPersistedTargetLanguage,
 	useLanguagePreferencesStore,
@@ -34,6 +34,8 @@ interface DubbingStore {
 	transcriptSegments: Segment[];
 	translationSegments: Segment[];
 	speakerVoices: Record<string, string>;
+	/** Auto-detected gender + default feeling per speaker. */
+	speakerProfiles: Record<string, SpeakerVocalProfile>;
 	defaultVoice: string;
 	abortController: AbortController | null;
 
@@ -50,6 +52,7 @@ interface DubbingStore {
 	}) => void;
 	setTranslation: (params: { text: string; segments: Segment[] }) => void;
 	setSpeakerVoice: (speaker: string, voice: string) => void;
+	setSpeakerProfiles: (profiles: SpeakerVocalProfile[]) => void;
 	setDefaultVoice: (voice: string) => void;
 	beginJob: () => AbortSignal;
 	cancelJob: () => void;
@@ -81,6 +84,7 @@ export const useDubbingStore = create<DubbingStore>()(
 			transcriptSegments: [],
 			translationSegments: [],
 			speakerVoices: {},
+			speakerProfiles: {},
 			defaultVoice: "Kore",
 			abortController: null,
 
@@ -109,6 +113,12 @@ export const useDubbingStore = create<DubbingStore>()(
 				set((state) => ({
 					speakerVoices: { ...state.speakerVoices, [speaker]: voice },
 				})),
+			setSpeakerProfiles: (profiles) =>
+				set({
+					speakerProfiles: Object.fromEntries(
+						profiles.map((profile) => [profile.speaker, profile]),
+					),
+				}),
 			setDefaultVoice: (defaultVoice) => set({ defaultVoice }),
 			beginJob: () => {
 				get().abortController?.abort();
@@ -151,6 +161,7 @@ export const useDubbingStore = create<DubbingStore>()(
 					transcriptSegments: [],
 					translationSegments: [],
 					speakerVoices: {},
+					speakerProfiles: {},
 				});
 			},
 		}),

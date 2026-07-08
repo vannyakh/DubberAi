@@ -1,6 +1,3 @@
-export { chatComplete, chatJson } from './chat';
-export type { ChatOptions } from './chat';
-
 export {
   transcribeVideo,
   analyzeVideo,
@@ -8,6 +5,15 @@ export {
   generateSpeech,
   generateMultiSpeakerSpeech,
 } from './gemini';
+
+export {
+  detectVocalStyles,
+  applyVocalStylesToSegments,
+  voiceForGender,
+  styleTtsPrompt,
+  feelingInstruction,
+} from './vocal-style';
+export type { DetectVocalStylesResult } from './vocal-style';
 
 export {
   correctGrammar,
@@ -29,3 +35,6 @@ export type {
   AgentCutPlanInput,
   AgentCutPlanResult,
 } from './agent-cut';
+
+export { chatComplete, chatJson } from './chat';
+export type { ChatOptions } from './chat';

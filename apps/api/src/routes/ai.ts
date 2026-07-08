@@ -13,6 +13,7 @@ import {
   generateMultiSpeakerSpeech,
   planAutoCutRanges,
   planAgentCut,
+  detectVocalStyles,
 } from '@dubbercut/ai';
 
 const textInput = z.object({ text: z.string().min(1) });
@@ -145,8 +146,54 @@ export async function aiRoutes(app: FastifyInstance) {
   );
 
   app.post('/tts', async (request) => {
-    const body = textInput.extend({ voice: z.string().optional() }).parse(request.body);
-    const result = await generateSpeech(body.text, body.voice);
+    const body = textInput
+      .extend({
+        voice: z.string().optional(),
+        style: z
+          .object({
+            feeling: z.string().optional(),
+            intensity: z.string().optional(),
+            delivery: z.string().optional(),
+            persona: z.string().optional(),
+          })
+          .optional(),
+      })
+      .parse(request.body);
+    const result = await generateSpeech(body.text, body.voice, body.style);
+    return { result };
+  });
+
+  app.post('/vocal-styles', async (request) => {
+    const body = z
+      .object({
+        transcript: z.string().min(1),
+        segments: z.array(
+          z.object({
+            time: z.number(),
+            speaker: z.string(),
+            text: z.string(),
+            raw: z.string().optional().default(''),
+            pauseBeforeSeconds: z.number().optional(),
+            pauseAfterSeconds: z.number().optional(),
+            inlinePauses: z.array(z.number()).optional(),
+            end: z.number().optional(),
+          }),
+        ),
+      })
+      .parse(request.body);
+    const result = await detectVocalStyles({
+      transcript: body.transcript,
+      segments: body.segments.map((segment) => ({
+        time: segment.time,
+        speaker: segment.speaker,
+        text: segment.text,
+        raw: segment.raw ?? '',
+        pauseBeforeSeconds: segment.pauseBeforeSeconds,
+        pauseAfterSeconds: segment.pauseAfterSeconds,
+        inlinePauses: segment.inlinePauses,
+        end: segment.end,
+      })),
+    });
     return { result };
   });
 

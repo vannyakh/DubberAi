@@ -392,6 +392,37 @@ function sanitizeTtsText(text: string): string {
     .slice(0, 4000);
 }
 
+function buildEmotionalTtsText({
+  text,
+  style,
+}: {
+  text: string;
+  style?: {
+    feeling?: string;
+    intensity?: string;
+    delivery?: string;
+    persona?: string;
+  };
+}): string {
+  const spoken = sanitizeTtsText(text);
+  if (!spoken) return spoken;
+  if (!style?.feeling && !style?.delivery && !style?.persona) return spoken;
+
+  const mood =
+    style.feeling && style.feeling !== 'neutral' ? style.feeling : 'natural';
+  const energy = style.intensity || 'medium';
+  const parts = [
+    `Speak with a ${mood} emotional tone`,
+    `at ${energy} intensity`,
+  ];
+  if (style.persona) parts.push(`as ${style.persona}`);
+  if (style.delivery) parts.push(`using ${style.delivery}`);
+  parts.push(
+    'Sound like a real character performance. Do not narrate stage directions out loud.',
+  );
+  return `${parts.join(', ')}.\n\nDialogue:\n${spoken}`;
+}
+
 function extractAudioFromTtsPayload(payload: unknown): { data: string; mimeType?: string } | null {
   const root = payload as {
     candidates?: Array<{ content?: { parts?: TtsPart[] } }>;
@@ -507,10 +538,20 @@ async function requestGeminiTts({
 /**
  * Gemini TTS via 302.AI dedicated speech model.
  * Docs: POST /google/v1/models/gemini-2.5-flash-preview-tts
+ * Optional style cues are folded into the prompt for emotional delivery.
  */
-export async function generateSpeech(text: string, voice: string = 'Kore') {
+export async function generateSpeech(
+  text: string,
+  voice: string = 'Kore',
+  style?: {
+    feeling?: string;
+    intensity?: string;
+    delivery?: string;
+    persona?: string;
+  },
+) {
   assertAiKey();
-  const cleanText = sanitizeTtsText(text);
+  const cleanText = buildEmotionalTtsText({ text, style });
   if (!cleanText) {
     throw new Error('Speech synthesis requires non-empty dialogue text');
   }

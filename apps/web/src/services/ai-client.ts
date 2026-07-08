@@ -50,8 +50,60 @@ export function translateText(
 }
 
 /** Returns base64-encoded PCM audio. */
-export function generateSpeech(text: string, voice?: string): Promise<string> {
-	return postAi<string>("tts", { text, voice });
+export function generateSpeech(
+	text: string,
+	voice?: string,
+	style?: {
+		feeling?: string;
+		intensity?: string;
+		delivery?: string;
+		persona?: string;
+	},
+): Promise<string> {
+	return postAi<string>("tts", { text, voice, style });
+}
+
+export interface SpeakerVocalProfileResult {
+	speaker: string;
+	gender: "female" | "male" | "neutral";
+	defaultFeeling:
+		| "neutral"
+		| "warm"
+		| "calm"
+		| "excited"
+		| "angry"
+		| "sad"
+		| "serious"
+		| "playful"
+		| "fearful"
+		| "romantic"
+		| "urgent";
+	persona?: string;
+}
+
+export interface DetectVocalStylesClientResult {
+	speakers: SpeakerVocalProfileResult[];
+	segmentStyles: Record<
+		number,
+		{
+			feeling: SpeakerVocalProfileResult["defaultFeeling"];
+			intensity: "low" | "medium" | "high";
+			delivery?: string;
+		}
+	>;
+}
+
+/** Infer speaker gender + emotional delivery from transcript/segments. */
+export function detectVocalStyles(body: {
+	transcript: string;
+	segments: Array<{
+		time: number;
+		speaker: string;
+		text: string;
+		raw?: string;
+	}>;
+}): Promise<DetectVocalStylesClientResult> {
+	return postAi<DetectVocalStylesClientResult>("vocal-styles", body);
 }
 
 /** Returns base64-encoded PCM audio. */

@@ -1,5 +1,5 @@
 import { generateSpeech } from "@/services/ai-client";
-import type { Segment } from "@dubbercut/types";
+import type { Segment, SpeakerVocalProfile } from "@dubbercut/types";
 import { pcmBase64ToWavFile } from "./apply-to-timeline";
 
 const previewCache = new Map<string, string>();
@@ -8,11 +8,28 @@ let activeAudio: HTMLAudioElement | null = null;
 function cacheKey({
 	text,
 	voice,
+	styleKey,
 }: {
 	text: string;
 	voice: string;
+	styleKey: string;
 }): string {
-	return `${voice}::${text}`;
+	return `${voice}::${styleKey}::${text}`;
+}
+
+function styleCacheKey(style?: {
+	feeling?: string;
+	intensity?: string;
+	delivery?: string;
+	persona?: string;
+}): string {
+	if (!style) return "plain";
+	return [
+		style.feeling ?? "",
+		style.intensity ?? "",
+		style.delivery ?? "",
+		style.persona ?? "",
+	].join("|");
 }
 
 export function stopSegmentPreview(): void {
@@ -35,20 +52,31 @@ export function clearSegmentPreviewCache(): void {
 async function ensurePreviewObjectUrl({
 	segment,
 	voice,
+	style,
 }: {
 	segment: Segment;
 	voice: string;
+	style?: {
+		feeling?: string;
+		intensity?: string;
+		delivery?: string;
+		persona?: string;
+	};
 }): Promise<string> {
 	const text = segment.text.trim();
 	if (!text) {
 		throw new Error("This segment has no spoken text to preview");
 	}
 
-	const key = cacheKey({ text, voice });
+	const key = cacheKey({
+		text,
+		voice,
+		styleKey: styleCacheKey(style),
+	});
 	const cached = previewCache.get(key);
 	if (cached) return cached;
 
-	const pcmBase64 = await generateSpeech(text, voice);
+	const pcmBase64 = await generateSpeech(text, voice, style);
 	if (!pcmBase64) {
 		throw new Error("Speech synthesis returned no audio");
 	}
@@ -68,17 +96,24 @@ async function ensurePreviewObjectUrl({
 export async function previewSegmentSpeech({
 	segment,
 	voice,
+	style,
 	onPlaying,
 	onEnded,
 }: {
 	segment: Segment;
 	voice: string;
+	style?: {
+		feeling?: string;
+		intensity?: string;
+		delivery?: string;
+		persona?: string;
+	};
 	onPlaying?: () => void;
 	onEnded?: () => void;
 }): Promise<void> {
 	stopSegmentPreview();
 
-	const objectUrl = await ensurePreviewObjectUrl({ segment, voice });
+	const objectUrl = await ensurePreviewObjectUrl({ segment, voice, style });
 	const audio = new Audio(objectUrl);
 	activeAudio = audio;
 
@@ -108,6 +143,22 @@ export async function previewSegmentSpeech({
 				);
 			});
 	});
+}
+
+export function resolvePreviewStyle({
+	segment,
+	speakerProfiles,
+}: {
+	segment: Segment;
+	speakerProfiles?: Record<string, SpeakerVocalProfile>;
+}) {
+	const profile = speakerProfiles?.[segment.speaker || "Speaker"];
+	return {
+		feeling: segment.feeling ?? profile?.defaultFeeling ?? "neutral",
+		intensity: segment.intensity ?? "medium",
+		delivery: segment.delivery,
+		persona: profile?.persona,
+	};
 }
 
 /** Best matching translation line for a transcript segment (index, then speaker+time). */

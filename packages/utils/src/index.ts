@@ -196,9 +196,15 @@ export const LANGUAGES = [
 ];
 
 export const VOICES = [
-  { id: 'Kore', label: 'Female (Kore)' },
-  { id: 'Zephyr', label: 'Female (Zephyr)' },
-  { id: 'Puck', label: 'Male (Puck)' },
-  { id: 'Charon', label: 'Male (Charon)' },
-  { id: 'Fenrir', label: 'Male (Fenrir)' },
+  { id: 'Kore', label: 'Female (Kore)', gender: 'female' as const },
+  { id: 'Zephyr', label: 'Female (Zephyr)', gender: 'female' as const },
+  { id: 'Puck', label: 'Male (Puck)', gender: 'male' as const },
+  { id: 'Charon', label: 'Male (Charon)', gender: 'male' as const },
+  { id: 'Fenrir', label: 'Male (Fenrir)', gender: 'male' as const },
 ];
+
+export function voicesForGender(gender: 'female' | 'male' | 'neutral') {
+  if (gender === 'female') return VOICES.filter((voice) => voice.gender === 'female');
+  if (gender === 'male') return VOICES.filter((voice) => voice.gender === 'male');
+  return VOICES;
+}

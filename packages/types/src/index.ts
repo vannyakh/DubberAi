@@ -3,6 +3,40 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+export type VocalGender = 'female' | 'male' | 'neutral';
+
+export type VocalFeeling =
+  | 'neutral'
+  | 'warm'
+  | 'calm'
+  | 'excited'
+  | 'angry'
+  | 'sad'
+  | 'serious'
+  | 'playful'
+  | 'fearful'
+  | 'romantic'
+  | 'urgent';
+
+export type VocalIntensity = 'low' | 'medium' | 'high';
+
+/** Per-speaker gender + default acting style for voice casting. */
+export interface SpeakerVocalProfile {
+  speaker: string;
+  gender: VocalGender;
+  defaultFeeling: VocalFeeling;
+  /** Short persona cue, e.g. "gentle narrator", "sharp antagonist". */
+  persona?: string;
+}
+
+/** Per-line emotional delivery used to tune TTS. */
+export interface SegmentVocalStyle {
+  feeling: VocalFeeling;
+  intensity: VocalIntensity;
+  /** Short delivery cue, e.g. "soft smile", "shaky whisper". */
+  delivery?: string;
+}
+
 export interface Segment {
   time: number;
   speaker: string;
@@ -17,6 +51,12 @@ export interface Segment {
   inlinePauses?: number[];
   /** Optional end time when known from the next segment beat. */
   end?: number;
+  /** Auto-detected emotional feeling for this line. */
+  feeling?: VocalFeeling;
+  /** Auto-detected intensity for TTS delivery. */
+  intensity?: VocalIntensity;
+  /** Short emotional delivery cue for TTS prompting. */
+  delivery?: string;
 }
 
 export interface Language {
