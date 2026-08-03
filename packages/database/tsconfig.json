@@ -1,4 +1,0 @@
-{
-  "extends": "@dubbercut/config/tsconfig/base.json",
-  "include": ["src"]
-}

@@ -1,9 +1,8 @@
 import type { EditorCore } from "@/core";
 import { decodeAudioToFloat32 } from "@/media/audio";
-import { extractAudioForTranscription } from "@/dubbing/extract-audio";
 import {
 	planAutoCutRanges,
-	transcribeVideo,
+	transcribeMediaFile,
 	type AgentCutAction,
 	type AgentCutPlanResult,
 } from "@/services/ai-client";
@@ -181,8 +180,7 @@ async function transcribeAnalysisClip({
 		throw new Error("Could not load media for planning");
 	}
 
-	const { base64, mimeType } = await extractAudioForTranscription({ file });
-	const transcription = await transcribeVideo(base64, mimeType);
+	const transcription = await transcribeMediaFile({ file });
 	const transcript = transcription.transcript?.trim() ?? "";
 	if (!transcript) {
 		throw new Error("Transcription returned no speech to analyze");

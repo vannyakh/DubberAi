@@ -1,11 +1,10 @@
 import {
-	transcribeVideo,
+	transcribeMediaFile,
 	translateText,
 	generateSpeech,
 	detectVocalStyles,
 } from "@/services/ai-client";
-import { parseSegments, fileToBase64, VOICES } from "@dubbercut/utils";
-import { extractAudioForTranscription } from "./extract-audio";
+import { parseSegments, VOICES } from "@dubbercut/utils";
 import type { Segment, SpeakerVocalProfile } from "@dubbercut/types";
 import type { EditorCore } from "@/core";
 import type { MediaAsset } from "@/media/types";
@@ -278,26 +277,17 @@ export async function runTranscription({
 			const store = getStore();
 			setStageProgress(12);
 
-			let payload: { base64: string; mimeType: string };
-			try {
-				payload = await extractAudioForTranscription({ file: asset.file });
-			} catch (extractError) {
-				console.warn(
-					"Audio extraction failed, sending original file:",
-					extractError,
-				);
-				assertNotCancelled(signal);
-				payload = {
-					base64: await fileToBase64(asset.file),
-					mimeType: asset.file.type || "video/mp4",
-				};
-			}
-
 			assertNotCancelled(signal);
-			setStageProgress(28);
 			const result = await withProgressTicker({
 				untilPercent: 72,
-				run: () => transcribeVideo(payload.base64, payload.mimeType),
+				run: () =>
+					transcribeMediaFile({
+						file: asset.file,
+						onChunkProgress: (done, total) => {
+							const ratio = total > 0 ? done / total : 1;
+							setStageProgress(12 + Math.round(ratio * 55));
+						},
+					}),
 			});
 
 			assertNotCancelled(signal);

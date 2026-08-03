@@ -30,9 +30,27 @@ const envContent = ['.env', '.env.local']
   .map((p) => readFileSync(p, 'utf8'))
   .join('\n');
 const has = (key) => Boolean(process.env[key]) || new RegExp(`^${key}=.+`, 'm').test(envContent);
-for (const key of ['API_KEY_302', 'DATABASE_URL', 'AUTH_SECRET']) {
+
+for (const key of ['DATABASE_URL', 'AUTH_SECRET']) {
   console.log(`  [${has(key) ? 'ok' : 'MISSING'}] ${key}`);
   if (!has(key)) ok = false;
+}
+
+const hasHf = has('HF_TOKEN') || has('HUGGINGFACE_API_KEY');
+const hasLlmTts = has('GEMINI_API_KEY') || hasHf;
+console.log(
+  `  [${hasLlmTts ? 'ok' : 'MISSING'}] LLM/TTS — GEMINI_API_KEY or HF_TOKEN`,
+);
+if (!hasLlmTts) ok = false;
+
+console.log(
+  `  [${has('OPENAI_API_KEY') || hasHf ? 'ok' : 'optional'}] OPENAI_API_KEY (Whisper STT; HF fallback if unset)`,
+);
+console.log(
+  `  [${has('ANTHROPIC_API_KEY') || hasHf ? 'ok' : 'optional'}] ANTHROPIC_API_KEY (or HF fallback for auto-cut)`,
+);
+if (hasHf) {
+  console.log('  [ok] HF_TOKEN — Hugging Face fallback for LLM/TTS');
 }
 
 process.exit(ok ? 0 : 1);

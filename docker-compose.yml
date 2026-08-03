@@ -5,12 +5,9 @@ services:
   mongo:
     image: mongo:7
     command: ["--replSet", "rs0", "--bind_ip_all"]
-    # Not exposed to the host (would clash with a local mongod); containers
-    # reach it at mongo:27017 on the compose network.
     volumes:
       - mongo-data:/data/db
     healthcheck:
-      # Prisma's MongoDB connector requires a replica set; initiate it once.
       test: >
         mongosh --quiet --eval
         "try { rs.status().ok } catch (e) { rs.initiate({_id:'rs0',members:[{_id:0,host:'mongo:27017'}]}).ok }"
@@ -47,7 +44,7 @@ services:
       dockerfile: docker/api.Dockerfile
     ports:
       - "4000:4000"
-    env_file: .env # API_KEY_302 and friends
+    env_file: .env # GEMINI_API_KEY / OPENAI_API_KEY / ANTHROPIC_API_KEY and friends
     environment:
       DATABASE_URL: mongodb://mongo:27017/dubbercut?replicaSet=rs0&directConnection=true
       REDIS_URL: redis://redis:6379
@@ -76,7 +73,7 @@ services:
       dockerfile: docker/worker.Dockerfile
       args:
         WORKER: ai-worker
-    env_file: .env # needs API_KEY_302 for AI calls
+    env_file: .env
     environment:
       API_URL: http://api:4000
     depends_on:

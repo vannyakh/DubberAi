@@ -1,5 +1,21 @@
-import { API_302_KEY, API_302_BASE_URL, assertAiKey, TTS_MODEL, TRANSCRIBE_MODEL } from './config';
+import {
+  assertGeminiKey,
+  assertOpenAiKey,
+  GEMINI_API_KEY,
+  GEMINI_BASE_URL,
+  hasGeminiKey,
+  hasHfToken,
+  hasOpenAiKey,
+  OPENAI_API_KEY,
+  OPENAI_BASE_URL,
+  TRANSCRIBE_CHUNK_SECONDS,
+  TRANSCRIBE_CONCURRENCY,
+  TRANSCRIBE_MODEL,
+  TTS_MODEL,
+} from './config';
 import { chatComplete } from './chat';
+import { synthesizeHuggingFaceSpeech, transcribeHuggingFace } from './huggingface';
+import { mapPool, splitWavIntoChunks } from './wav';
 
 class ApiError extends Error {
   constructor(message: string, readonly status: number) {
@@ -12,7 +28,7 @@ async function withRetry<T>(fn: () => Promise<T>, retries = 3, delay = 1000): Pr
     return await fn();
   } catch (error: any) {
     if (retries > 0 && (error.status === 500 || error.status === 503 || error.status === 429)) {
-      console.warn(`302.AI error (${error.status}). Retrying in ${delay}ms... (${retries} attempts left)`);
+      console.warn(`AI error (${error.status}). Retrying in ${delay}ms... (${retries} attempts left)`);
       await new Promise((resolve) => setTimeout(resolve, delay));
       return withRetry(fn, retries - 1, delay * 2);
     }
@@ -142,110 +158,184 @@ function guessSpeakerIndex(segments: WhisperSegment[], index: number): number {
 }
 
 /**
- * Speech-to-text via 302.AI OpenAI-compatible Whisper endpoint.
- * Gemini text models on the gateway often ignore inline audio and refuse.
+ * Speech-to-text: split WAV into chunks and run Whisper in parallel.
+ * Never sends the full long-form payload as a single provider call.
  */
 export async function transcribeVideo(videoBase64: string, mimeType: string) {
-  assertAiKey();
-  return withRetry(async () => {
-    const bytes = base64ToBytes(videoBase64);
-    if (bytes.length === 0) {
-      throw new Error('Transcription payload is empty');
-    }
+  if (!hasOpenAiKey() && !hasHfToken()) {
+    assertOpenAiKey();
+  }
 
-    const postTranscription = async ({
-      model,
-      responseFormat,
-    }: {
-      model: string;
-      responseFormat: 'verbose_json' | 'json';
-    }) => {
-      const form = new FormData();
-      const blob = new Blob([new Uint8Array(bytes)], {
-        type: mimeType || 'audio/wav',
-      });
-      form.append('file', blob, `audio.${extensionForMime(mimeType)}`);
-      form.append('model', model);
-      form.append('response_format', responseFormat);
+  const bytes = base64ToBytes(videoBase64);
+  if (bytes.length === 0) {
+    throw new Error('Transcription payload is empty');
+  }
 
-      return fetch(`${API_302_BASE_URL}/v1/audio/transcriptions`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${API_302_KEY}`,
-        },
-        body: form,
-      });
-    };
+  const isWav = (mimeType || '').toLowerCase().includes('wav');
+  const chunks = isWav
+    ? splitWavIntoChunks(bytes, TRANSCRIBE_CHUNK_SECONDS)
+    : [{ wavBytes: bytes, startSeconds: 0, index: 0 }];
 
-    const parseError = async (response: Response) => {
-      const errText = await response.text();
-      let errCode: number | undefined;
-      let message = `Transcription failed with status ${response.status}`;
-      try {
-        const errJson = JSON.parse(errText) as {
-          error?: { err_code?: number; message?: string };
-          message?: string;
-        };
-        errCode = errJson.error?.err_code;
-        message = errJson.error?.message || errJson.message || message;
-      } catch {
-        if (errText) message = errText;
-      }
-      return { errCode, message };
-    };
+  if (chunks.length > 1) {
+    console.info(
+      `STT: splitting into ${chunks.length} chunks (~${TRANSCRIBE_CHUNK_SECONDS}s) with concurrency ${TRANSCRIBE_CONCURRENCY}`,
+    );
+  }
 
-    // Prefer configured model + verbose timestamps; fall back to simpler
-    // OpenAI-compatible whisper-1/json when 302 rejects params (-10003).
-    const attempts: Array<{ model: string; responseFormat: 'verbose_json' | 'json' }> = [
-      { model: TRANSCRIBE_MODEL, responseFormat: 'verbose_json' },
-      { model: TRANSCRIBE_MODEL, responseFormat: 'json' },
-    ];
-    if (TRANSCRIBE_MODEL !== 'whisper-1') {
-      attempts.push(
-        { model: 'whisper-1', responseFormat: 'verbose_json' },
-        { model: 'whisper-1', responseFormat: 'json' },
+  const chunkResults = await mapPool(
+    chunks,
+    TRANSCRIBE_CONCURRENCY,
+    async (chunk) => {
+      const result = await withRetry(() =>
+        hasOpenAiKey()
+          ? transcribeWavBytesOpenAi(chunk.wavBytes, 'audio/wav')
+          : transcribeWavBytesHf(chunk.wavBytes),
       );
-    }
-
-    let response: Response | null = null;
-    let lastError = 'Transcription failed';
-    for (const attempt of attempts) {
-      response = await postTranscription(attempt);
-      if (response.ok) break;
-      const { errCode, message } = await parseError(response);
-      lastError = message;
-      const retryable = errCode === -10003 || /parameter error/i.test(message);
-      if (!retryable) throw new ApiError(message, response.status);
-      console.warn(
-        `302 STT rejected ${attempt.model}/${attempt.responseFormat}; trying fallback…`,
-      );
-      response = null;
-    }
-    if (!response?.ok) {
-      throw new ApiError(lastError, 400);
-    }
-
-    const payload = (await response.json()) as WhisperTranscriptionResult | string;
-    if (typeof payload === 'string') {
-      const text = payload.trim();
-      if (!text) throw new Error('Transcription returned no dialogue');
-      if (isAiMediaRefusal(text)) {
-        throw new Error(
-          'Transcription failed: the AI service did not receive usable audio. Try a shorter main-track clip.',
-        );
-      }
       return {
-        detectedLanguage: null,
-        transcript: `[00:00] Speaker 1: ${text}`,
+        startSeconds: chunk.startSeconds,
+        result,
       };
-    }
+    },
+  );
 
-    const formatted = formatWhisperTranscript(payload);
-    if (!formatted.transcript) {
-      throw new Error('Transcription returned no dialogue');
+  const mergedSegments: WhisperSegment[] = [];
+  let language: string | undefined;
+  const plainParts: string[] = [];
+
+  for (const { startSeconds, result } of chunkResults) {
+    if (result.language && !language) language = result.language;
+    if (result.segments && result.segments.length > 0) {
+      for (const segment of result.segments) {
+        mergedSegments.push({
+          ...segment,
+          start: (segment.start ?? 0) + startSeconds,
+          end:
+            segment.end != null ? segment.end + startSeconds : undefined,
+        });
+      }
+    } else if (result.text?.trim()) {
+      plainParts.push(result.text.trim());
+      mergedSegments.push({
+        start: startSeconds,
+        text: result.text.trim(),
+      });
     }
-    return formatted;
+  }
+
+  const formatted = formatWhisperTranscript({
+    language,
+    text: plainParts.join(' ').trim() || undefined,
+    segments: mergedSegments,
   });
+
+  if (!formatted.transcript) {
+    throw new Error('Transcription returned no dialogue');
+  }
+  return formatted;
+}
+
+async function transcribeWavBytesOpenAi(
+  bytes: Uint8Array,
+  mimeType: string,
+): Promise<WhisperTranscriptionResult> {
+  assertOpenAiKey();
+
+  const postTranscription = async ({
+    model,
+    responseFormat,
+  }: {
+    model: string;
+    responseFormat: 'verbose_json' | 'json';
+  }) => {
+    const form = new FormData();
+    const blob = new Blob([new Uint8Array(bytes)], {
+      type: mimeType || 'audio/wav',
+    });
+    form.append('file', blob, `audio.${extensionForMime(mimeType)}`);
+    form.append('model', model);
+    form.append('response_format', responseFormat);
+
+    return fetch(`${OPENAI_BASE_URL}/v1/audio/transcriptions`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
+      },
+      body: form,
+    });
+  };
+
+  const parseError = async (response: Response) => {
+    const errText = await response.text();
+    let message = `Transcription failed with status ${response.status}`;
+    try {
+      const errJson = JSON.parse(errText) as {
+        error?: { message?: string };
+        message?: string;
+      };
+      message = errJson.error?.message || errJson.message || message;
+    } catch {
+      if (errText) message = errText;
+    }
+    return { message };
+  };
+
+  const attempts: Array<{ model: string; responseFormat: 'verbose_json' | 'json' }> = [
+    { model: TRANSCRIBE_MODEL, responseFormat: 'verbose_json' },
+    { model: TRANSCRIBE_MODEL, responseFormat: 'json' },
+  ];
+  if (TRANSCRIBE_MODEL !== 'whisper-1') {
+    attempts.push(
+      { model: 'whisper-1', responseFormat: 'verbose_json' },
+      { model: 'whisper-1', responseFormat: 'json' },
+    );
+  }
+
+  let response: Response | null = null;
+  let lastError = 'Transcription failed';
+  for (const attempt of attempts) {
+    response = await postTranscription(attempt);
+    if (response.ok) break;
+    const { message } = await parseError(response);
+    lastError = message;
+    const retryable = /parameter|invalid|unsupported/i.test(message);
+    if (!retryable) throw new ApiError(message, response.status);
+    console.warn(
+      `STT rejected ${attempt.model}/${attempt.responseFormat}; trying fallback…`,
+    );
+    response = null;
+  }
+  if (!response?.ok) {
+    throw new ApiError(lastError, 400);
+  }
+
+  const payload = (await response.json()) as WhisperTranscriptionResult | string;
+  if (typeof payload === 'string') {
+    const text = payload.trim();
+    if (!text) throw new Error('Transcription returned no dialogue');
+    if (isAiMediaRefusal(text)) {
+      throw new Error(
+        'Transcription failed: the AI service did not receive usable audio. Try a shorter main-track clip.',
+      );
+    }
+    return { text };
+  }
+  return payload;
+}
+
+async function transcribeWavBytesHf(bytes: Uint8Array): Promise<WhisperTranscriptionResult> {
+  console.warn('OPENAI_API_KEY unset — using Hugging Face Whisper.');
+  const payload = await transcribeHuggingFace(bytes);
+  const segments =
+    payload.chunks?.map((chunk) => ({
+      text: chunk.text,
+      start: chunk.timestamp?.[0],
+      end: chunk.timestamp?.[1],
+    })) ?? undefined;
+  return {
+    text: payload.text,
+    language: payload.language,
+    segments,
+  };
 }
 
 export async function analyzeVideo(videoBase64: string, mimeType: string, language: string) {
@@ -465,6 +555,10 @@ function extractAudioFromTtsPayload(payload: unknown): { data: string; mimeType?
   return null;
 }
 
+function geminiGenerateUrl(model: string): string {
+  return `${GEMINI_BASE_URL}/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(GEMINI_API_KEY)}`;
+}
+
 async function requestGeminiTts({
   text,
   voiceName,
@@ -473,7 +567,6 @@ async function requestGeminiTts({
   voiceName: string;
 }): Promise<string> {
   const body = {
-    model: TTS_MODEL,
     contents: [{ role: 'user', parts: [{ text }] }],
     generationConfig: {
       responseModalities: ['AUDIO'],
@@ -485,59 +578,49 @@ async function requestGeminiTts({
     },
   };
 
-  const urls = [
-    `${API_302_BASE_URL}/google/v1/models/${encodeURIComponent(TTS_MODEL)}:generateContent`,
-    `${API_302_BASE_URL}/google/v1/models/${encodeURIComponent(TTS_MODEL)}`,
-    `${API_302_BASE_URL}/v1beta/models/${encodeURIComponent(TTS_MODEL)}:generateContent`,
-  ];
+  const response = await fetch(geminiGenerateUrl(TTS_MODEL), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
 
-  let lastError = 'Failed to generate audio';
-  for (const url of urls) {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${API_302_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(body),
-    });
-
-    const raw = await response.text();
-    let payload: unknown = null;
-    try {
-      payload = raw ? JSON.parse(raw) : null;
-    } catch {
-      payload = null;
-    }
-
-    if (!response.ok) {
-      const errJson = payload as {
-        error?: { err_code?: number; message?: string };
-        message?: string;
-      } | null;
-      lastError =
-        errJson?.error?.message ||
-        errJson?.message ||
-        `TTS failed with status ${response.status}`;
-      if (errJson?.error?.err_code === -10003 || /parameter error/i.test(lastError)) {
-        continue;
-      }
-      throw new ApiError(lastError, response.status);
-    }
-
-    const audio = extractAudioFromTtsPayload(payload);
-    if (audio?.data) {
-      return resolveTtsAudioBase64(audio);
-    }
-    lastError = 'Failed to generate audio';
+  const raw = await response.text();
+  let payload: unknown = null;
+  try {
+    payload = raw ? JSON.parse(raw) : null;
+  } catch {
+    payload = null;
   }
 
-  throw new Error(lastError);
+  if (!response.ok) {
+    const errJson = payload as {
+      error?: { message?: string };
+      message?: string;
+    } | null;
+    const lastError =
+      errJson?.error?.message ||
+      errJson?.message ||
+      `TTS failed with status ${response.status}`;
+    throw new ApiError(lastError, response.status);
+  }
+
+  const audio = extractAudioFromTtsPayload(payload);
+  if (audio?.data) {
+    return resolveTtsAudioBase64(audio);
+  }
+  throw new Error('Failed to generate audio');
+}
+
+async function requestHuggingFaceTts(text: string): Promise<string> {
+  const bytes = await synthesizeHuggingFaceSpeech(text);
+  return resolveTtsAudioBase64({
+    data: bytesToBase64(bytes),
+    mimeType: 'audio/wav',
+  });
 }
 
 /**
- * Gemini TTS via 302.AI dedicated speech model.
- * Docs: POST /google/v1/models/gemini-2.5-flash-preview-tts
+ * Gemini TTS when GEMINI_API_KEY is set; otherwise Hugging Face TTS.
  * Optional style cues are folded into the prompt for emotional delivery.
  */
 export async function generateSpeech(
@@ -550,17 +633,24 @@ export async function generateSpeech(
     persona?: string;
   },
 ) {
-  assertAiKey();
   const cleanText = buildEmotionalTtsText({ text, style });
   if (!cleanText) {
     throw new Error('Speech synthesis requires non-empty dialogue text');
   }
+
+  if (!hasGeminiKey()) {
+    if (!hasHfToken()) {
+      assertGeminiKey();
+    }
+    console.warn('GEMINI_API_KEY unset — using Hugging Face TTS.');
+    return withRetry(async () => requestHuggingFaceTts(cleanText));
+  }
+
   const voiceName = normalizeVoice(voice);
   return withRetry(async () => requestGeminiTts({ text: cleanText, voiceName }));
 }
 
 export async function generateMultiSpeakerSpeech(text: string, speakerVoices: Record<string, string>) {
-  assertAiKey();
   const speakerEntries = Object.entries(speakerVoices);
   const cleanText = sanitizeTtsText(text);
   if (!cleanText) {
@@ -568,7 +658,7 @@ export async function generateMultiSpeakerSpeech(text: string, speakerVoices: Re
   }
 
   // Prefer per-speaker single clips upstream; multi-speaker remains a fallback.
-  if (speakerEntries.length === 2) {
+  if (hasGeminiKey() && speakerEntries.length === 2) {
     try {
       const speakerConfigs = speakerEntries.map(([speaker, voice]) => ({
         speaker,
@@ -577,33 +667,26 @@ export async function generateMultiSpeakerSpeech(text: string, speakerVoices: Re
         },
       }));
 
-      const response = await fetch(
-        `${API_302_BASE_URL}/google/v1/models/${encodeURIComponent(TTS_MODEL)}:generateContent`,
-        {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${API_302_KEY}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: TTS_MODEL,
-            contents: [
-              {
-                role: 'user',
-                parts: [{ text: `TTS the following conversation:\n${cleanText}` }],
-              },
-            ],
-            generationConfig: {
-              responseModalities: ['AUDIO'],
-              speechConfig: {
-                multiSpeakerVoiceConfig: {
-                  speakerVoiceConfigs: speakerConfigs,
-                },
+      const response = await fetch(geminiGenerateUrl(TTS_MODEL), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [
+            {
+              role: 'user',
+              parts: [{ text: `TTS the following conversation:\n${cleanText}` }],
+            },
+          ],
+          generationConfig: {
+            responseModalities: ['AUDIO'],
+            speechConfig: {
+              multiSpeakerVoiceConfig: {
+                speakerVoiceConfigs: speakerConfigs,
               },
             },
-          }),
-        },
-      );
+          },
+        }),
+      });
 
       if (response.ok) {
         const payload = await response.json();

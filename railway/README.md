@@ -37,7 +37,9 @@ For each row in the table above:
 `api`:
 
 ```
-API_KEY_302=sk-...
+GEMINI_API_KEY=
+OPENAI_API_KEY=
+ANTHROPIC_API_KEY=
 DATABASE_URL=mongodb+srv://USER:PASS@cluster.mongodb.net/dubbercut?retryWrites=true&w=majority
 AUTH_SECRET=<openssl rand -base64 32>
 REDIS_URL=${{Redis.REDIS_URL}}          # if you added Redis
@@ -62,7 +64,7 @@ WORKER=ai-worker            # or render-worker / export-worker — picks which
 API_URL=http://${{api.RAILWAY_PRIVATE_DOMAIN}}:${{api.PORT}}
 ```
 
-`ai-worker` additionally needs `API_KEY_302`.
+`ai-worker` additionally needs `GEMINI_API_KEY`, `OPENAI_API_KEY`, and `ANTHROPIC_API_KEY`.
 
 `web` (available to the Docker build because the Dockerfile declares the ARG):
 

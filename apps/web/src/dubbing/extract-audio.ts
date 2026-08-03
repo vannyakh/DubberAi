@@ -1,13 +1,12 @@
 import { decodeAudioToFloat32 } from "@/media/audio";
 
 /**
- * Gemini's inline-data limit is ~20 MB per request, so sending whole
- * videos fails for anything but tiny clips (the model then answers
- * "I cannot process video content"). Speech is all the transcriber
- * needs, so we decode the file locally and ship a compact mono WAV.
+ * Speech is all the transcriber needs. We decode locally to 16 kHz mono WAV
+ * and split into short chunks so the API never receives one huge payload.
  */
 const TRANSCRIBE_SAMPLE_RATE = 16000;
-const MAX_INLINE_AUDIO_BYTES = 19 * 1024 * 1024;
+const DEFAULT_CHUNK_SECONDS = 30;
+const DEFAULT_CONCURRENCY = 3;
 
 function encodeWavFromFloat32({
 	samples,
@@ -66,9 +65,52 @@ export interface ExtractedAudio {
 	mimeType: string;
 }
 
+export interface ExtractedAudioChunk extends ExtractedAudio {
+	/** Absolute start time of this slice in the source audio. */
+	startSeconds: number;
+	index: number;
+}
+
+export interface ExtractedAudioChunks {
+	chunks: ExtractedAudioChunk[];
+	sampleRate: number;
+	durationSeconds: number;
+}
+
+function splitSamplesIntoChunks({
+	samples,
+	sampleRate,
+	chunkSeconds,
+}: {
+	samples: Float32Array;
+	sampleRate: number;
+	chunkSeconds: number;
+}): ExtractedAudioChunk[] {
+	const framesPerChunk = Math.max(1, Math.floor(chunkSeconds * sampleRate));
+	const chunks: ExtractedAudioChunk[] = [];
+
+	for (
+		let offset = 0, index = 0;
+		offset < samples.length;
+		offset += framesPerChunk, index++
+	) {
+		const end = Math.min(offset + framesPerChunk, samples.length);
+		const slice = samples.subarray(offset, end);
+		const wav = encodeWavFromFloat32({ samples: slice, sampleRate });
+		chunks.push({
+			index,
+			startSeconds: offset / sampleRate,
+			base64: bytesToBase64(wav),
+			mimeType: "audio/wav",
+		});
+	}
+
+	return chunks;
+}
+
 /**
- * Decode a media file's audio track to 16 kHz mono WAV base64 suitable
- * for inline transcription requests.
+ * Decode a media file's audio track to a single 16 kHz mono WAV base64.
+ * Prefer {@link extractAudioChunksForTranscription} + parallel STT for long media.
  */
 export async function extractAudioForTranscription({
 	file,
@@ -82,16 +124,59 @@ export async function extractAudioForTranscription({
 	if (samples.length === 0) {
 		throw new Error("The selected video has no audio track to transcribe");
 	}
-
 	const wav = encodeWavFromFloat32({ samples, sampleRate });
-	if (wav.length > MAX_INLINE_AUDIO_BYTES) {
-		const minutes = Math.round(
-			wav.length / (TRANSCRIBE_SAMPLE_RATE * 2 * 60),
-		);
-		throw new Error(
-			`The video is too long to transcribe in one request (~${minutes} min of audio). Split it into shorter clips and dub them separately.`,
-		);
-	}
-
 	return { base64: bytesToBase64(wav), mimeType: "audio/wav" };
 }
+
+/**
+ * Decode audio and split into ~30s WAV chunks for parallel STT uploads.
+ */
+export async function extractAudioChunksForTranscription({
+	file,
+	chunkSeconds = DEFAULT_CHUNK_SECONDS,
+}: {
+	file: File;
+	chunkSeconds?: number;
+}): Promise<ExtractedAudioChunks> {
+	const { samples, sampleRate } = await decodeAudioToFloat32({
+		audioBlob: file,
+		sampleRate: TRANSCRIBE_SAMPLE_RATE,
+	});
+	if (samples.length === 0) {
+		throw new Error("The selected video has no audio track to transcribe");
+	}
+
+	const chunks = splitSamplesIntoChunks({
+		samples,
+		sampleRate,
+		chunkSeconds,
+	});
+	return {
+		chunks,
+		sampleRate,
+		durationSeconds: samples.length / sampleRate,
+	};
+}
+
+export async function mapPool<T, R>(
+	items: T[],
+	concurrency: number,
+	fn: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+	const results = new Array<R>(items.length);
+	let next = 0;
+	const workers = Array.from(
+		{ length: Math.max(1, Math.min(concurrency || DEFAULT_CONCURRENCY, items.length)) },
+		async () => {
+			while (true) {
+				const index = next++;
+				if (index >= items.length) return;
+				results[index] = await fn(items[index]!, index);
+			}
+		},
+	);
+	await Promise.all(workers);
+	return results;
+}
+
+export { DEFAULT_CHUNK_SECONDS, DEFAULT_CONCURRENCY };

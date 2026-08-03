@@ -11,7 +11,7 @@ DubberCut/
 │   ├── desktop/              # Electron: same UI as apps/web, Rust core runs natively (no WASM)
 │   ├── mobile/               # Expo: companion app (login, projects, transcripts, captions, AI translation)
 │   ├── api/                  # Fastify: auth, projects, AI, jobs, uploads (Prisma + MongoDB)
-│   └── web/                  # Vite + React studio (Gemini + Firebase + WASM compositor)
+│   └── web/                  # Vite + React studio (Gemini + WASM compositor)
 │
 ├── packages/                 # All packages are @dubbercut/* — consumers listed on the right
 │   ├── types/                # Shared TypeScript types          (all apps, workers, packages)
@@ -19,7 +19,7 @@ DubberCut/
 │   ├── api-client/           # Typed REST client for apps/api   (mobile, store)
 │   ├── auth/                 # Token storage, validation, types (mobile, api-client, store)
 │   ├── store/                # Zustand store factories          (mobile)
-│   ├── ai/                   # Gemini/LLM services via 302.AI   (api, web, ai-worker, transcript)
+│   ├── ai/                   # Gemini / OpenAI / Anthropic      (api, web, ai-worker, transcript)
 │   ├── captions/             # SRT / VTT / ASS generation       (api, mobile, web, export-worker)
 │   ├── transcript/           # Gemini + Faster-Whisper providers(api, ai-worker)
 │   ├── timeline-core/        # Pure timeline logic              (timeline)
@@ -28,7 +28,6 @@ DubberCut/
 │   ├── player/               # React player components (DOM)    (web)
 │   ├── ui/                   # React components (Button, Modal…)(web)
 │   ├── design-system/        # Design tokens + light/dark themes(mobile)
-│   ├── database/             # Firebase adapter                 (web)
 │   ├── env/                  # Loads repo-root .env files       (api, all workers)
 │   ├── ffmpeg/               # Video processing (trim, merge…)  (api, export-worker, render-worker)
 │   ├── i18n/                 # react-i18next shared config (resources live in each app)
@@ -91,7 +90,7 @@ pnpm build:wasm
 ```
 
 3. `pnpm install`
-4. Copy `.env.example` to `.env` at the repo root and fill in `API_KEY_302` (a [302.AI](https://302.ai) key — one key for all LLM/AI services), `DATABASE_URL`, and `AUTH_SECRET`. This is the single env file for the whole repo — the API and workers load it via `@dubbercut/env`, the web app via Vite's `envDir`. Machine-local overrides go in `.env.local`.
+4. Copy `.env.example` to `.env` at the repo root and fill in `GEMINI_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `DATABASE_URL`, and `AUTH_SECRET`. This is the single env file for the whole repo — the API and workers load it via `@dubbercut/env`, the web app via Vite's `envDir`. Machine-local overrides go in `.env.local`.
 5. Create the API database: `pnpm db:push`
 6. Verify: `pnpm check-env`
 
@@ -120,8 +119,9 @@ pnpm build:wasm
 | `web` | `docker/web.Dockerfile` (Rust→WASM stage + Vite build + nginx) | 3000 |
 
 ```bash
-# Needs .env at the repo root (API_KEY_302 etc.); DATABASE_URL / REDIS_URL /
-# RABBITMQ_URL are overridden in compose to point at the containers.
+# Needs .env at the repo root (GEMINI_API_KEY / OPENAI_API_KEY /
+# ANTHROPIC_API_KEY etc.); DATABASE_URL / REDIS_URL / RABBITMQ_URL are
+# overridden in compose to point at the containers.
 docker compose up -d --build
 
 # Backend only (skip the slow web/WASM image):
