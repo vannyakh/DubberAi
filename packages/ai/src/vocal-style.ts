@@ -3,9 +3,12 @@ import type {
   Segment,
   SegmentVocalStyle,
   SpeakerVocalProfile,
+  VocalAge,
   VocalFeeling,
   VocalGender,
   VocalIntensity,
+  VocalPace,
+  VocalTone,
 } from '@dubbercut/types';
 
 const GENDERS: VocalGender[] = ['female', 'male', 'neutral'];
@@ -23,6 +26,31 @@ const FEELINGS: VocalFeeling[] = [
   'urgent',
 ];
 const INTENSITIES: VocalIntensity[] = ['low', 'medium', 'high'];
+const PACES: VocalPace[] = ['slow', 'normal', 'fast'];
+const AGES: VocalAge[] = ['child', 'young', 'adult', 'mature'];
+const TONES: VocalTone[] = [
+  'bright',
+  'upbeat',
+  'informative',
+  'firm',
+  'excitable',
+  'youthful',
+  'breezy',
+  'easy-going',
+  'breathy',
+  'clear',
+  'smooth',
+  'gravelly',
+  'soft',
+  'even',
+  'mature',
+  'friendly',
+  'casual',
+  'gentle',
+  'lively',
+  'knowledgeable',
+  'warm',
+];
 
 const FEMALE_VOICES = ['Kore', 'Zephyr'] as const;
 const MALE_VOICES = ['Puck', 'Charon', 'Fenrir'] as const;
@@ -37,6 +65,18 @@ function isFeeling(value: unknown): value is VocalFeeling {
 
 function isIntensity(value: unknown): value is VocalIntensity {
   return typeof value === 'string' && INTENSITIES.includes(value as VocalIntensity);
+}
+
+function isPace(value: unknown): value is VocalPace {
+  return typeof value === 'string' && PACES.includes(value as VocalPace);
+}
+
+function isAge(value: unknown): value is VocalAge {
+  return typeof value === 'string' && AGES.includes(value as VocalAge);
+}
+
+function isTone(value: unknown): value is VocalTone {
+  return typeof value === 'string' && TONES.includes(value as VocalTone);
 }
 
 function clampDelivery(value: unknown): string | undefined {
@@ -70,12 +110,14 @@ export function feelingInstruction({
   delivery?: string;
   persona?: string;
 }): string {
-  const mood = feeling && feeling !== 'neutral' ? feeling : 'natural';
+  const mood = feeling && feeling !== 'neutral' ? feeling : null;
   const energy = intensity ?? 'medium';
-  const parts = [
-    `Speak with a ${mood} emotional tone`,
-    `at ${energy} intensity`,
-  ];
+  const parts = mood
+    ? [`Speak with a ${mood} emotional tone`, `at ${energy} intensity`]
+    : [
+        'Speak naturally and conversationally, like a real person in everyday dialogue',
+        'with subtle intonation shifts and a relaxed, lifelike rhythm',
+      ];
   if (persona) parts.push(`as ${persona}`);
   if (delivery) parts.push(`using ${delivery}`);
   parts.push('Keep it realistic and conversational. Do not narrate stage directions.');
@@ -144,6 +186,9 @@ export async function detectVocalStyles({
         gender?: string;
         defaultFeeling?: string;
         persona?: string;
+        voiceTone?: string;
+        pace?: string;
+        age?: string;
       }>;
       segments?: Array<{
         index?: number;
@@ -161,7 +206,10 @@ Return JSON:
       "speaker": "exact speaker name",
       "gender": "female|male|neutral",
       "defaultFeeling": "neutral|warm|calm|excited|angry|sad|serious|playful|fearful|romantic|urgent",
-      "persona": "short character description"
+      "persona": "short character description",
+      "voiceTone": "${TONES.join('|')}",
+      "pace": "slow|normal|fast",
+      "age": "child|young|adult|mature"
     }
   ],
   "segments": [
@@ -177,6 +225,8 @@ Return JSON:
 Rules:
 - Use exact speaker names from the list.
 - Infer gender from names, pronouns, role, and dialogue when possible; otherwise neutral.
+- "voiceTone" is the overall voice timbre that would best fit this character — pick the single closest word from the list.
+- "pace" is how quickly the character usually talks; "age" is their apparent age bracket.
 - Infer feeling from tone, punctuation, word choice, and context for each line.
 - Prefer natural emotional acting over exaggerated cartoon performance.
 - Keep persona/delivery under 8 words.
@@ -204,6 +254,9 @@ ${transcript.slice(0, 6000)}`,
           ? match.defaultFeeling
           : 'neutral',
         persona: clampDelivery(match?.persona),
+        voiceTone: isTone(match?.voiceTone) ? match.voiceTone : undefined,
+        pace: isPace(match?.pace) ? match.pace : undefined,
+        age: isAge(match?.age) ? match.age : undefined,
       };
     });
 

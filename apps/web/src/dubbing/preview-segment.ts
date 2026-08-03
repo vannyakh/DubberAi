@@ -158,6 +158,8 @@ export function resolvePreviewStyle({
 		intensity: segment.intensity ?? "medium",
 		delivery: segment.delivery,
 		persona: profile?.persona,
+		pace: profile?.pace,
+		voiceTone: profile?.voiceTone,
 	};
 }
 

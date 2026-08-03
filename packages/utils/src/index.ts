@@ -195,16 +195,111 @@ export const LANGUAGES = [
   { code: 'Hindi', name: 'Hindi' },
 ];
 
-export const VOICES = [
-  { id: 'Kore', label: 'Female (Kore)', gender: 'female' as const },
-  { id: 'Zephyr', label: 'Female (Zephyr)', gender: 'female' as const },
-  { id: 'Puck', label: 'Male (Puck)', gender: 'male' as const },
-  { id: 'Charon', label: 'Male (Charon)', gender: 'male' as const },
-  { id: 'Fenrir', label: 'Male (Fenrir)', gender: 'male' as const },
+export interface VoiceInfo {
+  id: string;
+  label: string;
+  gender: 'female' | 'male';
+  /** Official Gemini prebuilt-voice characteristic, used for casting. */
+  tone: string;
+}
+
+/** Gemini TTS prebuilt voices with their documented characteristics. */
+export const VOICES: VoiceInfo[] = [
+  { id: 'Kore', label: 'Female · Kore (firm)', gender: 'female', tone: 'firm' },
+  { id: 'Zephyr', label: 'Female · Zephyr (bright)', gender: 'female', tone: 'bright' },
+  { id: 'Puck', label: 'Male · Puck (upbeat)', gender: 'male', tone: 'upbeat' },
+  { id: 'Charon', label: 'Male · Charon (informative)', gender: 'male', tone: 'informative' },
+  { id: 'Fenrir', label: 'Male · Fenrir (excitable)', gender: 'male', tone: 'excitable' },
+  { id: 'Leda', label: 'Female · Leda (youthful)', gender: 'female', tone: 'youthful' },
+  { id: 'Aoede', label: 'Female · Aoede (breezy)', gender: 'female', tone: 'breezy' },
+  { id: 'Callirrhoe', label: 'Female · Callirrhoe (easy-going)', gender: 'female', tone: 'easy-going' },
+  { id: 'Despina', label: 'Female · Despina (smooth)', gender: 'female', tone: 'smooth' },
+  { id: 'Erinome', label: 'Female · Erinome (clear)', gender: 'female', tone: 'clear' },
+  { id: 'Laomedeia', label: 'Female · Laomedeia (upbeat)', gender: 'female', tone: 'upbeat' },
+  { id: 'Achernar', label: 'Female · Achernar (soft)', gender: 'female', tone: 'soft' },
+  { id: 'Gacrux', label: 'Female · Gacrux (mature)', gender: 'female', tone: 'mature' },
+  { id: 'Vindemiatrix', label: 'Female · Vindemiatrix (gentle)', gender: 'female', tone: 'gentle' },
+  { id: 'Sulafat', label: 'Female · Sulafat (warm)', gender: 'female', tone: 'warm' },
+  { id: 'Orus', label: 'Male · Orus (firm)', gender: 'male', tone: 'firm' },
+  { id: 'Iapetus', label: 'Male · Iapetus (clear)', gender: 'male', tone: 'clear' },
+  { id: 'Umbriel', label: 'Male · Umbriel (easy-going)', gender: 'male', tone: 'easy-going' },
+  { id: 'Algieba', label: 'Male · Algieba (smooth)', gender: 'male', tone: 'smooth' },
+  { id: 'Algenib', label: 'Male · Algenib (gravelly)', gender: 'male', tone: 'gravelly' },
+  { id: 'Schedar', label: 'Male · Schedar (even)', gender: 'male', tone: 'even' },
+  { id: 'Achird', label: 'Male · Achird (friendly)', gender: 'male', tone: 'friendly' },
+  { id: 'Zubenelgenubi', label: 'Male · Zubenelgenubi (casual)', gender: 'male', tone: 'casual' },
+  { id: 'Sadachbia', label: 'Male · Sadachbia (lively)', gender: 'male', tone: 'lively' },
+  { id: 'Sadaltager', label: 'Male · Sadaltager (knowledgeable)', gender: 'male', tone: 'knowledgeable' },
 ];
 
 export function voicesForGender(gender: 'female' | 'male' | 'neutral') {
   if (gender === 'female') return VOICES.filter((voice) => voice.gender === 'female');
   if (gender === 'male') return VOICES.filter((voice) => voice.gender === 'male');
   return VOICES;
+}
+
+/** Tones that pair naturally with each detected feeling, best first. */
+const FEELING_TONES: Record<string, string[]> = {
+  neutral: ['clear', 'even', 'informative', 'easy-going'],
+  warm: ['warm', 'friendly', 'smooth', 'gentle'],
+  calm: ['gentle', 'soft', 'even', 'breezy', 'easy-going'],
+  excited: ['upbeat', 'excitable', 'lively', 'bright'],
+  angry: ['gravelly', 'firm', 'excitable'],
+  sad: ['soft', 'breathy', 'gentle'],
+  serious: ['firm', 'informative', 'knowledgeable', 'even', 'clear'],
+  playful: ['upbeat', 'casual', 'lively', 'youthful', 'breezy'],
+  fearful: ['breathy', 'soft', 'gentle'],
+  romantic: ['smooth', 'warm', 'breathy', 'gentle'],
+  urgent: ['firm', 'excitable', 'lively'],
+};
+
+const AGE_TONES: Record<string, string[]> = {
+  child: ['youthful', 'bright', 'lively'],
+  young: ['youthful', 'upbeat', 'bright', 'casual'],
+  adult: [],
+  mature: ['mature', 'knowledgeable', 'gravelly', 'even'],
+};
+
+/**
+ * Cast the best-fitting TTS voice for a speaker profile: match gender,
+ * then rank by desired voice tone, feeling, and age. Prefers voices not
+ * already assigned to another speaker so characters stay distinct.
+ */
+export function castVoiceForProfile({
+  gender,
+  voiceTone,
+  defaultFeeling,
+  age,
+  usedVoiceIds = [],
+  defaultVoice = 'Kore',
+}: {
+  gender: 'female' | 'male' | 'neutral';
+  voiceTone?: string;
+  defaultFeeling?: string;
+  age?: string;
+  usedVoiceIds?: string[];
+  defaultVoice?: string;
+}): string {
+  const pool = voicesForGender(gender);
+  if (pool.length === 0) return defaultVoice;
+
+  const feelingTones = FEELING_TONES[defaultFeeling ?? 'neutral'] ?? [];
+  const ageTones = AGE_TONES[age ?? 'adult'] ?? [];
+  const used = new Set(usedVoiceIds);
+
+  let best = pool[0];
+  let bestScore = -Infinity;
+  for (const voice of pool) {
+    let score = 0;
+    if (voiceTone && voice.tone === voiceTone) score += 6;
+    const feelingRank = feelingTones.indexOf(voice.tone);
+    if (feelingRank >= 0) score += 3 - feelingRank * 0.5;
+    if (ageTones.includes(voice.tone)) score += 2;
+    if (used.has(voice.id)) score -= 8;
+    if (score > bestScore) {
+      bestScore = score;
+      best = voice;
+    }
+  }
+  return best?.id ?? defaultVoice;
 }

@@ -7,7 +7,11 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { useReducer, useRef, useState } from "react";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { useEffect, useMemo, useReducer, useRef, useState } from "react";
+import { cn } from "@/utils/ui";
+import { mediaTimeToSeconds } from "@/wasm";
+import type { TextElement } from "@/timeline";
 import { extractTimelineAudio } from "@/media/mediabunny";
 import { useEditor } from "@/editor/use-editor";
 import { TRANSCRIPTION_DIAGNOSTICS_SCOPE } from "@/transcription/diagnostics";
@@ -79,6 +83,118 @@ function processingReducer(
 		case "fail":
 			return { status: "idle", error: action.error, warnings: [] };
 	}
+}
+
+function formatCueTime(seconds: number): string {
+	const total = Math.max(0, Math.floor(seconds));
+	const h = Math.floor(total / 3600);
+	const m = Math.floor((total % 3600) / 60);
+	const s = total % 60;
+	return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}
+
+interface CaptionCue {
+	id: string;
+	startSeconds: number;
+	endSeconds: number;
+	text: string;
+	startTime: TextElement["startTime"];
+}
+
+/**
+ * Live preview of caption cues on the timeline: shows each cue's time
+ * window and text, highlights the cue under the playhead, and clicking a
+ * cue seeks to it.
+ */
+function CaptionCueList() {
+	const editor = useEditor();
+	const tracks = useEditor((e) => e.scenes.getActiveSceneOrNull()?.tracks);
+	const currentTime = useEditor((e) => e.playback.getCurrentTime());
+	const activeCueRef = useRef<HTMLButtonElement | null>(null);
+
+	const cues = useMemo(() => {
+		const collected: CaptionCue[] = [];
+		for (const track of tracks?.overlay ?? []) {
+			if (track.type !== "text") continue;
+			for (const element of track.elements) {
+				const text = element.content?.trim();
+				if (!text) continue;
+				const startSeconds = mediaTimeToSeconds({
+					time: element.startTime,
+				});
+				collected.push({
+					id: element.id,
+					startSeconds,
+					endSeconds:
+						startSeconds + mediaTimeToSeconds({ time: element.duration }),
+					text,
+					startTime: element.startTime,
+				});
+			}
+		}
+		return collected.sort((a, b) => a.startSeconds - b.startSeconds);
+	}, [tracks]);
+
+	const currentSeconds = mediaTimeToSeconds({ time: currentTime });
+	const activeCueId =
+		cues.find(
+			(cue) =>
+				currentSeconds >= cue.startSeconds && currentSeconds < cue.endSeconds,
+		)?.id ?? null;
+
+	useEffect(() => {
+		activeCueRef.current?.scrollIntoView({ block: "nearest" });
+	}, [activeCueId]);
+
+	if (cues.length === 0) {
+		return (
+			<p className="px-1 py-2 text-xs text-muted-foreground">
+				Caption preview appears here after you generate or import captions.
+			</p>
+		);
+	}
+
+	return (
+		<ScrollArea className="min-h-0 flex-1">
+			<div className="flex flex-col">
+				{cues.map((cue) => {
+					const isActive = cue.id === activeCueId;
+					return (
+						<button
+							key={cue.id}
+							type="button"
+							ref={isActive ? activeCueRef : undefined}
+							className={cn(
+								"flex flex-col gap-1 rounded-md px-2 py-2.5 text-left transition-colors hover:bg-white/5",
+								isActive && "bg-cyan-500/5",
+							)}
+							onClick={() =>
+								editor.playback.seek({ time: cue.startTime })
+							}
+						>
+							<span
+								className={cn(
+									"text-[11px] tabular-nums",
+									isActive ? "text-cyan-400" : "text-muted-foreground",
+								)}
+							>
+								{formatCueTime(cue.startSeconds)} –{" "}
+								{formatCueTime(cue.endSeconds)}
+							</span>
+							<span
+								className={cn(
+									"text-[13px] leading-relaxed",
+									isActive ? "text-cyan-300" : "text-foreground/90",
+								)}
+							>
+								{cue.text}
+							</span>
+						</button>
+					);
+				})}
+			</div>
+		</ScrollArea>
+	);
 }
 
 export function Captions() {
@@ -306,6 +422,8 @@ export function Captions() {
 							</Select>
 						</SectionField>
 					</SectionFields>
+
+					<CaptionCueList />
 
 					<Button
 						type="button"

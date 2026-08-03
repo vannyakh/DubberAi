@@ -13,21 +13,26 @@ const MAX_SPEEDUP = 1.8;
 /** Ignore overruns below 3% — not worth a render pass. */
 const MIN_OVERRUN_RATIO = 1.03;
 
-function base64ToPcmFloat32(base64: string): Float32Array {
+function base64ToPcmBytes(base64: string): Uint8Array {
 	const binary = atob(base64);
-	const sampleCount = Math.floor(binary.length / 2);
+	const bytes = new Uint8Array(binary.length);
+	for (let i = 0; i < binary.length; i++) {
+		bytes[i] = binary.charCodeAt(i);
+	}
+	return bytes;
+}
+
+function pcmBytesToFloat32(bytes: Uint8Array): Float32Array {
+	const sampleCount = Math.floor(bytes.length / 2);
+	const view = new DataView(bytes.buffer, bytes.byteOffset, sampleCount * 2);
 	const samples = new Float32Array(sampleCount);
 	for (let i = 0; i < sampleCount; i++) {
-		const low = binary.charCodeAt(i * 2);
-		const high = binary.charCodeAt(i * 2 + 1);
-		let value = (high << 8) | low;
-		if (value >= 0x8000) value -= 0x10000;
-		samples[i] = value / 0x8000;
+		samples[i] = view.getInt16(i * 2, true) / 0x8000;
 	}
 	return samples;
 }
 
-function pcmFloat32ToBase64(samples: Float32Array): string {
+function float32ToPcmBytes(samples: Float32Array): Uint8Array {
 	const bytes = new Uint8Array(samples.length * 2);
 	const view = new DataView(bytes.buffer);
 	for (let i = 0; i < samples.length; i++) {
@@ -38,22 +43,7 @@ function pcmFloat32ToBase64(samples: Float32Array): string {
 			true,
 		);
 	}
-	let binary = "";
-	const chunkSize = 0x8000;
-	for (let i = 0; i < bytes.length; i += chunkSize) {
-		binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
-	}
-	return btoa(binary);
-}
-
-export function pcmBase64DurationSeconds(
-	base64: string,
-	sampleRate = TTS_SAMPLE_RATE,
-): number {
-	// base64 → byte length without decoding: 3 bytes per 4 chars, minus padding.
-	const padding = base64.endsWith("==") ? 2 : base64.endsWith("=") ? 1 : 0;
-	const byteLength = (base64.length / 4) * 3 - padding;
-	return byteLength / 2 / sampleRate;
+	return bytes;
 }
 
 async function stretchPcm({
@@ -80,7 +70,8 @@ async function stretchPcm({
 }
 
 export interface FitResult {
-	base64: string;
+	/** Raw 16-bit mono PCM, ready for a WAV wrapper. */
+	pcm: Uint8Array;
 	/** Applied speed-up factor (1 = untouched). */
 	tempo: number;
 	durationSeconds: number;
@@ -99,29 +90,30 @@ export async function fitPcmToDuration({
 	targetSeconds: number;
 	sampleRate?: number;
 }): Promise<FitResult> {
-	const sourceSeconds = pcmBase64DurationSeconds(base64, sampleRate);
+	const pcm = base64ToPcmBytes(base64);
+	const sourceSeconds = pcm.length / 2 / sampleRate;
 	if (
 		targetSeconds <= 0 ||
 		sourceSeconds <= 0 ||
 		sourceSeconds / targetSeconds < MIN_OVERRUN_RATIO
 	) {
-		return { base64, tempo: 1, durationSeconds: sourceSeconds };
+		return { pcm, tempo: 1, durationSeconds: sourceSeconds };
 	}
 
 	const tempo = Math.min(sourceSeconds / targetSeconds, MAX_SPEEDUP);
 	try {
 		const stretched = await stretchPcm({
-			samples: base64ToPcmFloat32(base64),
+			samples: pcmBytesToFloat32(pcm),
 			tempo,
 			sampleRate,
 		});
 		return {
-			base64: pcmFloat32ToBase64(stretched),
+			pcm: float32ToPcmBytes(stretched),
 			tempo,
 			durationSeconds: stretched.length / sampleRate,
 		};
 	} catch (error) {
 		console.warn("Speed-fit failed, keeping original audio:", error);
-		return { base64, tempo: 1, durationSeconds: sourceSeconds };
+		return { pcm, tempo: 1, durationSeconds: sourceSeconds };
 	}
 }

@@ -57,12 +57,16 @@ import {
 	invokeAction,
 } from "@/actions";
 import { useElementSelection } from "@/timeline/hooks/element/use-element-selection";
+import { useDubbingStore, isDubbingBusy } from "@/dubbing/dubbing-store";
+import { runTranscription } from "@/dubbing/run-dub";
+import { toast } from "sonner";
 import { resolveStickerId } from "@/stickers";
 import { buildGraphicPreviewUrl } from "@/graphics";
 import Image from "@/components/next-image";
 import {
 	ScissorIcon,
 	Delete02Icon,
+	ClosedCaptionIcon,
 	Copy01Icon,
 	ViewIcon,
 	ViewOffSlashIcon,
@@ -334,6 +338,42 @@ export function TimelineElement({
 		}
 	};
 
+	const dubbingStatus = useDubbingStore((s) => s.status);
+	const canTranscribeClip =
+		selectedElements.length <= 1 &&
+		mediaAsset != null &&
+		mediaSupportsAudio({ media: mediaAsset }) &&
+		(element.type === "video" || element.type === "audio");
+
+	const handleTranscribeClip = (event: React.MouseEvent) => {
+		event.stopPropagation();
+		if (!mediaAsset) return;
+		const asset = mediaAsset;
+		const store = useDubbingStore.getState();
+		store.setSourceAssetId(asset.id);
+		useAssetsPanelStore.getState().setActiveTab("dubbing");
+		const signal = store.beginJob();
+		void runTranscription({ asset, signal })
+			.then(() => {
+				toast.success("Transcript ready in the Dubbing panel");
+			})
+			.catch((error) => {
+				if (
+					signal.aborted ||
+					(error instanceof Error && error.name === "DubCancelledError")
+				) {
+					useDubbingStore.getState().cancelJob();
+					return;
+				}
+				toast.error(
+					error instanceof Error ? error.message : "Transcription failed",
+				);
+			})
+			.finally(() => {
+				useDubbingStore.getState().clearJob();
+			});
+	};
+
 	const isMuted = canElementHaveAudio(element) && element.muted === true;
 	const canToggleCurrentSourceAudio =
 		selectedElements.length === 1 &&
@@ -459,6 +499,17 @@ export function TimelineElement({
 							}}
 						>
 							{sourceAudioLabel}
+						</ContextMenuItem>
+					)}
+					{canTranscribeClip && (
+						<ContextMenuItem
+							icon={<HugeiconsIcon icon={ClosedCaptionIcon} />}
+							disabled={isDubbingBusy(dubbingStatus)}
+							onClick={handleTranscribeClip}
+						>
+							{isDubbingBusy(dubbingStatus)
+								? "Transcribing…"
+								: "Transcribe dialogue"}
 						</ContextMenuItem>
 					)}
 					{canElementBeHidden(element) && (

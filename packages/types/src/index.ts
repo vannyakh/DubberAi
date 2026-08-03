@@ -20,6 +20,34 @@ export type VocalFeeling =
 
 export type VocalIntensity = 'low' | 'medium' | 'high';
 
+export type VocalPace = 'slow' | 'normal' | 'fast';
+
+export type VocalAge = 'child' | 'young' | 'adult' | 'mature';
+
+/** Voice timbre vocabulary matching the Gemini prebuilt voice palette. */
+export type VocalTone =
+  | 'bright'
+  | 'upbeat'
+  | 'informative'
+  | 'firm'
+  | 'excitable'
+  | 'youthful'
+  | 'breezy'
+  | 'easy-going'
+  | 'breathy'
+  | 'clear'
+  | 'smooth'
+  | 'gravelly'
+  | 'soft'
+  | 'even'
+  | 'mature'
+  | 'friendly'
+  | 'casual'
+  | 'gentle'
+  | 'lively'
+  | 'knowledgeable'
+  | 'warm';
+
 /** Per-speaker gender + default acting style for voice casting. */
 export interface SpeakerVocalProfile {
   speaker: string;
@@ -27,6 +55,12 @@ export interface SpeakerVocalProfile {
   defaultFeeling: VocalFeeling;
   /** Short persona cue, e.g. "gentle narrator", "sharp antagonist". */
   persona?: string;
+  /** Desired voice timbre used to cast a matching TTS voice. */
+  voiceTone?: VocalTone;
+  /** Typical speaking pace for this character. */
+  pace?: VocalPace;
+  /** Apparent age bracket, used to bias voice casting. */
+  age?: VocalAge;
 }
 
 /** Per-line emotional delivery used to tune TTS. */

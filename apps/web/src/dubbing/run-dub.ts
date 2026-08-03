@@ -3,8 +3,9 @@ import {
 	translateText,
 	generateSpeech,
 	detectVocalStyles,
+	isUnrecoverableAiError,
 } from "@/services/ai-client";
-import { parseSegments, VOICES } from "@dubbercut/utils";
+import { parseSegments, castVoiceForProfile } from "@dubbercut/utils";
 import type { Segment, SpeakerVocalProfile } from "@dubbercut/types";
 import type { EditorCore } from "@/core";
 import type { MediaAsset } from "@/media/types";
@@ -111,25 +112,13 @@ async function withProgressTicker<T>({
 	}
 }
 
-function voiceForGenderProfile({
-	gender,
-	index,
-	defaultVoice,
-}: {
-	gender: SpeakerVocalProfile["gender"];
-	index: number;
-	defaultVoice: string;
-}): string {
-	const pool =
-		gender === "female"
-			? VOICES.filter((voice) => voice.gender === "female")
-			: gender === "male"
-				? VOICES.filter((voice) => voice.gender === "male")
-				: VOICES;
-	return pool[index % pool.length]?.id ?? defaultVoice;
-}
-
-/** Cast voices from detected gender; keep any user overrides. */
+/**
+ * Cast voices for each transcript speaker, in priority order:
+ * 1. user override, 2. saved character voice preset matching the speaker
+ * name (like a cast member in Google Flow), 3. best fit from the detected
+ * profile (gender, tone, age, feeling). Avoids reusing a voice already
+ * assigned to another speaker so characters stay distinct.
+ */
 function ensureSpeakerVoices(
 	segments: Segment[],
 	profiles: Record<string, SpeakerVocalProfile> = {},
@@ -139,22 +128,30 @@ function ensureSpeakerVoices(
 	const speakers = [
 		...new Set(segments.map((segment) => segment.speaker || "Speaker")),
 	];
-	const genderCounts: Record<string, number> = {
-		female: 0,
-		male: 0,
-		neutral: 0,
-	};
+	const usedVoiceIds = speakers
+		.map((speaker) => speakerVoices[speaker])
+		.filter((voice): voice is string => Boolean(voice));
 
 	speakers.forEach((speaker) => {
 		if (speakerVoices[speaker]) return;
+
+		const preset = store.getVoicePreset(speaker);
+		if (preset) {
+			store.applyVoicePreset(speaker, speaker);
+			usedVoiceIds.push(preset.voice);
+			return;
+		}
+
 		const profile = profiles[speaker] ?? speakerProfiles[speaker];
-		const gender = profile?.gender ?? "neutral";
-		const preferred = voiceForGenderProfile({
-			gender,
-			index: genderCounts[gender] ?? 0,
+		const preferred = castVoiceForProfile({
+			gender: profile?.gender ?? "neutral",
+			voiceTone: profile?.voiceTone,
+			defaultFeeling: profile?.defaultFeeling,
+			age: profile?.age,
+			usedVoiceIds,
 			defaultVoice,
 		});
-		genderCounts[gender] = (genderCounts[gender] ?? 0) + 1;
+		usedVoiceIds.push(preferred);
 		store.setSpeakerVoice(speaker, preferred);
 	});
 }
@@ -184,6 +181,8 @@ function speechStyleForSegment({
 		intensity: segment.intensity ?? "medium",
 		delivery: segment.delivery,
 		persona: profile?.persona,
+		pace: profile?.pace,
+		voiceTone: profile?.voiceTone,
 	};
 }
 
@@ -278,11 +277,14 @@ export async function runTranscription({
 			setStageProgress(12);
 
 			assertNotCancelled(signal);
+			const spokenLanguage =
+				store.sourceLang !== "auto" ? store.sourceLang : undefined;
 			const result = await withProgressTicker({
 				untilPercent: 72,
 				run: () =>
 					transcribeMediaFile({
 						file: asset.file,
+						language: spokenLanguage,
 						onChunkProgress: (done, total) => {
 							const ratio = total > 0 ? done / total : 1;
 							setStageProgress(12 + Math.round(ratio * 55));
@@ -433,6 +435,8 @@ async function generateSegmentClips({
 			} catch (error) {
 				lastError = error;
 				if (error instanceof DubCancelledError) throw error;
+				// Quota/auth/config errors can't succeed on retry — fail fast.
+				if (isUnrecoverableAiError(error)) throw error;
 				const wait = 2000 * 2 ** attempt;
 				console.warn(
 					`TTS failed (attempt ${attempt + 1}/${attempts}), retrying in ${wait}ms…`,

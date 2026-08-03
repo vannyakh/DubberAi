@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { PanelView } from "@/components/editor/panels/assets/views/base-panel";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,7 +16,10 @@ import { Input } from "@/components/ui/input";
 import {
 	Select,
 	SelectContent,
+	SelectGroup,
 	SelectItem,
+	SelectLabel,
+	SelectSeparator,
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
@@ -28,18 +31,21 @@ import type { Segment, SpeakerVocalProfile } from "@dubbercut/types";
 import { toast } from "sonner";
 import { cn } from "@/utils/ui";
 import {
+	BookmarkCheck,
+	BookmarkPlus,
 	CaptionsOff,
+	ChevronLeft,
 	FileText,
 	Languages,
 	Loader2,
 	Pause,
 	Play,
-	RotateCcw,
 	Search,
 	SlidersHorizontal,
 	Sparkles,
 	Users,
 } from "lucide-react";
+import { hasMediaId } from "@/timeline";
 import { useDubbingStore, isDubbingBusy } from "../dubbing-store";
 import {
 	runFullDub,
@@ -69,12 +75,6 @@ function formatSegmentTime(seconds: number): string {
 	const m = Math.floor(total / 60);
 	const s = total % 60;
 	return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-}
-
-function formatTrimWindow(segment: Segment): string | null {
-	if (segment.end == null || segment.end <= segment.time) return null;
-	const duration = Math.max(0, segment.end - segment.time);
-	return `${duration.toFixed(1)}s trim`;
 }
 
 function speakerInitials(speaker: string): string {
@@ -117,8 +117,8 @@ function SegmentBody({ text, compact = false }: { text: string; compact?: boolea
 	return (
 		<p
 			className={cn(
-				"rounded-lg bg-[#1c1c22] text-[13px] leading-relaxed text-white/90",
-				compact ? "px-3 py-2 text-[12.5px]" : "px-3 py-2.5",
+				"rounded-xl bg-[#26262c] text-[13px] leading-relaxed text-white/90",
+				compact ? "px-3.5 py-2.5 text-[12.5px]" : "px-3.5 py-3",
 			)}
 		>
 			{tokens.map((token, index) =>
@@ -151,6 +151,7 @@ function SegmentCard({
 	isBusyPipeline,
 	compact = false,
 	style,
+	avatarUrl,
 }: {
 	segment: Segment;
 	index: number;
@@ -165,16 +166,9 @@ function SegmentCard({
 		delivery?: string;
 		persona?: string;
 	};
+	avatarUrl?: string | null;
 }) {
 	const speaker = segment.speaker || `Speaker ${index + 1}`;
-	const trimLabel = formatTrimWindow(segment);
-	const feelingLabel = formatFeelingLabel(
-		style?.feeling ?? segment.feeling,
-	);
-	const pauseTotal =
-		(segment.pauseBeforeSeconds ?? 0) +
-		(segment.pauseAfterSeconds ?? 0) +
-		(segment.inlinePauses?.reduce((sum, value) => sum + value, 0) ?? 0);
 	const [previewState, setPreviewState] = useState<
 		"idle" | "loading" | "playing"
 	>("idle");
@@ -227,77 +221,50 @@ function SegmentCard({
 	};
 
 	return (
-		<div
-			className={cn(
-				"flex flex-col gap-2 rounded-xl border border-white/6 bg-white/[0.02]",
-				compact ? "p-2" : "p-2.5",
-			)}
-		>
-			<div className={cn("flex items-center gap-2.5", compact && "gap-2")}>
-				{compact ? (
-					<Avatar className="size-7 border border-white/8">
-						<AvatarFallback
-							className={cn(
-								"bg-linear-to-br text-[10px] font-semibold text-white",
-								speakerColor(speaker),
-							)}
-						>
-							{speakerInitials(speaker)}
-						</AvatarFallback>
-					</Avatar>
-				) : (
-					<div
+		<div className="group flex flex-col gap-1.5">
+			<div className="flex items-center gap-2.5 px-0.5">
+				<Avatar
+					className={cn(
+						"shrink-0 border border-white/10",
+						compact ? "size-7" : "size-8",
+					)}
+				>
+					{avatarUrl ? (
+						<AvatarImage
+							src={avatarUrl}
+							alt={speaker}
+							className="object-cover"
+						/>
+					) : null}
+					<AvatarFallback
 						className={cn(
-							"flex size-8 shrink-0 items-center justify-center rounded-full bg-linear-to-br text-[11px] font-semibold text-white shadow-[0_0_0_1px_rgba(255,255,255,0.08)]",
+							"bg-linear-to-br font-semibold text-white",
+							compact ? "text-[10px]" : "text-[11px]",
 							speakerColor(speaker),
 						)}
-						aria-hidden
 					>
 						{speakerInitials(speaker)}
-					</div>
-				)}
-				<div className="min-w-0 flex-1">
-					<div className="flex flex-wrap items-center gap-2">
-						<span
-							className={cn(
-								"truncate font-medium text-white",
-								compact ? "text-[13px]" : "text-sm",
-							)}
-						>
-							{speaker}
-						</span>
-						<Badge className="rounded-md border-0 bg-cyan-500/90 px-1.5 py-0.5 font-mono text-[11px] font-semibold tabular-nums text-white hover:bg-cyan-500/90">
-							{formatSegmentTime(segment.time)}
-						</Badge>
-						{trimLabel ? (
-							<span className="rounded-md bg-white/8 px-1.5 py-0.5 font-mono text-[10px] text-white/55">
-								{trimLabel}
-							</span>
-						) : null}
-						{feelingLabel ? (
-							<span className="rounded-md bg-violet-500/20 px-1.5 py-0.5 text-[10px] text-violet-200">
-								{feelingLabel}
-								{style?.intensity && style.intensity !== "medium"
-									? ` · ${style.intensity}`
-									: ""}
-							</span>
-						) : null}
-						{pauseTotal > 0 ? (
-							<span className="rounded-md bg-white/8 px-1.5 py-0.5 text-[10px] italic text-white/45">
-								pauses {pauseTotal.toFixed(1)}s
-							</span>
-						) : null}
-					</div>
-				</div>
+					</AvatarFallback>
+				</Avatar>
+				<span
+					className={cn(
+						"truncate font-medium text-white",
+						compact ? "text-[13px]" : "text-sm",
+					)}
+				>
+					{speaker}
+				</span>
+				<Badge className="rounded-md border-0 bg-cyan-500/90 px-1.5 py-0.5 font-mono text-[11px] font-semibold tabular-nums text-white hover:bg-cyan-500/90">
+					{formatSegmentTime(segment.time)}
+				</Badge>
+				<div className="flex-1" />
 				{previewEnabled ? (
 					<Button
 						type="button"
 						variant="outline"
 						size="sm"
-						className={cn(
-							"h-7 shrink-0 gap-1.5 border-white/8 bg-transparent px-2 text-[11px] text-white/80 hover:bg-white/5",
-							compact && "rounded-lg",
-						)}
+						className="h-7 shrink-0 gap-1.5 rounded-lg border-white/8 bg-transparent px-2 text-[11px] text-white/70 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 hover:bg-white/5 data-[playing=true]:opacity-100"
+						data-playing={previewState !== "idle"}
 						disabled={isBusyPipeline && previewState !== "playing"}
 						onClick={() => void handlePreview()}
 					>
@@ -337,6 +304,8 @@ function SegmentList({
 	defaultVoice,
 	isBusyPipeline = false,
 	compact = false,
+	avatarUrl,
+	hideHeader = false,
 }: {
 	segments: Segment[];
 	title: string;
@@ -349,6 +318,8 @@ function SegmentList({
 	defaultVoice?: string;
 	isBusyPipeline?: boolean;
 	compact?: boolean;
+	avatarUrl?: string | null;
+	hideHeader?: boolean;
 }) {
 	const [query, setQuery] = useState("");
 	const visibleSegments = compact
@@ -360,29 +331,36 @@ function SegmentList({
 
 	return (
 		<Card className="border-white/8 bg-[#24252b] shadow-none">
-			<CardHeader className="flex-row items-start justify-between gap-3 space-y-0 px-4 pb-3">
-				<div className="min-w-0 space-y-1">
-					<div className="flex items-center gap-2 text-white">
-						{icon ? (
-							<span className="flex size-7 items-center justify-center rounded-lg bg-white/5 text-white/75">
-								{icon}
-							</span>
-						) : null}
-						<CardTitle className="text-sm">{title}</CardTitle>
+			{!hideHeader ? (
+				<CardHeader className="flex-row items-start justify-between gap-3 space-y-0 px-4 pb-3">
+					<div className="min-w-0 space-y-1">
+						<div className="flex items-center gap-2 text-white">
+							{icon ? (
+								<span className="flex size-7 items-center justify-center rounded-lg bg-white/5 text-white/75">
+									{icon}
+								</span>
+							) : null}
+							<CardTitle className="text-sm">{title}</CardTitle>
+						</div>
+						<CardDescription className="text-xs text-white/55">
+							{description ??
+								(previewEnabled
+									? "Preview clipped TTS before applying to timeline."
+									: "Parallel TTS with aligned trim windows.")}
+						</CardDescription>
 					</div>
-					<CardDescription className="text-xs text-white/55">
-						{description ??
-							(previewEnabled
-								? "Preview clipped TTS before applying to timeline."
-								: "Parallel TTS with aligned trim windows.")}
-					</CardDescription>
-				</div>
-				<span className="shrink-0 rounded-md bg-white/5 px-2 py-1 text-[10px] text-white/55">
-					{segments.length} segments
-				</span>
-			</CardHeader>
+					<span className="shrink-0 rounded-md bg-white/5 px-2 py-1 text-[10px] text-white/55">
+						{segments.length} segments
+					</span>
+				</CardHeader>
+			) : null}
 			{compact ? (
-				<CardContent className="flex flex-col gap-3 px-4 pb-0">
+				<CardContent
+					className={cn(
+						"flex flex-col gap-3 px-4 pb-0",
+						hideHeader && "pt-4",
+					)}
+				>
 					<div className="flex items-center gap-2">
 						<div className="relative min-w-0 flex-1">
 							<Search className="pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2 text-white/35" />
@@ -405,7 +383,7 @@ function SegmentList({
 					</div>
 				</CardContent>
 			) : null}
-			<CardContent className="flex flex-col gap-2 px-4 pb-4">
+			<CardContent className="flex flex-col gap-4 px-4 pb-4 pt-1">
 				{visibleSegments.map((segment, index) => {
 					const previewTarget = !previewEnabled
 						? null
@@ -437,6 +415,7 @@ function SegmentList({
 							isBusyPipeline={isBusyPipeline}
 							compact={compact}
 							style={style}
+							avatarUrl={avatarUrl}
 						/>
 					);
 				})}
@@ -459,6 +438,7 @@ export function DubbingView() {
 	const {
 		status,
 		error,
+		sourceLang,
 		targetLang,
 		detectedLanguage,
 		transcriptSegments,
@@ -466,16 +446,24 @@ export function DubbingView() {
 		speakerVoices,
 		speakerProfiles,
 		defaultVoice,
+		voicePresets,
+		setSourceLang,
 		setTargetLang,
 		setSpeakerVoice,
 		setDefaultVoice,
+		saveVoicePreset,
+		applyVoicePreset,
 		beginJob,
 		clearJob,
 		reset,
 	} = useDubbingStore();
 
 	const [busy, setBusy] = useState(false);
+	const [screen, setScreen] = useState<"home" | "transcript">("home");
+	const [trackChoice, setTrackChoice] = useState("main");
 	const isWorking = busy || isDubbingBusy(status);
+	const hasTranscript = transcriptSegments.length > 0;
+	const showTranscriptScreen = screen === "transcript" && hasTranscript;
 	const canPreviewSegments =
 		transcriptSegments.length > 0 && translationSegments.length > 0;
 
@@ -483,6 +471,33 @@ export function DubbingView() {
 		() => resolveDubSourceAsset({ editor }),
 		[editor, sceneTracks],
 	);
+
+	const trackOptions = useMemo(() => {
+		const options: Array<{ id: string; label: string }> = [];
+		if (selectedAsset) {
+			options.push({ id: "main", label: "Video track 1" });
+		}
+		(sceneTracks?.audio ?? []).forEach((track, index) => {
+			if (track.elements.length === 0) return;
+			options.push({
+				id: track.id,
+				label: track.name || `Audio track ${index + 1}`,
+			});
+		});
+		return options;
+	}, [selectedAsset, sceneTracks]);
+
+	const resolveTranscribeAsset = () => {
+		if (trackChoice === "main") return selectedAsset;
+		const track = sceneTracks?.audio.find((t) => t.id === trackChoice);
+		const assets = editor.media.getAssets();
+		for (const element of track?.elements ?? []) {
+			if (!hasMediaId(element)) continue;
+			const asset = assets.find((a) => a.id === element.mediaId);
+			if (asset) return asset;
+		}
+		return null;
+	};
 
 	const speakers = useMemo(() => {
 		const names = new Set<string>();
@@ -506,10 +521,6 @@ export function DubbingView() {
 		fn: (signal: AbortSignal) => Promise<void>,
 		doneMessage?: string,
 	) => {
-		if (!selectedAsset) {
-			toast.error("Add a video to the main scene track first");
-			return;
-		}
 		stopSegmentPreview();
 		setBusy(true);
 		const signal = beginJob();
@@ -533,15 +544,167 @@ export function DubbingView() {
 		}
 	};
 
-	const handleReset = () => {
+	const handleTranscribe = () => {
+		const asset = resolveTranscribeAsset();
+		if (!asset) {
+			toast.error("The selected track has no media to transcribe");
+			return;
+		}
+		void runDubAction(async (signal) => {
+			await runTranscription({ asset, signal });
+			setScreen("transcript");
+		});
+	};
+
+	const handleTranscribeAgain = () => {
 		stopPreviewsAndJobs();
 		reset();
+		setScreen("home");
 	};
+
+	const effectiveTrackChoice = trackOptions.some(
+		(option) => option.id === trackChoice,
+	)
+		? trackChoice
+		: (trackOptions[0]?.id ?? "");
 
 	return (
 		<PanelView>
 			<ScrollArea className="h-full">
 				<div className="flex flex-col gap-4 p-3">
+					{showTranscriptScreen ? (
+						<>
+							<div className="flex items-center gap-2 px-0.5">
+								<button
+									type="button"
+									className="flex size-7 shrink-0 items-center justify-center rounded-lg text-white/70 transition-colors hover:bg-white/5 hover:text-white"
+									onClick={() => setScreen("home")}
+									aria-label="Back"
+								>
+									<ChevronLeft className="size-4" />
+								</button>
+								<h3 className="truncate text-sm font-semibold text-white">
+									Transcript-based editing
+									{detectedLanguage ? ` (${detectedLanguage})` : ""}
+								</h3>
+							</div>
+							<SegmentList
+								segments={transcriptSegments}
+								title="Transcript"
+								hideHeader
+								previewEnabled={canPreviewSegments}
+								translationSegments={translationSegments}
+								speakerVoices={speakerVoices}
+								speakerProfiles={speakerProfiles}
+								defaultVoice={defaultVoice}
+								isBusyPipeline={isWorking}
+								compact
+								avatarUrl={selectedAsset?.thumbnailUrl ?? null}
+							/>
+							{translationSegments.length > 0 ? (
+								<SegmentList
+									segments={translationSegments}
+									title={`Translation-based editing (${targetLang})`}
+									description="Review translated segments and preview generated speech."
+									icon={<Languages className="size-3.5" />}
+									previewEnabled={canPreviewSegments}
+									speakerVoices={speakerVoices}
+									speakerProfiles={speakerProfiles}
+									defaultVoice={defaultVoice}
+									isBusyPipeline={isWorking}
+									compact
+									avatarUrl={selectedAsset?.thumbnailUrl ?? null}
+								/>
+							) : null}
+						</>
+					) : (
+						<>
+					<Card className="border-white/8 bg-[#24252b] shadow-none">
+						<CardHeader className="items-center px-5 pb-4 text-center">
+							<div className="mb-1 flex size-10 items-center justify-center rounded-full bg-white/5 text-white/80">
+								<FileText className="size-4" />
+							</div>
+							<CardTitle className="text-base text-white">
+								Transcript-based editing
+							</CardTitle>
+							<CardDescription className="max-w-xs text-xs leading-relaxed text-white/60">
+								Edit videos quickly by editing their transcripts.
+							</CardDescription>
+						</CardHeader>
+						<CardContent className="space-y-4 px-5 pb-5">
+							{!hasTranscript ? (
+								<>
+									<div className="space-y-2">
+										<span className="text-xs font-medium text-white/70">
+											Select spoken language
+										</span>
+										<Select
+											value={sourceLang}
+											onValueChange={setSourceLang}
+										>
+											<SelectTrigger className="h-11 w-full rounded-xl border-white/8 bg-white/5 text-sm text-white">
+												<SelectValue />
+											</SelectTrigger>
+											<SelectContent>
+												<SelectItem value="auto">Auto detect</SelectItem>
+												{LANGUAGES.map((lang) => (
+													<SelectItem key={lang.code} value={lang.code}>
+														{lang.name}
+													</SelectItem>
+												))}
+											</SelectContent>
+										</Select>
+									</div>
+									<div className="space-y-2">
+										<span className="text-xs font-medium text-white/70">
+											Select track to transcribe
+										</span>
+										<Select
+											value={effectiveTrackChoice}
+											onValueChange={setTrackChoice}
+										>
+											<SelectTrigger className="h-11 w-full rounded-xl border-white/8 bg-white/5 text-sm text-white">
+												<SelectValue placeholder="No tracks with media" />
+											</SelectTrigger>
+											<SelectContent>
+												{trackOptions.map((option) => (
+													<SelectItem key={option.id} value={option.id}>
+														{option.label}
+													</SelectItem>
+												))}
+											</SelectContent>
+										</Select>
+									</div>
+									<Button
+										className="h-11 w-full rounded-xl bg-cyan-500 text-white hover:bg-cyan-400"
+										disabled={isWorking || trackOptions.length === 0}
+										onClick={handleTranscribe}
+									>
+										{isWorking && status === "transcribing"
+											? "Transcribing…"
+											: "Transcribe"}
+									</Button>
+								</>
+							) : (
+								<>
+									<Button
+										className="h-11 w-full rounded-xl bg-cyan-500 text-white hover:bg-cyan-400"
+										onClick={() => setScreen("transcript")}
+									>
+										Edit transcript
+									</Button>
+									<Button
+										className="h-11 w-full rounded-xl border-0 bg-white/8 text-white hover:bg-white/12"
+										disabled={isWorking}
+										onClick={handleTranscribeAgain}
+									>
+										Transcribe again
+									</Button>
+								</>
+							)}
+						</CardContent>
+					</Card>
+
 					<Card className="border-white/8 bg-[#24252b] shadow-none">
 						<CardHeader className="items-center px-5 pb-4 text-center">
 							<div className="mb-1 flex size-10 items-center justify-center rounded-full bg-white/5 text-white/80">
@@ -610,23 +773,7 @@ export function DubbingView() {
 								{isWorking ? "Working…" : "Start dubbing"}
 							</Button>
 
-							<div className="grid grid-cols-3 gap-2">
-								<Button
-									variant="outline"
-									size="sm"
-									className="h-9 rounded-lg border-white/8 bg-transparent text-white/85 hover:bg-white/5"
-									disabled={isWorking || !selectedAsset}
-									onClick={() =>
-										runDubAction((signal) =>
-											runTranscription({
-												asset: selectedAsset!,
-												signal,
-											}),
-										)
-									}
-								>
-									Transcribe
-								</Button>
+							<div className="grid grid-cols-2 gap-2">
 								<Button
 									variant="outline"
 									size="sm"
@@ -698,6 +845,13 @@ export function DubbingView() {
 									const feeling =
 										formatFeelingLabel(profile?.defaultFeeling) ??
 										"Natural";
+									const currentVoice =
+										speakerVoices[speaker] ?? defaultVoice;
+									const savedPreset =
+										voicePresets[speaker.trim().toLowerCase()];
+									const isSaved =
+										savedPreset?.voice === currentVoice;
+									const presetEntries = Object.values(voicePresets);
 									return (
 									<div
 										key={speaker}
@@ -726,25 +880,76 @@ export function DubbingView() {
 												</div>
 											</div>
 										</div>
-										<Select
-											value={speakerVoices[speaker] ?? defaultVoice}
-											onValueChange={(voice) =>
-												setSpeakerVoice(speaker, voice)
-											}
-										>
-											<SelectTrigger className="h-9 w-40 rounded-lg border-white/8 bg-white/5 text-xs text-white">
-												<SelectValue />
-											</SelectTrigger>
-											<SelectContent>
-												{VOICES.map(
-													(voice: { id: string; label: string }) => (
-														<SelectItem key={voice.id} value={voice.id}>
-															{voice.label}
-														</SelectItem>
-													),
+										<div className="flex shrink-0 items-center gap-1.5">
+											<Select
+												value={currentVoice}
+												onValueChange={(value) => {
+													if (value.startsWith("preset:")) {
+														applyVoicePreset(
+															speaker,
+															value.slice("preset:".length),
+														);
+														return;
+													}
+													setSpeakerVoice(speaker, value);
+												}}
+											>
+												<SelectTrigger className="h-9 w-40 rounded-lg border-white/8 bg-white/5 text-xs text-white">
+													<SelectValue />
+												</SelectTrigger>
+												<SelectContent>
+													{presetEntries.length > 0 ? (
+														<SelectGroup>
+															<SelectLabel className="text-[11px] text-white/50">
+																Saved characters
+															</SelectLabel>
+															{presetEntries.map((preset) => (
+																<SelectItem
+																	key={`preset:${preset.name}`}
+																	value={`preset:${preset.name}`}
+																>
+																	{preset.name} · {preset.voice}
+																</SelectItem>
+															))}
+															<SelectSeparator />
+														</SelectGroup>
+													) : null}
+													{VOICES.map(
+														(voice: { id: string; label: string }) => (
+															<SelectItem key={voice.id} value={voice.id}>
+																{voice.label}
+															</SelectItem>
+														),
+													)}
+												</SelectContent>
+											</Select>
+											<Button
+												variant="outline"
+												size="icon"
+												title={
+													isSaved
+														? `"${speaker}" voice saved`
+														: `Save "${speaker}" character voice`
+												}
+												className="size-9 rounded-lg border-white/8 bg-transparent text-white/70 hover:bg-white/5 hover:text-white"
+												onClick={() => {
+													saveVoicePreset({
+														name: speaker,
+														voice: currentVoice,
+														profile: profile ?? null,
+													});
+													toast.success(
+														`Saved "${speaker}" character voice`,
+													);
+												}}
+											>
+												{isSaved ? (
+													<BookmarkCheck className="size-4 text-cyan-400" />
+												) : (
+													<BookmarkPlus className="size-4" />
 												)}
-											</SelectContent>
-										</Select>
+											</Button>
+										</div>
 									</div>
 									);
 								})}
@@ -752,51 +957,8 @@ export function DubbingView() {
 						</Card>
 					) : null}
 
-					{transcriptSegments.length > 0 ? (
-						<div className="flex flex-col gap-2">
-							<div className="flex items-center justify-end">
-								<button
-									type="button"
-									className={cn(
-										"inline-flex items-center gap-1 text-xs text-white/55 underline-offset-2 hover:text-white/75 hover:underline",
-										isWorking && "pointer-events-none opacity-50",
-									)}
-									onClick={handleReset}
-								>
-									<RotateCcw className="size-3" />
-									Clear
-								</button>
-							</div>
-							<SegmentList
-								segments={transcriptSegments}
-								title={`Transcript-based editing${detectedLanguage ? ` (${detectedLanguage})` : ""}`}
-								description="Review transcript segments, search dialogue, preview generated speech, and refine before applying voices."
-								icon={<FileText className="size-3.5" />}
-								previewEnabled={canPreviewSegments}
-								translationSegments={translationSegments}
-								speakerVoices={speakerVoices}
-								speakerProfiles={speakerProfiles}
-								defaultVoice={defaultVoice}
-								isBusyPipeline={isWorking}
-								compact
-							/>
-						</div>
-					) : null}
-
-					{translationSegments.length > 0 ? (
-						<SegmentList
-							segments={translationSegments}
-							title={`Translation-based editing (${targetLang})`}
-							description="Review translated segments, search dialogue, preview generated speech, and refine before applying voices."
-							icon={<Languages className="size-3.5" />}
-							previewEnabled={canPreviewSegments}
-							speakerVoices={speakerVoices}
-							speakerProfiles={speakerProfiles}
-							defaultVoice={defaultVoice}
-							isBusyPipeline={isWorking}
-							compact
-						/>
-					) : null}
+						</>
+					)}
 				</div>
 			</ScrollArea>
 		</PanelView>

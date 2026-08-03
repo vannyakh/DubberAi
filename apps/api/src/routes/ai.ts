@@ -122,9 +122,17 @@ export async function aiRoutes(app: FastifyInstance) {
     { bodyLimit: MEDIA_BODY_LIMIT },
     async (request) => {
       const body = z
-        .object({ videoBase64: z.string().min(1), mimeType: z.string().min(1) })
+        .object({
+          videoBase64: z.string().min(1),
+          mimeType: z.string().min(1),
+          language: z.string().optional(),
+        })
         .parse(request.body);
-      const result = await transcribeVideo(body.videoBase64, body.mimeType);
+      const result = await transcribeVideo(
+        body.videoBase64,
+        body.mimeType,
+        body.language,
+      );
       return { result };
     },
   );
@@ -155,6 +163,8 @@ export async function aiRoutes(app: FastifyInstance) {
             intensity: z.string().optional(),
             delivery: z.string().optional(),
             persona: z.string().optional(),
+            pace: z.string().optional(),
+            voiceTone: z.string().optional(),
           })
           .optional(),
       })

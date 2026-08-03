@@ -1,6 +1,7 @@
 import {
   assertGeminiKey,
   assertOpenAiKey,
+  CHAT_MODEL,
   GEMINI_API_KEY,
   GEMINI_BASE_URL,
   hasGeminiKey,
@@ -159,12 +160,43 @@ function guessSpeakerIndex(segments: WhisperSegment[], index: number): number {
   return Math.max(1, unique.indexOf(current) + 1);
 }
 
+/** Map spoken-language names to ISO-639-1 codes for Whisper's language hint. */
+const LANGUAGE_ISO_CODES: Record<string, string> = {
+  english: 'en',
+  khmer: 'km',
+  spanish: 'es',
+  french: 'fr',
+  german: 'de',
+  chinese: 'zh',
+  japanese: 'ja',
+  korean: 'ko',
+  vietnamese: 'vi',
+  thai: 'th',
+  hindi: 'hi',
+};
+
+function isoCodeForLanguage(language?: string): string | undefined {
+  if (!language) return undefined;
+  const normalized = language.trim().toLowerCase();
+  if (/^[a-z]{2}$/.test(normalized)) return normalized;
+  for (const [name, code] of Object.entries(LANGUAGE_ISO_CODES)) {
+    if (normalized.includes(name)) return code;
+  }
+  return undefined;
+}
+
 /**
- * Speech-to-text: split WAV into chunks and run Whisper in parallel.
+ * Speech-to-text: split WAV into chunks and transcribe in parallel.
+ * Provider order: OpenAI Whisper → Gemini (audio input) → Hugging Face.
  * Never sends the full long-form payload as a single provider call.
+ * `language` is an optional spoken-language hint; omit for auto-detect.
  */
-export async function transcribeVideo(videoBase64: string, mimeType: string) {
-  if (!hasOpenAiKey() && !hasHfToken()) {
+export async function transcribeVideo(
+  videoBase64: string,
+  mimeType: string,
+  language?: string,
+) {
+  if (!hasOpenAiKey() && !hasGeminiKey() && !hasHfToken()) {
     assertOpenAiKey();
   }
 
@@ -174,6 +206,7 @@ export async function transcribeVideo(videoBase64: string, mimeType: string) {
   }
 
   const isWav = (mimeType || '').toLowerCase().includes('wav');
+  const chunkMime = isWav ? 'audio/wav' : mimeType || 'audio/wav';
   const chunks = isWav
     ? splitWavIntoChunks(bytes, TRANSCRIBE_CHUNK_SECONDS)
     : [{ wavBytes: bytes, startSeconds: 0, index: 0 }];
@@ -189,9 +222,7 @@ export async function transcribeVideo(videoBase64: string, mimeType: string) {
     TRANSCRIBE_CONCURRENCY,
     async (chunk) => {
       const result = await withRetry(() =>
-        hasOpenAiKey()
-          ? transcribeWavBytesOpenAi(chunk.wavBytes, 'audio/wav')
-          : transcribeWavBytesHf(chunk.wavBytes),
+        transcribeWavBytesBestProvider(chunk.wavBytes, chunkMime, language),
       );
       return {
         startSeconds: chunk.startSeconds,
@@ -201,11 +232,11 @@ export async function transcribeVideo(videoBase64: string, mimeType: string) {
   );
 
   const mergedSegments: WhisperSegment[] = [];
-  let language: string | undefined;
+  let detectedLanguage: string | undefined;
   const plainParts: string[] = [];
 
   for (const { startSeconds, result } of chunkResults) {
-    if (result.language && !language) language = result.language;
+    if (result.language && !detectedLanguage) detectedLanguage = result.language;
     if (result.segments && result.segments.length > 0) {
       for (const segment of result.segments) {
         mergedSegments.push({
@@ -224,23 +255,32 @@ export async function transcribeVideo(videoBase64: string, mimeType: string) {
     }
   }
 
-  const formatted = formatWhisperTranscript({
-    language,
+  // Empty is valid for a silent/music-only chunk. Callers that split media
+  // into parallel uploads merge non-empty parts and only fail if all are empty.
+  return formatWhisperTranscript({
+    language: detectedLanguage ?? language,
     text: plainParts.join(' ').trim() || undefined,
     segments: mergedSegments,
   });
+}
 
-  if (!formatted.transcript) {
-    throw new Error('Transcription returned no dialogue');
-  }
-  return formatted;
+function transcribeWavBytesBestProvider(
+  bytes: Uint8Array,
+  mimeType: string,
+  language?: string,
+): Promise<WhisperTranscriptionResult> {
+  if (hasOpenAiKey()) return transcribeWavBytesOpenAi(bytes, mimeType, language);
+  if (hasGeminiKey()) return transcribeWavBytesGemini(bytes, mimeType, language);
+  return transcribeWavBytesHf(bytes);
 }
 
 async function transcribeWavBytesOpenAi(
   bytes: Uint8Array,
   mimeType: string,
+  language?: string,
 ): Promise<WhisperTranscriptionResult> {
   assertOpenAiKey();
+  const isoCode = isoCodeForLanguage(language);
 
   const postTranscription = async ({
     model,
@@ -256,6 +296,7 @@ async function transcribeWavBytesOpenAi(
     form.append('file', blob, `audio.${extensionForMime(mimeType)}`);
     form.append('model', model);
     form.append('response_format', responseFormat);
+    if (isoCode) form.append('language', isoCode);
 
     return fetch(`${OPENAI_BASE_URL}/v1/audio/transcriptions`, {
       method: 'POST',
@@ -324,8 +365,92 @@ async function transcribeWavBytesOpenAi(
   return payload;
 }
 
+const GEMINI_STT_PROMPT = `Transcribe this audio verbatim.
+Return JSON only, in this exact shape:
+{"language":"english","segments":[{"start":0.0,"end":2.5,"speaker":"Speaker 1","text":"..."}]}
+Rules:
+- "start" and "end" are decimal seconds measured from the beginning of THIS audio.
+- Label distinct voices "Speaker 1", "Speaker 2", ... and keep labels consistent.
+- Keep each segment to one spoken sentence or phrase.
+- If there is no speech, return {"language":null,"segments":[]}.`;
+
+async function transcribeWavBytesGemini(
+  bytes: Uint8Array,
+  mimeType: string,
+  language?: string,
+): Promise<WhisperTranscriptionResult> {
+  console.warn('OPENAI_API_KEY unset — transcribing with Gemini.');
+  const prompt = language
+    ? `${GEMINI_STT_PROMPT}\n- The audio is spoken in ${language}; transcribe it in that language's native script.`
+    : GEMINI_STT_PROMPT;
+  const response = await fetch(geminiGenerateUrl(CHAT_MODEL), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            { text: prompt },
+            {
+              inline_data: {
+                mime_type: mimeType || 'audio/wav',
+                data: bytesToBase64(bytes),
+              },
+            },
+          ],
+        },
+      ],
+      generationConfig: {
+        temperature: 0,
+        responseMimeType: 'application/json',
+      },
+    }),
+  });
+
+  const raw = await response.text();
+  if (!response.ok) {
+    let message = `Gemini transcription failed with status ${response.status}`;
+    try {
+      const errJson = JSON.parse(raw) as {
+        error?: { message?: string };
+        message?: string;
+      };
+      message = errJson.error?.message || errJson.message || message;
+    } catch {
+      if (raw) message = raw;
+    }
+    throw new ApiError(message, response.status);
+  }
+
+  const data = JSON.parse(raw) as {
+    candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+  };
+  const text =
+    data.candidates?.[0]?.content?.parts?.map((p) => p.text || '').join('') ||
+    '';
+  const cleaned = text
+    .trim()
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/\s*```$/, '');
+  try {
+    const parsed = JSON.parse(cleaned || '{}') as {
+      language?: string | null;
+      segments?: WhisperSegment[];
+    };
+    return {
+      language: parsed.language ?? undefined,
+      segments: parsed.segments ?? [],
+    };
+  } catch {
+    // Model answered in prose despite the JSON instruction.
+    if (cleaned) return { text: cleaned };
+    throw new Error('Gemini transcription returned no parseable output');
+  }
+}
+
 async function transcribeWavBytesHf(bytes: Uint8Array): Promise<WhisperTranscriptionResult> {
-  console.warn('OPENAI_API_KEY unset — using Hugging Face Whisper.');
+  console.warn('No OpenAI/Gemini key — using Hugging Face Whisper.');
   const payload = await transcribeHuggingFace(bytes);
   const segments =
     payload.chunks?.map((chunk) => ({
@@ -343,6 +468,9 @@ async function transcribeWavBytesHf(bytes: Uint8Array): Promise<WhisperTranscrip
 export async function analyzeVideo(videoBase64: string, mimeType: string, language: string) {
   // Best-effort: transcribe first, then ask the chat model for highlights.
   const { transcript } = await transcribeVideo(videoBase64, mimeType);
+  if (!transcript?.trim()) {
+    throw new Error('Transcription returned no dialogue');
+  }
   const raw = await chatComplete(`Analyze this transcript for a highlight summary in ${language}.
 
 Transcript:
@@ -484,33 +612,49 @@ function sanitizeTtsText(text: string): string {
     .slice(0, 4000);
 }
 
+interface TtsStyle {
+  feeling?: string;
+  intensity?: string;
+  delivery?: string;
+  persona?: string;
+  pace?: string;
+  voiceTone?: string;
+}
+
 function buildEmotionalTtsText({
   text,
   style,
 }: {
   text: string;
-  style?: {
-    feeling?: string;
-    intensity?: string;
-    delivery?: string;
-    persona?: string;
-  };
+  style?: TtsStyle;
 }): string {
   const spoken = sanitizeTtsText(text);
   if (!spoken) return spoken;
-  if (!style?.feeling && !style?.delivery && !style?.persona) return spoken;
+  const hasStyle =
+    style?.feeling ||
+    style?.delivery ||
+    style?.persona ||
+    style?.pace ||
+    style?.voiceTone;
+  if (!hasStyle) return spoken;
 
   const mood =
-    style.feeling && style.feeling !== 'neutral' ? style.feeling : 'natural';
+    style.feeling && style.feeling !== 'neutral' ? style.feeling : null;
   const energy = style.intensity || 'medium';
-  const parts = [
-    `Speak with a ${mood} emotional tone`,
-    `at ${energy} intensity`,
-  ];
+  const parts = mood
+    ? [`Speak with a ${mood} emotional tone`, `at ${energy} intensity`]
+    : [
+        'Speak naturally and conversationally, like a real person in everyday dialogue',
+        'with subtle intonation shifts and a relaxed, lifelike rhythm — never flat or robotic',
+      ];
+  if (style.voiceTone) parts.push(`in a ${style.voiceTone} voice`);
+  if (style.pace && style.pace !== 'normal') {
+    parts.push(`at a ${style.pace} speaking pace`);
+  }
   if (style.persona) parts.push(`as ${style.persona}`);
   if (style.delivery) parts.push(`using ${style.delivery}`);
   parts.push(
-    'Sound like a real character performance. Do not narrate stage directions out loud.',
+    'Sound like a real human performance with natural breaths and timing. Do not narrate stage directions out loud.',
   );
   return `${parts.join(', ')}.\n\nDialogue:\n${spoken}`;
 }
@@ -628,12 +772,7 @@ async function requestHuggingFaceTts(text: string): Promise<string> {
 export async function generateSpeech(
   text: string,
   voice: string = 'Kore',
-  style?: {
-    feeling?: string;
-    intensity?: string;
-    delivery?: string;
-    persona?: string;
-  },
+  style?: TtsStyle,
 ) {
   const cleanText = buildEmotionalTtsText({ text, style });
   if (!cleanText) {

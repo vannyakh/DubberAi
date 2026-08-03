@@ -44,7 +44,18 @@ export function pcmBase64ToWavFile({
 	for (let i = 0; i < binary.length; i++) {
 		pcm[i] = binary.charCodeAt(i);
 	}
+	return pcmBytesToWavFile({ pcm, name, sampleRate });
+}
 
+export function pcmBytesToWavFile({
+	pcm,
+	name,
+	sampleRate = TTS_SAMPLE_RATE,
+}: {
+	pcm: Uint8Array;
+	name: string;
+	sampleRate?: number;
+}): File {
 	const header = new ArrayBuffer(44);
 	const view = new DataView(header);
 	const writeString = (offset: number, value: string) => {
@@ -346,8 +357,8 @@ export async function applySegmentedDubToTimeline({
 	}
 
 	const files = fitted.map((fit, index) =>
-		pcmBase64ToWavFile({
-			base64: fit.base64,
+		pcmBytesToWavFile({
+			pcm: fit.pcm,
 			name: `${namePrefix}-${String(index + 1).padStart(2, "0")}-${segments[index]?.speaker || clips[index].segment.speaker || "voice"}.wav`,
 		}),
 	);

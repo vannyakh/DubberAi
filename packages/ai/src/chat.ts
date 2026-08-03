@@ -1,8 +1,10 @@
 /**
- * Chat completions routed by model family, with Hugging Face fallback:
- * - gemini* → Gemini (or HF if GEMINI_API_KEY unset)
- * - claude* → Anthropic (or HF if ANTHROPIC_API_KEY unset)
- * - otherwise → OpenAI (or HF if OPENAI_API_KEY unset)
+ * Chat completions routed by model family:
+ * - gemini* → Gemini
+ * - claude* → Anthropic
+ * - otherwise → OpenAI
+ * When the preferred provider key is unset, falls back to Gemini first
+ * (if available), then Hugging Face.
  */
 
 import {
@@ -164,7 +166,7 @@ async function chatOpenAi(prompt: string, options: ChatOptions): Promise<string>
 	return data.choices?.[0]?.message?.content || '';
 }
 
-async function chatWithHfFallback(
+async function chatWithFallback(
 	prompt: string,
 	options: ChatOptions,
 	preferred: () => Promise<string>,
@@ -172,6 +174,10 @@ async function chatWithHfFallback(
 	label: string,
 ): Promise<string> {
 	if (hasPreferred) return preferred();
+	if (hasGeminiKey()) {
+		console.warn(`${label} key unset — using Gemini (${CHAT_MODEL}).`);
+		return chatGemini(prompt, { ...options, model: CHAT_MODEL });
+	}
 	if (hasHfToken()) {
 		console.warn(`${label} key unset — using Hugging Face (${HF_CHAT_MODEL}).`);
 		return chatHuggingFace(prompt, {
@@ -186,7 +192,7 @@ export async function chatComplete(prompt: string, options: ChatOptions = {}): P
 	const model = options.model || CHAT_MODEL;
 	return withRetry(async () => {
 		if (isClaudeModel(model)) {
-			return chatWithHfFallback(
+			return chatWithFallback(
 				prompt,
 				options,
 				() => chatAnthropic(prompt, options),
@@ -195,7 +201,7 @@ export async function chatComplete(prompt: string, options: ChatOptions = {}): P
 			);
 		}
 		if (isGeminiModel(model)) {
-			return chatWithHfFallback(
+			return chatWithFallback(
 				prompt,
 				options,
 				() => chatGemini(prompt, options),
@@ -203,7 +209,7 @@ export async function chatComplete(prompt: string, options: ChatOptions = {}): P
 				'GEMINI_API_KEY',
 			);
 		}
-		return chatWithHfFallback(
+		return chatWithFallback(
 			prompt,
 			options,
 			() => chatOpenAi(prompt, options),

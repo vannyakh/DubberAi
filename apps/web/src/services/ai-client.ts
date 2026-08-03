@@ -17,6 +17,27 @@ const API_BASE: string =
 	(import.meta.env.VITE_API_URL as string | undefined) ??
 	"http://localhost:4000";
 
+export class AiClientError extends Error {
+	constructor(
+		message: string,
+		readonly status: number,
+	) {
+		super(message);
+		this.name = "AiClientError";
+	}
+}
+
+/** True for errors that won't recover on retry (bad key, depleted quota…). */
+export function isUnrecoverableAiError(error: unknown): boolean {
+	if (!(error instanceof AiClientError)) return false;
+	return (
+		error.status >= 400 &&
+		error.status < 500 &&
+		error.status !== 408 &&
+		error.status !== 429
+	);
+}
+
 async function postAi<T>(path: string, body: unknown): Promise<T> {
 	const response = await fetch(`${API_BASE}/api/ai/${path}`, {
 		method: "POST",
@@ -31,7 +52,7 @@ async function postAi<T>(path: string, body: unknown): Promise<T> {
 		} catch {
 			// keep the status-based message
 		}
-		throw new Error(message);
+		throw new AiClientError(message, response.status);
 	}
 	const payload = (await response.json()) as { result: T };
 	return payload.result;
@@ -71,8 +92,13 @@ function offsetTranscriptTimestamps(
 export function transcribeVideo(
 	videoBase64: string,
 	mimeType: string,
+	language?: string,
 ): Promise<TranscriptionResult> {
-	return postAi<TranscriptionResult>("transcribe", { videoBase64, mimeType });
+	return postAi<TranscriptionResult>("transcribe", {
+		videoBase64,
+		mimeType,
+		language,
+	});
 }
 
 /**
@@ -83,11 +109,14 @@ export async function transcribeMediaFile({
 	file,
 	chunkSeconds = DEFAULT_CHUNK_SECONDS,
 	concurrency = DEFAULT_CONCURRENCY,
+	language,
 	onChunkProgress,
 }: {
 	file: File;
 	chunkSeconds?: number;
 	concurrency?: number;
+	/** Spoken language hint (e.g. "Chinese"); omit for auto-detect. */
+	language?: string;
 	onChunkProgress?: (done: number, total: number) => void;
 }): Promise<TranscriptionResult> {
 	const { chunks } = await extractAudioChunksForTranscription({
@@ -103,14 +132,33 @@ export async function transcribeMediaFile({
 		chunks,
 		concurrency,
 		async (chunk: ExtractedAudioChunk) => {
-			const result = await transcribeVideo(chunk.base64, chunk.mimeType);
-			completed += 1;
-			onChunkProgress?.(completed, chunks.length);
-			return {
-				startSeconds: chunk.startSeconds,
-				transcript: result.transcript ?? "",
-				detectedLanguage: result.detectedLanguage ?? null,
-			};
+			try {
+				const result = await transcribeVideo(
+				chunk.base64,
+				chunk.mimeType,
+				language,
+			);
+				completed += 1;
+				onChunkProgress?.(completed, chunks.length);
+				return {
+					startSeconds: chunk.startSeconds,
+					transcript: result.transcript ?? "",
+					detectedLanguage: result.detectedLanguage ?? null,
+				};
+			} catch (error) {
+				// Silent/music-only chunks used to 500 with this message; treat as empty.
+				const message = error instanceof Error ? error.message : "";
+				if (/no dialogue/i.test(message)) {
+					completed += 1;
+					onChunkProgress?.(completed, chunks.length);
+					return {
+						startSeconds: chunk.startSeconds,
+						transcript: "",
+						detectedLanguage: null,
+					};
+				}
+				throw error;
+			}
 		},
 	);
 
@@ -151,6 +199,8 @@ export function generateSpeech(
 		intensity?: string;
 		delivery?: string;
 		persona?: string;
+		pace?: string;
+		voiceTone?: string;
 	},
 ): Promise<string> {
 	return postAi<string>("tts", { text, voice, style });
@@ -172,6 +222,10 @@ export interface SpeakerVocalProfileResult {
 		| "romantic"
 		| "urgent";
 	persona?: string;
+	/** Desired voice timbre for casting (e.g. "warm", "gravelly"). */
+	voiceTone?: string;
+	pace?: "slow" | "normal" | "fast";
+	age?: "child" | "young" | "adult" | "mature";
 }
 
 export interface DetectVocalStylesClientResult {
