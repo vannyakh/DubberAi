@@ -21,6 +21,7 @@ import {
 	ensureFontsForTexts,
 	resolveGoogleFontForText,
 } from "@/fonts/language-fonts";
+import { fitPcmToDuration } from "./fit-audio";
 
 const TTS_SAMPLE_RATE = 24000;
 const DEFAULT_SEGMENT_SECONDS = 3;
@@ -256,10 +257,53 @@ export interface DubClip {
 	audioBase64: string;
 }
 
+/** Beat window for one clip: total slot plus the spoken part (minus trailing pause). */
+function slotForSegment({
+	segments,
+	index,
+	footageEndSeconds,
+}: {
+	segments: Segment[];
+	index: number;
+	footageEndSeconds: number;
+}): { slotSeconds: number; spokenSlotSeconds: number } {
+	const segment = segments[index];
+	const speaker = segment.speaker || "Speaker";
+	// Match caption beat: mirror the same window used by Dub captions.
+	const captionSeconds = segmentDuration({
+		segments,
+		index,
+		footageEndSeconds,
+	});
+	// Also don't overlap the next line for the same character track.
+	const nextSameSpeakerTime = findNextSameSpeakerTime({
+		segments,
+		index,
+		speaker,
+	});
+	const sameSpeakerSeconds =
+		nextSameSpeakerTime !== undefined && nextSameSpeakerTime > segment.time
+			? nextSameSpeakerTime - segment.time
+			: captionSeconds;
+	const slotSeconds = Math.max(
+		0.4,
+		Math.min(captionSeconds, sameSpeakerSeconds),
+	);
+	const trailingPause = Math.min(
+		segment.pauseAfterSeconds ?? 0,
+		Math.max(0, slotSeconds - 0.4),
+	);
+	return {
+		slotSeconds,
+		spokenSlotSeconds: Math.max(0.4, slotSeconds - trailingPause),
+	};
+}
+
 /**
  * Import one TTS clip per transcript segment and lay them on dedicated
- * per-speaker audio tracks: each clip starts at its segment timestamp and
- * is trimmed so it never overruns the next segment's beat window.
+ * per-speaker audio tracks: each clip starts at its segment timestamp.
+ * Clips that overrun their beat window are sped up (pitch preserved) to
+ * fit; only residual overflow beyond the speed-up cap gets trimmed.
  */
 export async function applySegmentedDubToTimeline({
 	editor,
@@ -282,10 +326,29 @@ export async function applySegmentedDubToTimeline({
 	});
 	const speakers = uniqueSpeakers(segments);
 
-	const files = clips.map((clip, index) =>
+	// Speed-fit every clip into its spoken window before import (parallel).
+	const slots = segments.map((_, index) =>
+		slotForSegment({ segments, index, footageEndSeconds: footageEnd }),
+	);
+	const fitted = await Promise.all(
+		clips.map((clip, index) =>
+			fitPcmToDuration({
+				base64: clip.audioBase64,
+				targetSeconds: slots[index].spokenSlotSeconds,
+			}),
+		),
+	);
+	const spedUp = fitted.filter((fit) => fit.tempo > 1).length;
+	if (spedUp > 0) {
+		console.info(
+			`Dub: sped up ${spedUp}/${clips.length} clips to fit their segment windows`,
+		);
+	}
+
+	const files = fitted.map((fit, index) =>
 		pcmBase64ToWavFile({
-			base64: clip.audioBase64,
-			name: `${namePrefix}-${String(index + 1).padStart(2, "0")}-${segments[index]?.speaker || clip.segment.speaker || "voice"}.wav`,
+			base64: fit.base64,
+			name: `${namePrefix}-${String(index + 1).padStart(2, "0")}-${segments[index]?.speaker || clips[index].segment.speaker || "voice"}.wav`,
 		}),
 	);
 	const processed = await processMediaAssets({ files });
@@ -319,26 +382,7 @@ export async function applySegmentedDubToTimeline({
 		}
 
 		const sourceSeconds = asset.duration ?? DEFAULT_SEGMENT_SECONDS;
-		// Match caption beat: mirror the same window used by Dub captions.
-		const captionSeconds = segmentDuration({
-			segments,
-			index,
-			footageEndSeconds: footageEnd,
-		});
-		// Also don't overlap the next line for the same character track.
-		const nextSameSpeakerTime = findNextSameSpeakerTime({
-			segments,
-			index,
-			speaker,
-		});
-		const sameSpeakerSeconds =
-			nextSameSpeakerTime !== undefined && nextSameSpeakerTime > segment.time
-				? nextSameSpeakerTime - segment.time
-				: captionSeconds;
-		const slotSeconds = Math.max(
-			0.4,
-			Math.min(captionSeconds, sameSpeakerSeconds),
-		);
+		const { slotSeconds } = slots[index];
 		const visibleSeconds = spokenTrimSeconds({
 			segment,
 			slotSeconds,
