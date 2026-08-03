@@ -38,11 +38,13 @@ class ApiError extends Error {
 	}
 }
 
+const RETRYABLE_STATUSES = new Set([408, 429, 500, 502, 503, 504]);
+
 async function withRetry<T>(fn: () => Promise<T>, retries = 3, delay = 1000): Promise<T> {
 	try {
 		return await fn();
 	} catch (error: any) {
-		if (retries > 0 && (error.status === 500 || error.status === 503 || error.status === 429)) {
+		if (retries > 0 && RETRYABLE_STATUSES.has(error.status)) {
 			console.warn(`AI error (${error.status}). Retrying in ${delay}ms... (${retries} attempts left)`);
 			await new Promise((resolve) => setTimeout(resolve, delay));
 			return withRetry(fn, retries - 1, delay * 2);

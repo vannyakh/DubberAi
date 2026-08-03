@@ -25,7 +25,15 @@ export const HF_ROUTER_BASE_URL =
 	process.env.HF_ROUTER_BASE_URL || 'https://router.huggingface.co';
 /** OpenAI-compatible chat model on the HF router. */
 export const HF_CHAT_MODEL =
-	process.env.HF_CHAT_MODEL || 'Qwen/Qwen2.5-7B-Instruct';
+	process.env.HF_CHAT_MODEL || 'Qwen/Qwen3-4B-Instruct-2507';
+/** Tried in order when the primary HF chat model isn't enabled for this token. */
+export const HF_CHAT_MODEL_FALLBACKS = (
+	process.env.HF_CHAT_MODEL_FALLBACKS ||
+	'Qwen/Qwen3-8B,google/gemma-3-4b-it,openai/gpt-oss-20b,meta-llama/Llama-3.1-8B-Instruct'
+)
+	.split(',')
+	.map((s) => s.trim())
+	.filter(Boolean);
 /** HF Inference text-to-speech model. */
 export const HF_TTS_MODEL =
 	process.env.HF_TTS_MODEL || 'facebook/mms-tts-eng';

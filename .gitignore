@@ -1,4 +1,6 @@
 node_modules/
+# Platform-specific Prisma engines; regenerate via apps/api postinstall / db:generate
+apps/api/src/generated/
 build/
 dist/
 dist-electron/

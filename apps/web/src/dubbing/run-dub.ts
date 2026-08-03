@@ -414,6 +414,38 @@ async function generateSegmentClips({
 	let completed = 0;
 	let cursor = 0;
 
+	async function synthesizeWithRetry({
+		text,
+		voice,
+		style,
+		attempts = 3,
+	}: {
+		text: string;
+		voice: string;
+		style?: ReturnType<typeof speechStyleForSegment>;
+		attempts?: number;
+	}): Promise<string> {
+		let lastError: unknown;
+		for (let attempt = 0; attempt < attempts; attempt++) {
+			assertNotCancelled(signal);
+			try {
+				return await generateSpeech(text, voice, style);
+			} catch (error) {
+				lastError = error;
+				if (error instanceof DubCancelledError) throw error;
+				const wait = 2000 * 2 ** attempt;
+				console.warn(
+					`TTS failed (attempt ${attempt + 1}/${attempts}), retrying in ${wait}ms…`,
+					error,
+				);
+				await new Promise((resolve) => setTimeout(resolve, wait));
+			}
+		}
+		throw lastError instanceof Error
+			? lastError
+			: new Error("Speech synthesis failed");
+	}
+
 	async function worker() {
 		while (cursor < spoken.length) {
 			assertNotCancelled(signal);
@@ -425,7 +457,11 @@ async function generateSegmentClips({
 				defaultVoice,
 			});
 			const style = speechStyleForSegment({ segment, speakerProfiles });
-			const audio = await generateSpeech(segment.text.trim(), voice, style);
+			const audio = await synthesizeWithRetry({
+				text: segment.text.trim(),
+				voice,
+				style,
+			});
 			assertNotCancelled(signal);
 			if (!audio) {
 				throw new Error(
